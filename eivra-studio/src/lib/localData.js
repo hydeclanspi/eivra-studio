@@ -46,6 +46,8 @@ export const PAGE_AMBIENT_THEME_DEFAULTS = {
   dashboard_analysis: 'classic_white',
   dashboard_metrics: 'classic_white',
   dashboard_report: 'classic_white',
+  dashboard_quants: 'classic_white',
+  quants: 'classic_white',
   history: 'classic_white',
   teams: 'classic_white',
   params: 'classic_white',

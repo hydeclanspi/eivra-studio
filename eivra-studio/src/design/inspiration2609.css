@@ -92,7 +92,7 @@
 
 /* Original Modern widths and spacing for Settle, Records and Seasons. Seasons'
  * original top/bottom spacing remains owned by .warreport-scope. */
-.theme-inspiration-2609 .inspiration-2609-body:is([data-lab-page='settle'], [data-lab-page='history'], [data-lab-page='dashboard_report'], [data-lab-page='dashboard_metrics'], [data-lab-page='dashboard_analysis'], [data-lab-page='dashboard_quants']) .page-shell {
+.theme-inspiration-2609 .inspiration-2609-body:is([data-lab-page='settle'], [data-lab-page='history'], [data-lab-page='dashboard_report'], [data-lab-page='dashboard_metrics'], [data-lab-page='dashboard_analysis'], [data-lab-page='quants']) .page-shell {
   width: min(100%, 1320px);
   max-width: none;
   padding: clamp(24px, 3vw, 48px) clamp(20px, 4vw, 56px);
@@ -111,12 +111,12 @@
   flex-wrap: nowrap;
 }
 @media (min-width: 1440px) {
-  .theme-inspiration-2609 .inspiration-2609-body:is([data-lab-page='settle'], [data-lab-page='history'], [data-lab-page='dashboard_report'], [data-lab-page='dashboard_metrics'], [data-lab-page='dashboard_analysis'], [data-lab-page='dashboard_quants']) .page-shell {
+  .theme-inspiration-2609 .inspiration-2609-body:is([data-lab-page='settle'], [data-lab-page='history'], [data-lab-page='dashboard_report'], [data-lab-page='dashboard_metrics'], [data-lab-page='dashboard_analysis'], [data-lab-page='quants']) .page-shell {
     padding: 48px 64px;
   }
 }
 @media (min-width: 1680px) {
-  .theme-inspiration-2609 .inspiration-2609-body:is([data-lab-page='settle'], [data-lab-page='history'], [data-lab-page='dashboard_report'], [data-lab-page='dashboard_metrics'], [data-lab-page='dashboard_analysis'], [data-lab-page='dashboard_quants']) .page-shell {
+  .theme-inspiration-2609 .inspiration-2609-body:is([data-lab-page='settle'], [data-lab-page='history'], [data-lab-page='dashboard_report'], [data-lab-page='dashboard_metrics'], [data-lab-page='dashboard_analysis'], [data-lab-page='quants']) .page-shell {
     width: min(100%, 1440px);
     padding: 56px 80px;
   }

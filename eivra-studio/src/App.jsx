@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 
 // Components
@@ -11,6 +11,7 @@ import Modal from './components/Modal'
 import DemoBubble from './components/DemoBubble'
 import LabEditionBar from './components/LabEditionBar'
 import Inspiration2609Shell from './components/Inspiration2609Shell'
+import PageErrorBoundary from './components/PageErrorBoundary'
 import LiquidGlassBackdrop from './components/LiquidGlassBackdrop'
 import SmoothGlassBackdrop from './components/SmoothGlassBackdrop'
 import { isComposedGlassStyle, isDarkGlassStyle, normalizeLiquidGlassQuality, normalizeLiquidGlassMaterialQuality, normalizeLiquidGlassStyle } from './design/liquidGlassThemes'
@@ -29,6 +30,7 @@ import TeamsPage from './pages/TeamsPage'
 import AnalysisPage from './pages/AnalysisPage'
 import MetricsPage from './pages/MetricsPage'
 import WarReportPage from './pages/WarReportPage'
+import QuantsPage from './pages/QuantsPage'
 
 import { getSystemConfig, PAGE_AMBIENT_THEME_DEFAULTS, isInTimeMachineMode } from './lib/localData'
 import { trackRouteAccess } from './lib/accessTracking'
@@ -46,6 +48,8 @@ const PAGE_AMBIENT_ROUTE_MAP = {
   '/dashboard/analysis': 'dashboard_analysis',
   '/dashboard/metrics': 'dashboard_metrics',
   '/dashboard/report': 'dashboard_report',
+  '/dashboard/quants': 'dashboard_quants',
+  '/quants': 'quants',
   '/history': 'history',
   '/history/teams': 'teams',
   '/params': 'params',
@@ -281,7 +285,8 @@ function App() {
   const demoBubble = !designPreview && displayMode === PREVIEW_MODE && isHomeRoute ? <DemoBubble /> : null
 
   const pageRoutes = (
-    <Routes>
+    <PageErrorBoundary key={location.pathname}>
+      <Routes>
       <Route path="/" element={<NewInvestmentPage openModal={openModal} />} />
       <Route path="/new" element={<NewInvestmentPage openModal={openModal} />} />
       <Route path="/combo" element={<ComboPage openModal={openModal} inspirationLayout={inspiration2609Active && layoutMode === 'inpiration'} />} />
@@ -290,10 +295,13 @@ function App() {
       <Route path="/dashboard/analysis" element={<AnalysisPage openModal={openModal} />} />
       <Route path="/dashboard/metrics" element={<MetricsPage openModal={openModal} />} />
       <Route path="/dashboard/report" element={<WarReportPage openModal={openModal} />} />
+      <Route path="/quants" element={<QuantsPage openModal={openModal} />} />
+      <Route path="/dashboard/quants" element={<Navigate to="/quants" replace />} />
       <Route path="/history" element={<HistoryPage openModal={openModal} />} />
       <Route path="/history/teams" element={<TeamsPage openModal={openModal} />} />
       <Route path="/params" element={<ParamsPage openModal={openModal} previewLayoutMode={inspiration2609Preview ? layoutMode : undefined} />} />
-    </Routes>
+      </Routes>
+    </PageErrorBoundary>
   )
 
   // Approved theme, shared by live routes and the isolated design preview.

@@ -10,6 +10,7 @@ import {
   TrendingUp,
   FileText,
   Flag,
+  FlaskConical,
   Swords,
   PanelsTopLeft,
 } from 'lucide-react'
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { id: 'new', path: '/new', label: 'New', Icon: PlusCircle },
   { id: 'combo', path: '/combo', label: 'Portfolio', Icon: LayoutGrid },
   { id: 'settle', path: '/settle', label: 'Settle', Icon: Clock, showBadge: 'pending' },
+  { id: 'quants', path: '/quants', label: 'Quants', Icon: FlaskConical },
   {
     id: 'dashboard',
     path: '/dashboard',
@@ -61,6 +63,8 @@ const PAGE_TITLES = {
   '/dashboard/analysis': 'Deep Analysis',
   '/dashboard/metrics': 'Metrics',
   '/dashboard/report': 'Seasons',
+  '/dashboard/quants': 'Quants Lab',
+  '/quants': 'Quants Lab',
   '/history': 'History',
   '/history/teams': 'Team Archive',
   '/params': 'Console',

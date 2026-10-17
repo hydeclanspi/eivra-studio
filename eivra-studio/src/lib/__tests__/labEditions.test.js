@@ -26,6 +26,7 @@ describe('lab preview routes and visual-only preferences', () => {
       '/dashboard',
       '/dashboard/report',
       '/dashboard/metrics',
+      '/quants',
       '/dashboard/analysis',
       '/history',
       '/history/teams',

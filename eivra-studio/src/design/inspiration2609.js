@@ -12,6 +12,8 @@ export const INSPIRATION_2609_MATERIALS = Object.freeze({
   '/dashboard/analysis': 'prism',
   '/dashboard/metrics': 'prism',
   '/dashboard/report': 'prism',
+  '/dashboard/quants': 'prism',
+  '/quants': 'prism',
   '/history': 'prism',
   '/history/teams': 'peach',
   '/params': 'modern',

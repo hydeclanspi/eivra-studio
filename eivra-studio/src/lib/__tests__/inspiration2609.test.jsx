@@ -36,6 +36,8 @@ describe('inspiration 2609 selected page composition', () => {
       '/dashboard/analysis': 'prism',
       '/dashboard/metrics': 'prism',
       '/dashboard/report': 'prism',
+      '/dashboard/quants': 'prism',
+      '/quants': 'prism',
       '/history': 'prism',
       '/history/teams': 'peach',
       '/params': 'modern',

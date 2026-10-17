@@ -20,6 +20,7 @@ import ExplainHover from '../components/ExplainHover'
 import { maskReactTree, useLabels, usePreviewTextMask } from '../lib/labels'
 import { useModeLabelMap } from '../components/ModeLabel'
 import { isPreviewMode } from '../lib/displayMode'
+import QuantsLiveSignals from '../components/QuantsLiveSignals'
 
 
 
@@ -5424,6 +5425,8 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
         <h2 className="text-2xl font-semibold text-stone-800 font-display">智能组合建议</h2>
         <p className="text-stone-400 text-sm mt-1">基于 Portfolio Optimization 的最优投资方案</p>
       </div>
+
+      <QuantsLiveSignals />
 
       <PortfolioComposition inspiration={inspirationLayout} main={
       <div className={`combo-main-grid mb-6${leftPanelCollapsed ? ' combo-left-collapsed' : ''}`}>

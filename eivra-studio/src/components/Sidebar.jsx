@@ -41,6 +41,7 @@ export default function Sidebar({ collapsed, onToggleCollapse }) {
       { id: 'new', path: '/new', label: '新建投资', iconChar: '◈' },
       { id: 'combo', path: '/combo', label: '智能组合', iconChar: '❖' },
       { id: 'settle', path: '/settle', label: '待结算', badge: String(stats.pendingCount), highlight: true, iconChar: '◉' },
+      { id: 'quants', path: '/quants', label: 'Quants 实验室', iconChar: '⚗' },
       {
         id: 'dashboard',
         path: '/dashboard',
