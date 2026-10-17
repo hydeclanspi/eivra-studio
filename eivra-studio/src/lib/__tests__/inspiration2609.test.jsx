@@ -152,6 +152,45 @@ describe('inspiration 2609 selected page composition', () => {
       { breakpoint: '(min-width: 1680px)', width: 'min(100%, 1440px)', padding: '56px 80px' },
     ])
   })
+
+  it('restores New, Portfolio and Dashboard Overview to the pre-2609 page widths', () => {
+    const sheet = postcss.parse(readFileSync(
+      new URL('../../design/inspiration2609.css', import.meta.url), 'utf8',
+    ))
+    const caps = []
+    sheet.walkRules((rule) => {
+      if (!rule.selector.endsWith('.page-shell')) return
+      if (!rule.selector.includes('inspiration-2609-body')) return
+      if (!rule.selector.includes("[data-lab-page='new']") &&
+          !rule.selector.includes("[data-lab-page='combo']")) return
+      caps.push({
+        new: rule.selector.includes("[data-lab-page='new']"),
+        combo: rule.selector.includes("[data-lab-page='combo']"),
+        dashboard: rule.selector.includes("[data-lab-page='dashboard_overview']"),
+        width: rule.nodes.find((node) => node.prop === 'width')?.value,
+        maxWidth: rule.nodes.find((node) => node.prop === 'max-width')?.value,
+        margin: rule.nodes.find((node) => node.prop === 'margin-inline')?.value,
+      })
+    })
+    expect(caps).toEqual([
+      {
+        new: true,
+        combo: false,
+        dashboard: false,
+        width: 'min(100%, 1120px)',
+        maxWidth: '1120px',
+        margin: 'auto',
+      },
+      {
+        new: false,
+        combo: true,
+        dashboard: true,
+        width: 'min(100%, 1320px)',
+        maxWidth: '1320px',
+        margin: 'auto',
+      },
+    ])
+  })
 })
 
 describe('Portfolio presentation-only composition', () => {
