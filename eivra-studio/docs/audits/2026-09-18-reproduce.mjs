@@ -13,6 +13,7 @@ import { transformSync } from 'esbuild'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const baseline = '49e4622'
+// This pre-rebrand commit still stores its source at the historical directory.
 const source = (file) => execFileSync('git', ['show', `${baseline}:dugou-model-centre/${file}`], { cwd: root, encoding: 'utf8' })
 console.log(`Historical audit baseline ${baseline}; assertions intentionally reproduce pre-fix defects.`)
 function isolated(file, names, bindings = {}, before = null) {

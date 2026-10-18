@@ -1,14 +1,22 @@
-# DuGou Model Centre
+# Eivra Studio
 
-**A single-author quantitative framework for disciplined, event-driven position management.**
+**Intuition, calibrated.**
 
-DuGou 是一套个人长期迭代的量化决策系统。它处理一类特定的标的——结果离散、由市场报出赔付倍数的事件型头寸（数据域为足球赛事结果）——并围绕一个朴素、却不容易做到的命题构建：
+A personal quantitative research and decision workspace for probability calibration, portfolio construction, and event-driven position management.
+
+**Eivra** 是一个以 *eigen*（数学中的特征概念）与 *variance*（方差）为灵感创造的品牌名。它承载的是一种轻盈、敏锐而严谨的技术气质：保留人的洞察，让判断接受统计检验，并在反馈中持续校准。**Studio** 则强调这是一处可以研究、构建、验证和复盘的工作空间。
+
+**Eivra Studio** 是本项目在 GitHub、作品集与 CV 中使用的正式名称。线上产品在视觉身份更新完成前仍保留 DuGou 的页面品牌与 Logo；它与本仓库是同一个项目。品牌层级、未来命名方向与 Acuen 备选名见[品牌命名记录](eivra-studio/docs/brand-identity.md)。
+
+---
+
+Eivra Studio 是一套个人长期迭代的量化决策系统。它处理一类特定的标的——结果离散、由市场报出赔付倍数的事件型头寸（数据域为足球赛事结果）——并围绕一个朴素、却不容易做到的命题构建：
 
 > **把一笔依赖主观判断的决策，变成可计量、可校准、可复盘的过程。**
 
 它不打算与机构的全参数定价模型竞争。它解决的是另一个问题——当超额收益的来源是「人的判断」时，如何用工程与统计的纪律，约束这份判断不被情绪、近因和运气污染；并随着样本积累，让判断本身可被检验、可被修正。
 
-线上演示：**[hydeclanspi.vercel.app](https://hydeclanspi.vercel.app)**　·　个人研究与作品集项目，已迭代至 v4.9，`src/` 约 4.3 万行。
+线上演示：**[hydeclanspi.vercel.app](https://hydeclanspi.vercel.app)**　·　个人研究与作品集项目，持续迭代。
 
 ---
 
@@ -28,7 +36,7 @@ DuGou 是一套个人长期迭代的量化决策系统。它处理一类特定�
 
 ## 决策闭环 · The Loop
 
-产品不是九个孤立的页面，而是一条闭环：每一笔头寸从录入到复盘，都会回流成下一次决策的校准燃料。样本越多，回路越准。
+产品围绕一条决策闭环组织：每一笔头寸从录入到复盘，都会回流为下一次校准的样本。校准是否改善，需要通过样本外验证持续检验。
 
 ```
   录入 ─────▶ 配置 ─────▶ 结算 ─────▶ 复盘
@@ -47,6 +55,8 @@ DuGou 是一套个人长期迭代的量化决策系统。它处理一类特定�
 | 看板 | Dashboard | `/dashboard` | 净值曲线、兑现率、ROI 等核心指标 |
 | 分析 | Analysis | `/dashboard/analysis` | 分模式 / 分维度的多维切片，定位正期望区域 |
 | 指标 | Metrics | `/dashboard/metrics` | 期望-实际偏差、校准曲线、统计显著性检验 |
+| 周期复盘 | Seasons | `/dashboard/report` | 按周期汇总表现与复盘记录 |
+| 策略研究 | Quants | `/quants` | 量化策略研究、赛果与赔率历史管理 |
 | 档案 | History | `/history` | 全量历史头寸的检索与回溯 |
 | 画像 | Teams | `/history/teams` | 按标的聚合的历史表现画像 |
 | 标定 | Params | `/params` | 参数标定、预测序贯回测、校准回归（R²） |
@@ -55,7 +65,7 @@ DuGou 是一套个人长期迭代的量化决策系统。它处理一类特定�
 
 ## 模型 · Capability
 
-所有派生指标由一条纯函数式管线计算（`src/lib/analytics.js`，约 6.3k 行）：输入历史头寸，输出结构化结果，除缓存外无副作用。管线自上而下分五段，下面描述的是**方法**与其背后的取舍——具体的特征集与已标定的常数，按设计在公开演示中遮罩（见「演示模式」）。
+核心量化分析由一条纯函数式管线组织（[`src/lib/analytics.js`](eivra-studio/src/lib/analytics.js)）：输入历史头寸，输出结构化结果。管线自上而下分五段，下面描述的是**方法**与其背后的取舍——具体的特征集与已标定的常数，按设计在公开演示中遮罩（见「演示模式」）。
 
 **1 · 归一化（Normalize）**
 清洗赔付倍数、期望与模式标签，统一离散结果的语义，并以数值原语（`clamp` / `toNumber` / 区间夹逼）保证健壮性——脏数据不应该让一条统计管线给出看似正常的错误答案。
@@ -90,11 +100,11 @@ DuGou 是一套个人长期迭代的量化决策系统。它处理一类特定�
 
 模型能力之外，让这套代码站得住脚的，是几个一以贯之的工程决定。
 
-**单一事实来源的纯函数引擎。** 九个页面没有各自的计算逻辑——它们都是同一台分析引擎的不同投影。指标只在一处定义、一处计算，跨页面永远自洽。
+**共享的分析内核。** 核心指标集中在 `src/lib/` 中计算，页面消费分析结果，使同一指标在不同视图中保持一致。
 
 **三段式记忆化缓存。** 分析偏重 CPU（蒙特卡洛、回归、矩阵），页面间又反复请求同一结果。缓存正确性被设计成「数据版本号的纯函数」，而非靠手工失效：
 1. **修订号失效** —— 任意写操作触发 `revision++`，所有旧缓存键（以 revision 为前缀）一次性自然作废；
-2. **领域事件驱动** —— 监听 `dugou:data-changed`，跨组件 / 跨标签页解耦失效；
+2. **领域事件驱动** —— 监听 `dugou:data-changed`，解耦组件间的缓存失效；该历史事件名为兼容现有运行时而保留；
 3. **作用域分桶** —— 每个计算域各自一个 `Map`，互不污染。
 
 缓存最难的从来不是命中率，而是「该失效时一定失效」。把它绑定到一个单调递增的版本号上，等于把一类缓存 bug 在结构上消除了。
@@ -109,25 +119,27 @@ DuGou 是一套个人长期迭代的量化决策系统。它处理一类特定�
 
 ## 结构 · Architecture
 
-```
-dugou-model-centre/
-├── src/
-│   ├── lib/                          业务与模型内核（纯函数式）
-│   │   ├── analytics.js              量化分析引擎：五段管线 + 三段式缓存　← 核心
-│   │   ├── atomicParlay.js           多事件组合的原子拆解
-│   │   ├── entryParsing.js           离散结果语义的统一解析
-│   │   ├── naturalInputParser.js     自然语言 → 结构化录入
-│   │   ├── displayMode.js            预览 / 完整模式的运行时判定
-│   │   ├── labels.js · glossary.js   展示层的术语遮罩与释义
-│   │   ├── demoData.js · previewStore.js   脱敏、短暂的公开演示数据
-│   │   ├── localData.js · cloudSync.js     本地优先存储 + 可选 Supabase 同步
-│   │   ├── teamDatabase.js · excel.js · …
-│   │   └── __tests__/                模型内核单元测试
-│   ├── pages/                        9 个功能页（见「决策闭环」）
-│   ├── components/  hooks/  utils/  styles/  data/
-│   └── App.jsx                       路由与全局布局
-├── api/unlock                        Vercel serverless：HS256-JWT 演示解锁端点
-└── .github/workflows/                CI 门禁 + Supabase 保活
+```text
+./                                   GitHub 仓库根目录
+├── README.md                        产品定位、品牌理念与架构总览
+├── CLAUDE.md                        维护与交付约定
+├── .github/workflows/               CI 门禁 + Supabase 保活
+└── eivra-studio/                    应用目录 / Vercel Root Directory
+    ├── src/
+    │   ├── lib/                    业务与模型内核
+    │   │   ├── analytics.js        核心量化分析管线与缓存
+    │   │   ├── atomicParlay.js     多事件组合的原子拆解
+    │   │   ├── naturalInputParser.js   自然语言结构化录入
+    │   │   ├── localData.js · gitSync.js · cloudSync.js
+    │   │   └── __tests__/          模型、协议与组件回归测试
+    │   ├── pages/                  决策工作流与设计预览页面
+    │   ├── components/ · design/ · data/ · workers/
+    │   └── App.jsx                 路由与全局布局
+    ├── api/                        解锁、AI 解析与加密快照同步端点
+    ├── docs/                       品牌记录、设计说明与历史审计
+    ├── public/                     静态视觉资源
+    ├── scripts/ · output/          研究脚本与报告
+    └── package.json · vercel.json  应用与部署配置
 ```
 
 数据流向单一且无环：`localData / cloudSync`（存储）→ `analytics`（派生）→ `pages`（投影）。写操作回到存储层并 `bump` 修订号，缓存随之作废，下一次读取自然得到最新派生值。
@@ -164,8 +176,9 @@ dugou-model-centre/
 ## 本地运行 · Getting Started
 
 ```bash
-cd dugou-model-centre
-npm install
+git clone https://github.com/hydeclanspi/eivra-studio.git
+cd eivra-studio/eivra-studio  # 仓库内的应用子目录
+npm ci
 
 npm run dev            # 开发服务器（默认 http://localhost:3000）
 npm run lint           # 规范检查（lint:fix 自动修复）
@@ -173,13 +186,15 @@ npm test               # 单元测试（test:watch / test:coverage）
 npm run build          # 生产构建（preview 本地预览产物）
 ```
 
-云同步需配置 Supabase 环境变量；不配置时系统以纯本地模式运行，功能不受影响。演示解锁端点所需的环境变量见 [`api/README.md`](dugou-model-centre/api/README.md)。
+云同步需配置 Supabase 环境变量；不配置时系统以纯本地模式运行，功能不受影响。演示解锁端点所需的环境变量见 [`api/README.md`](eivra-studio/api/README.md)。
+
+Vercel 的 **Root Directory** 设为 `eivra-studio`，构建命令为 `npm run build`，输出目录为 `dist`。GitHub Actions 从仓库根目录发现工作流，在应用目录内运行 lint、test 与 build。
 
 ---
 
 ## 现状与边界 · Status & Scope
 
-DuGou 是作者用于精进量化建模与软件工程的**个人研究项目**，单人长期迭代。它的数据域恰好是足球赛事结果，但它真正在意的事情与体育无关：仓位纪律、信心校准、噪声分离、可复现的回测，以及一套能随样本成长的、对自己诚实的决策框架。
+Eivra Studio 是作者用于精进量化建模与软件工程的**个人研究项目**，单人长期迭代。它的数据域恰好是足球赛事结果，但它真正在意的事情与体育无关：仓位纪律、信心校准、噪声分离、可复现的回测，以及一套能随样本成长的、对自己诚实的决策框架。
 
 正在推进的方向，均以「让判断可被结构化、可被检验」为轴：把主观情报沉淀为可追溯的私有数据库、用参数化碰撞融合人的判断、以 MLE / 贝叶斯更新让系数自学习。
 

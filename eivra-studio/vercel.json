@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/dugou-avatar.jpg", "destination": "/eivra-avatar.jpg" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "git": {

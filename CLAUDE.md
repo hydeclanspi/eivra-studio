@@ -18,10 +18,17 @@
 
 **一律用中文回复。**
 
+## 品牌与兼容边界
+
+- 正式品牌拼写为 **Eivra**，本项目在 GitHub、作品集与 CV 中使用 **Eivra Studio**。
+- 标语为 **Intuition, calibrated.**；命名记录见 `eivra-studio/docs/brand-identity.md`。
+- **Acuen** 仅为未来子功能的候选品牌，目前没有绑定或发布任何功能。
+- 此阶段生产页面、Logo、HTML 元数据以及 `dugou:*` 存储键、事件名、数据库表与同步格式继续保留，不能因为仓库改名而批量替换。
+
 ## 常用命令
 
 ```bash
-cd dugou-model-centre
+cd eivra-studio
 npm install
 npm run dev      # 开发服务器 :3000
 npm run lint     # ESLint 9 flat config
@@ -33,17 +40,17 @@ npm run build    # 生产构建
 合 `main` 之前本地先跑一遍。
 
 工作流文件必须放在**仓库根目录**的 `.github/workflows/`——Actions 只扫描这一处。
-`ci.yml` 曾放在 `dugou-model-centre/.github/workflows/` 下，低了一层，从未被注册、
+`ci.yml` 曾误放在应用子目录的 `.github/workflows/` 下，低了一层，从未被注册、
 从未运行过（2026-09-12 修正）。前端在子目录，故 job 里统一设
-`defaults.run.working-directory: dugou-model-centre`。
+`defaults.run.working-directory: eivra-studio`。
 
 ## 仓库形状
 
-单体前端（React 18 + Vite 5 + Tailwind 3），代码全在 `dugou-model-centre/`：
+单体前端（React 18 + Vite 5 + Tailwind 3），代码全在 `eivra-studio/`：
 
 - `src/lib/` —— 业务与模型内核，纯函数式。`analytics.js` 是量化分析引擎
   （五段管线 + revision 前缀的三段式缓存），`warReport.js` 是周期战报派生层。
-- `src/pages/` —— 9 个功能页，都是同一台分析引擎的不同投影，不各自算指标。
+- `src/pages/` —— 决策工作流、周期复盘、策略研究与设计预览页面，复用共享分析内核。
 - `api/` —— Vercel serverless：`unlock`（HS256 JWT 解锁 preview→full）、
   `commit-bundle` / `bundle`（git-as-sync，加密快照存 `data` 分支）。
 

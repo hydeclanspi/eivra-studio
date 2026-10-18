@@ -1,7 +1,8 @@
 # Vercel Serverless API · `/api/unlock`
 
 This folder contains the password-verification endpoint that gates the
-**Preview → Full** display-mode flip in the DuGou UI. Vercel
+**Preview → Full** display-mode flip in the Eivra Studio application. The production UI retains its legacy
+DuGou branding during the repository-only naming transition. Vercel
 automatically picks up any file under `api/` at the project root and
 deploys it as a serverless function — no extra config required.
 

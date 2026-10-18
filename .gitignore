@@ -4,7 +4,7 @@
 
 # ── Personal notes, design explorations & proprietary docs ──
 # These live at the repo root and are intentionally kept LOCAL only.
-# Root-anchored ("/") so nothing inside dugou-model-centre/ is affected.
+# Root-anchored ("/") so nothing inside eivra-studio/ is affected.
 /*.md
 /*.html
 /*.jsx

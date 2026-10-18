@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * ============================================================================
- *  read-quality-report.mjs — DuGou 2.0 原型报告生成器
+ *  read-quality-report.mjs — Eivra Studio 2.0 原型报告生成器
  * ============================================================================
  *  用法：
  *    node scripts/read-quality-report.mjs                       # 默认内置样包
@@ -184,7 +184,7 @@ const main = () => {
   // ── 报告组装 ─────────────────────────────────────────────────────────
   const sections = []
 
-  sections.push(`# DuGou 2.0 · 读球质量原型机报告
+  sections.push(`# Eivra Studio 2.0 · 读球质量原型机报告
 
 生成时间：${new Date().toISOString()}  
 数据源：${sourceLabel}  

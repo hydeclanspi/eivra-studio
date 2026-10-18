@@ -1,4 +1,4 @@
-# DuGou 2.0 · 读球质量原型机报告
+# Eivra Studio 2.0 · 读球质量原型机报告
 
 生成时间：2026-09-19T13:51:51.324Z  
 数据源：内置样包 `src/data/genesisBundle.json`（注意：可能为早期 demo/合成数据，非全量实盘）  
