@@ -12,7 +12,6 @@ Eivra Studio 将一份主观判断转化为可追溯的预测、配置、结果�
 
 [体验在线工作台](https://hydeclanspi.vercel.app) · [模型内核](#模型内核) · [本地运行](#本地运行) · [品牌记录](eivra-studio/docs/brand-identity.md)
 
-[![CI](https://github.com/hydeclanspi/eivra-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/hydeclanspi/eivra-studio/actions/workflows/ci.yml)
 
 **概率校准 · 分数凯利 · 共享事件蒙特卡洛 · 滚动前推验证**
 
