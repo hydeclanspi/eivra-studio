@@ -80,6 +80,21 @@
   grid-row: 1;
 }
 
+/* 投后：左右卡对调——比赛信息在左、策略卡在右（各自宽度随位置互换）。 */
+@media (min-width: 1101px) {
+  .lab-new-page[data-investment-view='post'] .pre-match-split {
+    grid-template-columns: minmax(0, 6fr) minmax(0, 4fr);
+  }
+
+  .lab-new-page[data-investment-view='post'] .pre-match-split__main {
+    grid-column: 1;
+  }
+
+  .lab-new-page[data-investment-view='post'] .pre-match-split__side {
+    grid-column: 2;
+  }
+}
+
 /* 外层容器只做布局，不画任何底（投前没有 shared 底）。 */
 .pre-sheet-plain {
   display: block;

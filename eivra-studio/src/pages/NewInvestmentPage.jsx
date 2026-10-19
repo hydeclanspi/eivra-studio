@@ -1548,7 +1548,11 @@ export default function NewInvestmentPage() {
             type="button"
             role="tab"
             aria-selected={viewMode === 'post'}
-            onClick={() => setViewMode('post')}
+            onClick={() => {
+              setViewMode('post')
+              // 投后默认两场；用户已手动选过场次时保留其选择。
+              setParlaySize((size) => (size === 1 ? 2 : size))
+            }}
             data-testid="view-switch-post"
             className={`pre-view-side pre-view-side--post${viewMode === 'post' ? ' is-active' : ''}`}
           >
@@ -1743,7 +1747,7 @@ export default function NewInvestmentPage() {
           <span className="text-xs text-stone-400 ml-2 whitespace-nowrap">{parlaySize === 1 ? '(single match)' : `(${parlaySize} matches combo)`}</span>
         </div>
 
-        {parlaySize > 1 && (
+        {parlaySize > 1 && viewMode !== 'post' && (
           <div className="w-40 md:w-44 shrink-0">
             <input
               type="text"
