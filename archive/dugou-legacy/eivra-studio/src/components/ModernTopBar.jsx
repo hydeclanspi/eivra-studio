@@ -1,0 +1,355 @@
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import {
+  PlusCircle,
+  LayoutGrid,
+  Clock,
+  BarChart3,
+  History,
+  ChevronDown,
+  TrendingUp,
+  FileText,
+  Flag,
+  FlaskConical,
+  Swords,
+  PanelsTopLeft,
+} from 'lucide-react'
+import { getInvestments, getTimeMachineSessionInfo, isInTimeMachineMode, saveSystemConfig } from '../lib/localData'
+import C15DiamondCutV1Logo from './C15DiamondCutV1Logo'
+import PreviewModeToggle from './PreviewModeToggle'
+import { INSPIRATION_2609_NAME } from '../design/inspiration2609'
+import InspirationIcon from './InspirationIcon'
+
+/* ──────────────────────────────────────────────────
+   Modern Navigation — Vercel/Linear design language
+   Near-monochrome · surgical accent · extreme clarity
+   ────────────────────────────────────────────────── */
+
+const NAV_ITEMS = [
+  { id: 'new', path: '/new', label: 'New', Icon: PlusCircle },
+  { id: 'combo', path: '/combo', label: 'Portfolio', Icon: LayoutGrid },
+  { id: 'settle', path: '/settle', label: 'Settle', Icon: Clock, showBadge: 'pending' },
+  { id: 'quants', path: '/quants', label: 'Quants', Icon: FlaskConical },
+  {
+    id: 'dashboard',
+    path: '/dashboard',
+    label: 'Dashboard',
+    Icon: BarChart3,
+    children: [
+      { id: 'report', path: '/dashboard/report', label: 'Seasons', Icon: Swords, featured: true },
+      { id: 'dashboard-main', path: '/dashboard', label: 'Overview', Icon: BarChart3 },
+      { id: 'metrics', path: '/dashboard/metrics', label: 'Metrics', Icon: FileText },
+      { id: 'analysis', path: '/dashboard/analysis', label: 'Analysis', Icon: TrendingUp },
+    ],
+  },
+  {
+    id: 'history',
+    path: '/history',
+    label: 'History',
+    Icon: History,
+    children: [
+      { id: 'history-main', path: '/history', label: 'Records', Icon: History },
+      { id: 'teams', path: '/history/teams', label: 'Teams', Icon: Flag },
+    ],
+  },
+]
+
+const PAGE_TITLES = {
+  '/': 'New Investment',
+  '/new': 'New Investment',
+  '/combo': 'Smart Portfolio',
+  '/settle': 'Settlement',
+  '/dashboard': 'Dashboard',
+  '/dashboard/analysis': 'Deep Analysis',
+  '/dashboard/metrics': 'Metrics',
+  '/dashboard/report': 'Seasons',
+  '/dashboard/quants': 'Quants Lab',
+  '/quants': 'Quants Lab',
+  '/history': 'History',
+  '/history/teams': 'Team Archive',
+  '/params': 'Console',
+}
+
+const ConsoleIcon = ({ size = 14, className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 20 20" fill="none" className={className} aria-hidden="true">
+    <rect x="2.25" y="3" width="15.5" height="13.5" rx="3" stroke="currentColor" strokeWidth="1.4" />
+    <path d="M5.8 7.2H14.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    <path d="M5.8 10H10.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    <path d="M5.8 12.8H12.8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    <path d="M13.7 10L14.9 11.2L16.6 8.9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+)
+
+const LAYOUT_SWITCH_DELAY_MS = 240
+
+function LayoutMorphSwitch({ layoutMode, onPreviewChange }) {
+  const activeMode = layoutMode === 'inpiration' || layoutMode === 'temp_title' ? 'inpiration' : 'modern'
+  const [visualMode, setVisualMode] = useState(activeMode)
+  const switchTimerRef = useRef(null)
+
+  useEffect(() => {
+    setVisualMode(activeMode)
+  }, [activeMode])
+
+  useEffect(() => () => window.clearTimeout(switchTimerRef.current), [])
+
+  const selectMode = (nextMode) => {
+    if (nextMode === activeMode || switchTimerRef.current) return
+    setVisualMode(nextMode)
+    switchTimerRef.current = window.setTimeout(() => {
+      saveSystemConfig({ layoutMode: nextMode })
+      if (onPreviewChange) {
+        onPreviewChange(nextMode)
+      } else {
+        window.localStorage.setItem('dugou:layout-mode', nextMode)
+        window.dispatchEvent(new CustomEvent('dugou:layout-changed', { detail: { mode: nextMode } }))
+      }
+      switchTimerRef.current = null
+    }, LAYOUT_SWITCH_DELAY_MS)
+  }
+
+  return (
+    <div className="mn-layout-morph" role="group" aria-label="界面主题切换">
+      <button
+        type="button"
+        aria-label={`切换到 ${INSPIRATION_2609_NAME}`}
+        aria-pressed={visualMode === 'inpiration'}
+        title={INSPIRATION_2609_NAME}
+        onClick={() => selectMode('inpiration')}
+        className={`mn-layout-choice mn-layout-choice--inspiration ${visualMode === 'inpiration' ? 'is-active' : ''}`}
+      >
+        <InspirationIcon size={13} />
+        <span>{INSPIRATION_2609_NAME}</span>
+      </button>
+      <button
+        type="button"
+        aria-label="切换到 Modern"
+        aria-pressed={visualMode === 'modern'}
+        title="Modern"
+        onClick={() => selectMode('modern')}
+        className={`mn-layout-choice mn-layout-choice--modern ${visualMode === 'modern' ? 'is-active' : ''}`}
+      >
+        <PanelsTopLeft size={13} strokeWidth={1.8} aria-hidden="true" />
+        <span>Modern</span>
+      </button>
+    </div>
+  )
+}
+
+export default function ModernTopBar({ layoutMode = 'modern', designLink = null, designPreview = false, onPreviewLayoutChange = null }) {
+  const [openDropdown, setOpenDropdown] = useState(null)
+  const [dataVersion, setDataVersion] = useState(0)
+  const [brandNameOffset, setBrandNameOffset] = useState(0)
+  const [tmActive, setTmActive] = useState(isInTimeMachineMode())
+  const [tmInfo, setTmInfo] = useState(getTimeMachineSessionInfo())
+  const dropdownRef = useRef(null)
+  const brandLogoRef = useRef(null)
+  const brandNameRef = useRef(null)
+  const brandSepRef = useRef(null)
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const onDataChanged = () => setDataVersion((prev) => prev + 1)
+    const onTmChanged = () => {
+      setTmActive(isInTimeMachineMode())
+      setTmInfo(getTimeMachineSessionInfo())
+    }
+    window.addEventListener('dugou:data-changed', onDataChanged)
+    window.addEventListener('dugou:time-machine-changed', onTmChanged)
+    return () => {
+      window.removeEventListener('dugou:data-changed', onDataChanged)
+      window.removeEventListener('dugou:time-machine-changed', onTmChanged)
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setOpenDropdown(null)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  useEffect(() => {
+    setOpenDropdown(null)
+  }, [location.pathname])
+
+  useLayoutEffect(() => {
+    const computeBrandCenter = () => {
+      if (!brandLogoRef.current || !brandNameRef.current || !brandSepRef.current) return
+
+      const logoRect = brandLogoRef.current.getBoundingClientRect()
+      const nameRect = brandNameRef.current.getBoundingClientRect()
+      const sepRect = brandSepRef.current.getBoundingClientRect()
+
+      // Visual midpoint: center of the visible gap between logo and slash.
+      const gapLeft = logoRect.right
+      const gapRight = sepRect.left
+      const visualNudgeRight = 2.5
+      const targetCenter = (gapRight > gapLeft
+        ? (gapLeft + gapRight) / 2
+        : (logoRect.left + logoRect.width / 2 + (sepRect.left + sepRect.width / 2)) / 2) + visualNudgeRight
+      const nameCenter = nameRect.left + nameRect.width / 2
+      const delta = targetCenter - nameCenter
+
+      setBrandNameOffset((prev) => (Math.abs(prev - delta) < 0.1 ? prev : delta))
+    }
+
+    computeBrandCenter()
+    const rafId = window.requestAnimationFrame(computeBrandCenter)
+    window.addEventListener('resize', computeBrandCenter)
+
+    const resizeObserver = new ResizeObserver(computeBrandCenter)
+    if (brandLogoRef.current) resizeObserver.observe(brandLogoRef.current)
+    if (brandNameRef.current) resizeObserver.observe(brandNameRef.current)
+    if (brandSepRef.current) resizeObserver.observe(brandSepRef.current)
+
+    if (document.fonts?.ready) {
+      document.fonts.ready.then(computeBrandCenter).catch(() => {})
+    }
+
+    return () => {
+      window.cancelAnimationFrame(rafId)
+      window.removeEventListener('resize', computeBrandCenter)
+      resizeObserver.disconnect()
+    }
+  }, [])
+
+  const stats = useMemo(() => {
+    const investments = getInvestments()
+    return {
+      pendingCount: investments.filter((i) => i.status === 'pending').length,
+      totalCount: investments.length,
+    }
+  }, [dataVersion])
+
+  const isActive = (path) => {
+    if (path === '/new' && (location.pathname === '/' || location.pathname === '/new')) return true
+    return location.pathname === path
+  }
+
+  const isGroupActive = (item) => {
+    if (isActive(item.path)) return true
+    return item.children?.some((c) => location.pathname === c.path)
+  }
+
+  const getBadge = (item) => {
+    if (item.showBadge === 'pending') return stats.pendingCount > 0 ? stats.pendingCount : null
+    if (item.showBadge === 'total') return stats.totalCount > 0 ? stats.totalCount : null
+    return null
+  }
+
+  const pageTitle = PAGE_TITLES[location.pathname] || ''
+  return (
+    <header className="mn-bar">
+      {/* ── Brand ── */}
+      <button className="mn-brand" onClick={() => navigate('/new')}>
+        <span ref={brandLogoRef} className="mn-brand-logo-wrap">
+          <C15DiamondCutV1Logo size="sm" />
+        </span>
+        <span
+          ref={brandNameRef}
+          className="mn-brand-name"
+          style={{ transform: `translateX(${brandNameOffset}px)` }}
+        >
+          dugou
+        </span>
+      </button>
+
+      <span ref={brandSepRef} className="mn-brand-measure" aria-hidden="true" />
+
+      {/* ── Modern / inpiration liquid morph switch ── */}
+      {(!designPreview || onPreviewLayoutChange) && <LayoutMorphSwitch layoutMode={layoutMode} onPreviewChange={onPreviewLayoutChange} />}
+
+      {/* ── Breadcrumb separator ── */}
+      <span className="mn-sep">/</span>
+
+      {/* ── Page context ── */}
+      <span className="mn-page-title">{pageTitle}</span>
+
+      {/* ── Preview / Full mode toggle ── */}
+      <PreviewModeToggle previewOnly={designPreview} />
+
+      {/* ── Separator ── */}
+      <div className="h-4 w-px bg-gradient-to-b from-transparent via-neutral-200 to-transparent mx-2 flex-shrink-0" />
+
+      {/* ── Nav ── */}
+      <nav className="mn-nav" ref={dropdownRef}>
+        {NAV_ITEMS.map((item) => {
+          const active = isGroupActive(item)
+          const badge = getBadge(item)
+          const hasChildren = item.children && item.children.length > 0
+
+          return (
+            <div key={item.id} className="mn-nav-group">
+              <button
+                onClick={() => {
+                  if (hasChildren) {
+                    setOpenDropdown(openDropdown === item.id ? null : item.id)
+                  } else {
+                    navigate(item.path)
+                  }
+                }}
+                className={`mn-nav-item ${active ? 'mn-nav-active' : ''}`}
+              >
+                <span>{item.label}</span>
+                {badge != null && <span className="mn-badge">{badge}</span>}
+                {hasChildren && (
+                  <ChevronDown
+                    size={12}
+                    strokeWidth={1.5}
+                    className={`mn-chevron ${openDropdown === item.id ? 'mn-chevron-open' : ''}`}
+                  />
+                )}
+              </button>
+
+              {hasChildren && openDropdown === item.id && (
+                <div className="mn-dropdown">
+                  {item.children.map((child) => (
+                    <button
+                      key={child.id}
+                      onClick={() => { navigate(child.path); setOpenDropdown(null) }}
+                      className={`mn-dropdown-item ${child.featured ? 'mn-dropdown-featured' : ''} ${isActive(child.path) ? 'mn-dropdown-active' : ''}`}
+                    >
+                      <child.Icon size={14} strokeWidth={1.5} />
+                      <span>{child.label}</span>
+                      {child.featured && <span className="seasons-star-orbit" aria-hidden="true" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </nav>
+
+      {/* ── Right ── */}
+      <div className="mn-right">
+        {designLink}
+        {/* Time Machine indicator */}
+        {tmActive && tmInfo && (
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-gradient-to-r from-blue-100 to-cyan-100 border border-blue-200/70 shadow-[0_2px_8px_rgba(59,130,246,0.15)]">
+            <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+            <span className="text-[11px] font-semibold text-blue-700">时光穿越中</span>
+          </div>
+        )}
+
+        {/* Status indicator dot — alive pulse */}
+        <div className="mn-status-dot" title="System active">
+          <div className="mn-status-dot-ping" />
+          <div className="mn-status-dot-core" />
+        </div>
+
+        {/* Console — direct nav link (replaces gear icon dropdown) */}
+        <button
+          onClick={() => navigate('/params')}
+          className={`mn-settings-link ${location.pathname === '/params' ? 'mn-settings-link-active' : ''}`}
+        >
+          <ConsoleIcon size={14} />
+          <span>Console</span>
+        </button>
+      </div>
+    </header>
+  )
+}

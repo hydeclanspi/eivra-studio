@@ -1,0 +1,108 @@
+# A01–A12 与第 4 节：修复验收表
+
+日期：2026-09-20。范围：原审计中可确定的实现、数学口径、验证隔离及误导性解释问题；不擅自改变 AJR 的产品定义、风险偏好或账户限额政策。原始审计是历史基线，并非当前代码状态。
+
+## A01–A12
+
+| 项目 | 已修复／安全处理 | 边界 |
+| --- | --- | --- |
+| A01 概率字段 | New／Portfolio 保存原子收益状态、整票命中／盈利概率和收益期望；本轮补模型阶段、版本、权重参数、原始逐场输入与生成时间。采纳方案沿用生成时元数据。 | 无法判明含义的旧多腿评分不猜测成概率；手工历史记录仍可记账。 |
+| A02 验证对象 | New、Portfolio、时间验证和权重调参共用 `predictMatchProbability`。历史拟合注入训练记录与配置；AJR 回归保持 AJR 标签，不再偷换成二元命中；生产各概率层一起参与验证。反馈函数也不再旁读实时数据／配置。 | 验证是“当前固定配置下的生产概率管道重拟合”，不是历史所有配置的完整账户／Portfolio 回放。Kelly 分母比较仍明确为调参诊断，不作为独立样本外收益证明。 |
+| A02／A04 信息可用时间 | 每窗训练结果必须在测试起点前可用；排除同一已知事件及同时创建的记录；记录截止时间、训练身份和逐点预测；缺少必要时间／身份不冒充严格时间验证。 | 不能从球队名字重建缺失的物理赛事 ID；未关联的重复比赛仍需补充可靠来源身份。旧记录不写回伪造时间戳：缺少结算时间时按“创建后 72 小时视为已知”在读取时推算，并逐行、逐窗标注 basis 与 `timeBasis`。 |
+| A03 PAV | 同 Conf 聚合后进行 PAV；排列不变性、单调性回归已覆盖。 | 拟合内 Brier 改善明确标记为训练集描述。 |
+| A04 评估门槛 | 7 条窗口实际执行质量检查；无有效评估返回不可用；缺失时间不当作 1970 年。 | 记录数足够但可用时间不足时仍可能显示未验证，这是正常结果。 |
+| A05 自动学习 | 删除利润乘线性特征的伪优化目标；使用完整预测的 Brier 调参，梯度基于实际参数敏感性，另留后置窗口检查 Brier 改善且 LogLoss 不恶化。遵守开关、模式、频率、幅度、内容幂等及写入确认。 | 窗口方向一致度不是置信概率；后置检查不是永久／独立实盘收益保证。保留手动策略选择。无作用的 weightConf 不再提供可编辑有效权重的假象，存量兼容字段保留。 |
+| A06 身份／重复证据 | 来源投资／场次／选择与明确 event_id 关联；推荐、锚点、训练选项、相关性事件对去重；复盘可靠度以唯一已知事件数计，不以反复生成方案计。 | 无来源或冲突历史保持未知。不同独立事件之间仍可能存在现实相关性，不把唯一 ID 当作独立性证明。 |
+| A07 分布一致性 | 有序边际修复；常数边际不可估计；历史相关性只作诊断，不再单独改 p 而保留原 EV／方差。 | 不自行引入未经验证的多维相关联合模型。 |
+| A08 模拟 | 共享逐场原子收益抽样；零投入就是零；不兼容／冲突共同结果明确不可模拟。解析分布与模拟盈利概率、收益尾部已有回归。 | 同场不同市场的完整比分联合模型未实现，不伪造精确风险输出。 |
+| A09 市场／赔率 | 1X2 完备覆盖无普通 miss；不支持的混合重叠市场明确降级、停用自动精确仓位。显式 malformed 赔率不再继承默认值，无效腿不从组合报价中静默消失。 | 保留手工记账，不擅自定义未支持盘口的结算规则。 |
+| A10 预算 | 全负 EV 保留现金；小额／负本金安全；约束不相容明确提示；整数分配不超过风险限额；无穷与无效输入不会造成无限分配循环。 | 每轮限额还是账户总限额属于产品政策，未擅改。在途资金约束及完整账户事件回放不声称已实现。 |
+| A11 排序 | 调整后分数贯穿软惩罚、覆盖加分、分层及后续排序。 | 原始效用作为诊断值保留。 |
+| A12 统计解释 | ESS 保持权重尺度不变；撤下不适用的二项／正态显著性，p 值不可用。热图是探索性指数，不是失败概率；MSI 明示代理函数分摊，不是因果尾部贡献。统一活动数据取样、去重与时间排序，无数据不提示安全。 | 尚未得到有效的事件簇抽样机制与独立历史证据，故不编造 bootstrap 区间、p 值或多重检验结论。原启发式显示调整保留并明示，不称为估计的基准率校正。 |
+
+## 遗留清理：显示口径与界面事实（同日追加）
+
+A01–A12 表之外，复核时又发现的一批“已修但未修净”的实现与文案问题，全部处理；不涉及任何产品定义、风险偏好或限额政策变更。
+
+| 项目 | 处理 |
+| --- | --- |
+| 待结算票混入已实现聚合 | `AnalysisPage` 排除 `pending`；`profit` 缺失不再当 0 计入；无可用盈亏的聚合显示 `—` 而不是 `0.0%`；仓位／组合／矩阵／联赛各记可用样本数，排序对未知值安全 |
+| 旧记录被兜造价格与概率 | `ComboPage.getTodayMatches` 只取腿级 `conf`／`odds`，缺失即标 `missingLegQuote`、退出候选池并在页面说明原因；`buildAtomicLegProfile` 对无 entries 且无有效赔率的旧腿返回 `approximate`，不再按默认赔率当成精确模型 |
+| 输入期静默丢腿 | `NewInvestmentPage` 汇总被排除的 Entry（缺名称／赔率 ≤ 1），在该场综合 Odds 与页脚提示；计算谓词与提示共用同一判定 |
+| AJR 与 conf 混尺度 | 分析快照的 mode／conf／odds／entries 矩阵、Dashboard 的 conf 校准族、Params／Dashboard／Teams 的评级残差全部改用归一化 AJR 并带 basis 标记；显示统一为“判断残差”。删除已无调用方的 `calculateBinomialPValue` 与 `erfc` |
+| 应用内算法说明 | 第 21／46／55／58／61／63 条与页脚改为与代码一致：相关性仅作诊断不修正联合概率、无 p 值参与、MSI 为代理博弈分摊、校准幅度由近因样本量而非 ESS 决定 |
+| 只写不读字段 | 旧记录迁移补齐 `expected_rating_semantics`；确认无渲染点的 `rawUtility` 删除 |
+| 文案方向 | Params 偏置方向修正（正残差＝偏保守）；相关表头统一为“判断残差” |
+
+新增回归：模拟亏损分位与全输概率对枚举一致；覆盖权重变化可改变候选选择顺序。删除了 3 项针对已删除函数的测试（其断言的是本次移除的推断口径），替换为“不提供 p 值、显著性一律不可用”的护栏测试。
+
+复测：Vitest 29 文件 / 273 用例通过；`npm run build` 成功；`npx eslint . --quiet` 无错误。仍未处理并已知：分析快照的 `allocatedProfit` 在上游被 `toNumber(..., 0)` 归一，故优势矩阵单元格无法在显示层区分“未知”与“真实 0”（需改上游口径，未在本次范围内）。
+
+## 产品决策：旧记录的结果可用时间（同日拍板）
+
+拍板内容：旧记录没有已记录的结算时间时，视为“创建后 72 小时已知结果”，让严格时间通道不再是空的。
+
+实现方式与边界：
+- 只在**读取时**推算，不往记录里写回伪造时间戳；每个受影响的训练行带 `outcome_availability_basis = 'derived_created_at_plus_72h'`，窗口带 `timeBasis`／`derivedAvailabilityRows`。
+- 参数页在自适应权重、模型收口验证、Kelly 分母回测台、组合分层表等处，只要用到推算时间就显示“时间顺序为近似值”的说明；全部为真实结算时间的场合不显示。
+- 完全没有时间信息的记录（连创建时间也没有）仍被排除，照旧不进入时间切分。
+- 这是近似证据，不是把旧数据升级成“已验证”；晋升仍受既有 Brier／LogLoss 后置门禁约束。
+
+实测（`genesisBundle.json`，45 票 / 94 腿，0 条有已记录结算时间）：94 行全部走推算；严格时间窗口 **0 → 11 个**；`computeAdaptiveWeightSuggestions().ready` 由 false 变 true（`accepted` 仍为 false，停在既有的后置收益门禁，而不是样本门槛）。Kelly 分母回测在本账本上仍为 bootstrap：可用的单腿模拟行只有 14 条，低于其 24 条下限。
+
+## 追加修复：验证对象统一与遗留诊断口径（次日）
+
+**B1 · blend walk-forward 统一到生产预测器（A02 的工程残留）。** `evaluateBlendWalkForward` 此前用手搓的"线性回归 + 球队位移 + 赔率锚定"简化管线评估，再把结果喂给 `marketLean` 和 Kelly 分母——即"能改生产概率和仓位的那条验证，评估的不是生产模型"。现在改为：每个窗口用该窗口训练集以 `detail: 'lite'` 拟合一次生产校准上下文，`predictCalibrated` 用去掉市场锚的 `predictMatchProbability`、`predictBlended` 用生产锚、`predictMarket` 维持市场隐含——三路全部走生产组件，不再有一条旁路管线。连带删除只被它调用的 `buildTeamCalibrationModelFromBinaryRows`。实测：91 条二元行 → 11 个窗口，`marketLean` 0.312，校准臂与锚定臂在同一行上给出 0.1762 / 0.1571（分离、无递归）。
+
+**A12 残留 · 依赖风险可比性守卫。** 原先 `bestKernelW > 1e-6` 几乎允许任意远的赔率档进入统计，只要有任何已结算历史，差距很远的 pair 也会拿到数值分数。新增 `MIN_COMPARABLE_KERNEL_WEIGHT`（两条腿都至多隔一个 band 且密度调节取最小值），低于下限的历史对不再计入；无可比历史时 `assessFragilityScore` 返回 `insufficient_data` 而不是数值。
+
+**A08 残留 · Monte Carlo 跨记录共享物理事件。** 共享键优先用 `event_id`（`event:<id>`），同一场次分两张票也不再各抽一次；不同 `event_id` 且队名不匹配时保持独立。回归：同事件两票的全灭概率仍是单场 miss（0.2），不同事件两票才是 0.04。算法说明第 47 条标题同步改为"共享抽样 Monte Carlo"。
+
+**B3 · 快照记录拟合后的内部取值。** 预测快照的 `calibration.metadata.fitted` 现在记录实际生效的 `confMultiplier`／`fseMultiplier`／`oddsWeightBase`／`marketLean`／`effectiveRecencyWeight`／`isotonicReliability`／`isotonicNodes`／`learnedFactorsReliability`（完整曲线仍由训练样本重建，此处记录规模与可靠度标量）；`buildForecastSnapshot` 对整个 metadata 做深拷贝，后续变更不能改写已保存的快照。
+
+**杂项。** `uniqueMatchRows` 的身份不全桶现在对"有事件身份但缺选择"的行也按事件去重，完全匿名的行照旧不合并；`oddsMatrix` 的 diff 与同族一并归一化到 `normalized AJR − Conf`。
+
+新增回归（净增）：生产权重敏感性（weightMode／Tys／Fid／Fse 可调、weightConf 不可调）、isotonic 手算对照（单调原样、违序合并、分段线性插值）、依赖风险可比性守卫（远距历史不给分）、MC 跨记录事件共享、快照拟合参数深拷贝隔离。
+
+仍未处理并已知：`allocatedProfit` 在上游 `getMetricsSnapshot` 行构建处被 `toNumber(..., 0)` 归一（`analytics.js` 约 3559 行），优势矩阵单元格因此无法在显示层区分"未知"与"真实 0"。这是修复收益口径唯一剩余的显示端缺口；实测当前账本 0 条已结算记录缺 `revenues` 且缺 `profit`，故本批不改。要修需在上游保留 NaN 并给各矩阵加 `profitSamples` 计数与 NaN 安全排序，同时改 AnalysisPage 优势矩阵与 MetricsPage 的 ROI 渲染——作为下一个独立项处理，不与本轮混在一起。
+
+## 第 4 节逐项
+
+1. 已实现球队 ROI 排除 pending（即使残留 profit 字段也不混入）。
+2. analytics、Analysis、Teams 共用收益归因函数；缺失收入但有利润时一致推导，零收入是真实零，未结算为未知；串关归因明确标注，不用于单腿真实仓位训练。
+3. Sortino 用全样本相对目标 0 的下行偏差；相同幅度亏损不再得到零风险。Sharpe／Sortino 按逐笔未年化，移除 √笔数伪年化；分母不足显示不可用。
+4. 原始 Conf 与 AJR / 0.8 在同尺度对照，标记为判断评级残差，不叫概率校准误差。
+5. 新建、Entry 规范化、原子模型对十进制赔率保持 >1；明确错误输入不会变成默认赔率。
+6. 推荐金额和整数组合分配的小预算／负余额／无效数值回归覆盖。
+7. 风险矩阵共用活动历史选择器，排除归档／待结算；订阅数据变更，保留事件选择身份并去重。
+8. lite／full 阶段与实际生成时参数写入快照。结算更正额外更新 outcome_available_at，保留最初 settled_at；备注修改不会伪造新的结果时间。
+
+## 验收
+
+- 测试覆盖：完整生产预测一致性、未来结果扰动不改变过去预测、实时配置与注入历史隔离、已知同场清除、延迟结算、AJR 标签不偷换、未知赛果不作 miss、重复证据、写入失败、金额尺度不影响概率目标、Brier／LogLoss 晋升门禁、预算取整、赔率不静默替换、收益归因守恒、无数据风险状态、快照阶段与结果更正时间。
+- 最终复测：Vitest 29 个测试文件、272 个测试全部通过；生产 build 成功；`npm run lint -- --quiet` 无错误；`git diff --check -- src docs` 通过。构建仍提示 Browserslist 数据过旧及部分 bundle 超过 500 kB，这两项不属于本轮算法修复范围。
+- 测试使用隔离数据；未修改真实账本、云端配置或生产部署。并存的 read-quality 研究文件改动不属于本轮，未覆盖。
+
+## 有意不改的研究／产品问题
+
+AJR 是否应作为概率信号、情境因子混杂与多层校准的实际增益、经验超参数映射、协方差近似是否值得替换、去水假设、全局风险政策及完整资金冻结／释放账本，都不因本轮修 bug 自动获得验证。本轮消除了已知错误或阻止其伪装成精确／已验证结果；不等于证明模型有正的样本外收益。
+
+参考：[DownsideDeviation 定义与实现](https://github.com/braverock/PerformanceAnalytics/blob/master/R/DownsideDeviation.R)、[交叉验证中的数据隔离](https://scikit-learn.org/stable/common_pitfalls.html)、[嵌套调参与外层评估的区别](https://scikit-learn.org/stable/auto_examples/model_selection/plot_nested_cross_validation_iris.html)。
+
+## 2026-09-25 产品决策落地：增量实施（旧代码全部保留、常量开关可回调）
+
+本轮全部为增量：没有任何旧逻辑被删除，凡被替换的行为均以"常量开关 + 决策标签"禁用，回调 = 把常量翻回。
+
+| 决策 | 实现 | 开关／锚点 |
+| --- | --- | --- |
+| 模式从概率挪到资金侧 | `predictMatchProbability` 的 lift 不再含 mode（生产概率与模式解耦）；每模式 Kelly 分母沿用既有资金侧入口；`weightMode` 与 `weightConf` 一并列为 inactive、不按概率损失调参 | `matchPrediction.js` `MODE_AFFECTS_PROBABILITY = false`；`analytics.js` `INACTIVE_WEIGHT_KEYS` |
+| 决策层一律纸面赔率 | `calcConfSurplus` 的基准改为 `1/odds`（不再手动去水）；去水对照仅可作纯展示 | `ComboPage.jsx` `DECISION_USE_DEVIG_BASELINE = false` |
+| 蓄水池冻结 | `getReservoirState` 新增 `inFlightCommitment`（未结算票投入）与 `availableCash = max(0, poolBalance − 在途)`；New／Combo 的下注基数改用 `availableCash`；New 页风控上限处显示"蓄水池／在途冻结／可用"三行 | `analytics.js:1192` 附近；`NewInvestmentPage.jsx` / `ComboPage.jsx` 的 `poolCapital` |
+| 同线大小球放行 | 同线 `total` 归入已知类别（判 `exact`）；半线（x.5）over+under 判完备（union=1、无普通 miss）；整数线判 exact 但保留走盘空间 | `atomicParlay.js` `getOutcomeModel` 的 `sameTotal`／`totalComplete` |
+| 异号让球归一化 | `-1 win ≡ 1 lose` 统一到负号线规范键，同义词在身份／去重／建模里落同一键，重复写法按 duplicate 拦截 | `entryParsing.js` `canonicalHandicap` |
+| 第三阶段（部分） | 基线三路（校准／市场／混合）的 Brier·LogLoss·ROI 上 UI；事件簇 bootstrap（按日期整块重采样，确定性种子）给出"校准−原始" Brier 差值 90% 区间，区间覆盖 0 时明示"尚无法区分"；时间最后 **7%** 作为冻结留出集，不进训练、只做最终对照 | `analytics.js` `bootstrapDateClusterInterval`／`splitFrozenHoldoutRows`（`FROZEN_HOLDOUT_RATIO = 0.07`，决策标签 `2026-09-25`）；`ParamsPage.jsx` 模型收口验证卡 |
+| 投前模块（壳） | New 页右上角新增 投前研判（默认）／投后导入 双按钮切换；投后导入完整保留原界面；投前本轮复刻同一界面，真实升级下一轮在 `data-investment-view` 分叉 | `NewInvestmentPage.jsx` `viewMode` |
+
+影子模式（候选权重先在后台与稳定版对照、达标再晋升）未实施，留作下一轮；7% 留出集目前只影响验证快照的呈现口径，生产拟合暂不剔除（会改变全部生产概率，须单独评估后再翻）。
+
+复测：Vitest 37 文件 / 367 用例通过；`npx eslint . --quiet` 无错误；`npm run build` 成功。

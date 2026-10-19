@@ -1,0 +1,1338 @@
+{
+  "source_commit": "11b4f89d4b726c0b87ab631315ce8e75334a332c",
+  "snapshot": "dugou-legacy",
+  "files": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "2a1a27f2e9be9922eaa1cabc73f59a235d63498729a1bf923ebfda280c107dfe",
+      "bytes": 1529,
+      "git_mode": "100644"
+    },
+    {
+      "path": ".github/workflows/supabase-keepalive.yml",
+      "sha256": "a5e6d0cf85709125bf684ffba3f98a261af8d941ceedcdef4439c0d463153d09",
+      "bytes": 2541,
+      "git_mode": "100644"
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "c971d52c299c23552e75dc70b418e6b5467385aa06373dfa3c8ae3d4ce8f4744",
+      "bytes": 520,
+      "git_mode": "100644"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "6201ce627dfa60df972f0d4561a312c5d3fbb40cdfd0ed0a54cf2d4cc0bc5f3b",
+      "bytes": 3380,
+      "git_mode": "100644"
+    },
+    {
+      "path": "README.md",
+      "sha256": "a04075578b2196f00b1a88348e710c226521476626d85dfd1ae030e2444446b2",
+      "bytes": 22344,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/.env.example",
+      "sha256": "4ccb59896357227647ee58291eabba5055b32af4a3fe123d28fe4c2d6e2e63a1",
+      "bytes": 268,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/.gitignore",
+      "sha256": "29d3c48127602861dc2f4a5defddfbb66e702c88f1a1ca1f0ad1a22f098d2d5b",
+      "bytes": 414,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/PLAN.md",
+      "sha256": "db43e3687bc2bb7986d725a6b4665840b7ecdc38cf9af57d877ec4f1a8c6c12f",
+      "bytes": 1492,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/README.md",
+      "sha256": "3a410790fe64ded57df63e7d4e42dfdee895179864e0da5097450dfc3eee807c",
+      "bytes": 2462,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/api/README.md",
+      "sha256": "b4d0e14a818703b3187e7fdf6d2f5d30df1b2c4b6d8716eea162d7cb9a7650c9",
+      "bytes": 9941,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/api/_shared.js",
+      "sha256": "1bea39ada6272cfb9b447e41a63490d2610def7537cee0ab666afbe8966f3b4f",
+      "bytes": 14238,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/api/bundle.js",
+      "sha256": "de65b4d6246dd20e7687a63b98e1f2559cff4934c80198008adfd446d81a9b6b",
+      "bytes": 1886,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/api/commit-bundle.js",
+      "sha256": "6f568cda3a269954c23da1e3a76dc70186495b29d7c7d0d954dae145fe7dbfa3",
+      "bytes": 3649,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/api/parse-investment.js",
+      "sha256": "e060eb0996d321c55f5a0bec4205ff1b38cd931b5c50f05b6ab7fa961bffcf4a",
+      "bytes": 8934,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/api/parse-settlement.js",
+      "sha256": "81c4a6b87484f7441c27d75bd931170b15299096904427dceecbe52e09b563e4",
+      "bytes": 9113,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/api/unlock.js",
+      "sha256": "b39068f6d11ff54879f4f320a9f20ebcfa82dfefe79cdeb155d57108393ece7c",
+      "bytes": 4435,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/docs/audits/2026-09-18-core-pipeline-audit.md",
+      "sha256": "fc0c6681db0cb5802a53d50682aaba6cfd32623c2d05556494c5640333133cfd",
+      "bytes": 32097,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/docs/audits/2026-09-18-reproduce.mjs",
+      "sha256": "cb075299a5d32ebf2daa7e4943519c290cc343e940e7e90e4745b5e78ddf72c2",
+      "bytes": 11484,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/docs/audits/2026-09-19-technical-fixes.md",
+      "sha256": "2fe303c1f7936382d13998b4c3391fb54bbbcbb57cea8595904d9394cf216c65",
+      "bytes": 4706,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/docs/audits/2026-09-20-audit-fix-completion.md",
+      "sha256": "b75e8e6ec697873d4e3c6c95f1a2c5b2fe0452c43e4acb330f289eafb004ad87",
+      "bytes": 17502,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/docs/audits/2026-09-23-glass-performance.md",
+      "sha256": "1e3f4096bcb1da251b41cc9c5ae468b201bef75f6e137f8bd3af294d571e6fed",
+      "bytes": 9095,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/docs/brand-identity.md",
+      "sha256": "d03d07073bfbab8369dd4a1b368d0e437dab134ec55c946e4df8dfb4096e1ae9",
+      "bytes": 4265,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/docs/inpiration-design-directions.md",
+      "sha256": "6ea3f9041e971ef04034760a65ecbdef521290e8bc31c803597920a5c7a6ab8b",
+      "bytes": 8975,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/docs/inspiration-2609.md",
+      "sha256": "b943ccfb8d8e65b45fb7eec808321533f637c87b702ce69d134e7a34ac5253a4",
+      "bytes": 2963,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/docs/lab-editions-v2.md",
+      "sha256": "45c074b179461a9775fd11715c0cf9fb05c13ac552461056ce774eb5f9c2f810",
+      "bytes": 3225,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/eslint.config.js",
+      "sha256": "cd4c9b0b68a8b15a26a5550fc9af039ff3230d5fff8b1e78bc12cd98d7fce2cf",
+      "bytes": 3079,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/index.html",
+      "sha256": "bde5dd62d71c595eba205a75dddecf22d848683bed862449798e951dff6eb6f0",
+      "bytes": 1244,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/output/context-factor-ablation.md",
+      "sha256": "4014803ac34fc7d16cc81173211cfa37f7f3c5d5c2c7a611d65ca50627e4e8ac",
+      "bytes": 3171,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/output/pdf/eivra-app-summary-1page-zh.pdf",
+      "sha256": "a791e8a594f0a4746a3757dca99778e32ca137cda62877244823828ff59abe74",
+      "bytes": 62039,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/output/read-quality-report.md",
+      "sha256": "7f465d6dd5c7779e7a4e3c4265c097599498f4a296d439b30a153cf24ea29e95",
+      "bytes": 7638,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/package-lock.json",
+      "sha256": "e61d5d97288b07686280412ae0bb012a69f3228a07354557e722fa415fa3dd71",
+      "bytes": 215203,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/package.json",
+      "sha256": "789a44ef4fc8453456460cc954ef8fd64330cacffdef85595890e6fce75d87c0",
+      "bytes": 1084,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/postcss.config.js",
+      "sha256": "190c877db466995bf1482f4a16abd06e04a89ede3119341e2a86ff96e1737b27",
+      "bytes": 80,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/public/eivra-avatar.jpg",
+      "sha256": "60bd4d4ebac3346c712fcd489d46dce2cfefae636d175268cb67b8b50ef9cddf",
+      "bytes": 67891,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/public/favicon.svg",
+      "sha256": "15d7a1fe4baec540b192835de9dae750cf8286a27c951948619d976c5e24c081",
+      "bytes": 1776,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/public/font-sampler.html",
+      "sha256": "e4b4cfb2acef1abd0c5ee6aaafaa23ecb6275981aba103fb50f64fa7533e85b7",
+      "bytes": 9247,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/public/glass-backdrops/hongguo-portrait.webp",
+      "sha256": "6762a096d111b7ba8e2a4c3d5b5114268158775b0329cc81355e34a512388e80",
+      "bytes": 9404,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/public/glass-backdrops/hongguo.webp",
+      "sha256": "e61f97ea5b4a9322bceab8616f84764e289772abffdc6c392410c1ed93bf382c",
+      "bytes": 19448,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/public/glass-backdrops/spectra-beams.webp",
+      "sha256": "aaf1f61385a10571f4866f6a12b6d0db7d366112813f50d272a7e89546b696ba",
+      "bytes": 23382,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/public/glass-backdrops/spectra-portrait.webp",
+      "sha256": "dba17faf2dff5c142e1dd04f89ef0bc368fee6963552a4f390ac710fe2dccbe0",
+      "bytes": 5540,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/public/glass-backdrops/spectra.webp",
+      "sha256": "c0d4a76a032f93cd791b3e126c0dce11af3c5a6658f42e65aeced27fb3f10575",
+      "bytes": 8296,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/public/glass-backdrops/starward-portrait.webp",
+      "sha256": "3ef50ae3685cd3141cc6e70fac7e314b5b1605ac57dddd741ceb84dcf5a2e922",
+      "bytes": 7130,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/public/glass-backdrops/starward.webp",
+      "sha256": "65437c16ce93c18ef2c2656a99596dfab1507ff54ebffb40d5abab1357ae0cb9",
+      "bytes": 10394,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/public/glass-backdrops/vivid-portrait.webp",
+      "sha256": "6f028c4361bd11ce8f3a59708cee74038f6be516b7f2f2936b5aefd4d065302b",
+      "bytes": 10846,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/public/glass-backdrops/vivid.webp",
+      "sha256": "ab1f3732a00c93292c1ab18bcbec33f38c2cd19a02a30ac9c83c623f301d67e9",
+      "bytes": 16480,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/public/glass-backdrops/xuanji-portrait.webp",
+      "sha256": "ad415c34ef933c5603de50f226efb741611597c281ed048339462db2e64c8a32",
+      "bytes": 12114,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/public/glass-backdrops/xuanji.webp",
+      "sha256": "dfc4a0265ee13df95309c52778e903024a0ac8ae91162a20aa5553785be43855",
+      "bytes": 18560,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/scripts/context-factor-ablation.mjs",
+      "sha256": "88c77e9eb3c0bc80065b6a7c4987c0e83a9412ab914f8b540318aa6427be7580",
+      "bytes": 15393,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/scripts/generate-glass-backdrops.py",
+      "sha256": "84e165ba1f176c411782850dc5130ade77832171134b73e70a962d8b8da5187b",
+      "bytes": 11832,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/scripts/read-quality-report.mjs",
+      "sha256": "a28965504d308fa7a88f81ce6a3ac52817de1d7f83c3be9860ec02e0c6b6bb5f",
+      "bytes": 17674,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/scripts/scoreline-distance-table.mjs",
+      "sha256": "e527d6d288e3bbf10f55f356a6bd2d73d2b4a0f44b25c729440665f72824a2c7",
+      "bytes": 3622,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/App.jsx",
+      "sha256": "59e88e08591b5197fac533890eac657ee5f3d8a3010d6cc4e6890db740487336",
+      "bytes": 19010,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/AdaptiveLoopDiagram.jsx",
+      "sha256": "83450fe7c77780224526f3c1122eeb39ceb6942271cd5798bb60ac630f5e4c3c",
+      "bytes": 6239,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/BalanceLedgerPanel.jsx",
+      "sha256": "988f06d24f549a6738233ce5c566fedac94dfb59f595e74ddfb578a08ef82f73",
+      "bytes": 16275,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/BottomBar.jsx",
+      "sha256": "c31edaccc95a667373a1ff451979810e44f220adf87ecd3ceb2002db6960c818",
+      "bytes": 613,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/C15DiamondCutV1Logo.jsx",
+      "sha256": "d5930c04536ae2d95a1138633e75f2b03607fedbffa4c0d65f09dbd86b862029",
+      "bytes": 1308,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/CapitalCurveReveal.jsx",
+      "sha256": "6d70a184c05bc5294b58efc5a6945d5b1d06ab8f08a505c2a616ecaa8d26a692",
+      "bytes": 11135,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/ComboExpandHint.jsx",
+      "sha256": "17cf10baa550105fcdba63bf191b33a8e83610a424f9bb082d1edf4589104343",
+      "bytes": 5959,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/ComboOrbReveal.jsx",
+      "sha256": "1dd7ba2f924249b550fe8b2207635579e9a18eeb65d6d9bd4d34eff55427841b",
+      "bytes": 5845,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/ComposedGlassScene.jsx",
+      "sha256": "5e2696a2bcba50b4f0dba0fb248c9a0e4e073b752963a8b523830fee47d40b06",
+      "bytes": 637,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/ConfidenceRing.jsx",
+      "sha256": "ab4630efcf0baad4d35ee43fecf2729293f30e6c68291b1f15358cc28b3b6009",
+      "bytes": 2433,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/CountUp.jsx",
+      "sha256": "52b79d763feec077fa1e24169b06ca1961a4de47f5489d550e93645d084e0425",
+      "bytes": 3279,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/DemoBubble.jsx",
+      "sha256": "0b80374be24a88f267741f66dfc8228cb9d28705654002dbc8d7386077312d5c",
+      "bytes": 5633,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/ExplainHover.jsx",
+      "sha256": "d3ef4d66e0b1475672571b849da2deea83350c56659dfcda216c5a2d7678c028",
+      "bytes": 2890,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/FragilityHeatmapCard.jsx",
+      "sha256": "189ed4bc3b9275f6ee1a048d63ddf1121460d3ec8e0a3ef8abdf997d0e510a21",
+      "bytes": 61038,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/HdcsC19Logo.jsx",
+      "sha256": "4175bcc50dcf9c808972110ffff967015aebd032336f3556f94c82e83028b599",
+      "bytes": 1119,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/InpirationTopBar.jsx",
+      "sha256": "834c20d0c05b788dfaa47f201de49159c6452ffe160094774f813b38610c4cca",
+      "bytes": 689,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/Inspiration2609Shell.jsx",
+      "sha256": "da66be3a3f1ed146464df3ebc683658bcb3d95342e91cd396434147da87c7da0",
+      "bytes": 1532,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/InspirationIcon.jsx",
+      "sha256": "c9424134b4549dd4b77b16861a28796a892442924e8e0cfc3e72f2d0305d05b5",
+      "bytes": 410,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/KellyModeCard.jsx",
+      "sha256": "b663f6f5db06ec8c847f128367679babca137696eff1eaf1468d0cf92ddb5ff5",
+      "bytes": 3361,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/LabEditionBar.jsx",
+      "sha256": "3f35f2eb81bfeadf215f71f1c1ca232899c79ee81256800369d7f875108c518d",
+      "bytes": 1590,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/LiquidGlassBackdrop.jsx",
+      "sha256": "9e8768b60247065ff76897cb29d77560c49560cb1958aa0d705a68925fe5eeb7",
+      "bytes": 40839,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/LogoGalleryExplorer.jsx",
+      "sha256": "05c1aeef1d1b21ba72e0c9ffa748e742f97754e0998bd06c25bab9f1ce57e36d",
+      "bytes": 14399,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/Modal.jsx",
+      "sha256": "4bd9bd6824ade3ce534dd8c1e8a2cc82fd5d919d835f015c175ea57246494d31",
+      "bytes": 2028,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/ModeLabel.jsx",
+      "sha256": "fc0fef3963193b6fd75a24c7b825d9091f0259bd1c2b11b5b22278a75c9d9b69",
+      "bytes": 1446,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/ModernTopBar.jsx",
+      "sha256": "e6dfbe937964a178e1c0d6200f71efa91042a1466a4e52fbab9bae5039b35063",
+      "bytes": 13683,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/PageErrorBoundary.jsx",
+      "sha256": "35acaba39abbc2770904fd844a58eb102fb2c5a21cdbe0042cef0c92ebce1c48",
+      "bytes": 1690,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/PortfolioComposition.jsx",
+      "sha256": "5a25246bf9226f4787accc47b303aa5c39949fe0f8a8e4faf9a40090aed0e4ae",
+      "bytes": 1127,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/PreMatchBoard.jsx",
+      "sha256": "3c041cec53a8ce21619c24925e0298c36dd76ffd9ba084e490eb50a17c03fb98",
+      "bytes": 24041,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/PreMatchCloud.jsx",
+      "sha256": "160f7a1795c8e6ac4d078912558015fd7d42f1cfb513329b1a3fab181b5af5f5",
+      "bytes": 5920,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/PreMatchGridView.jsx",
+      "sha256": "5e8ac2c754470b475c90df10e992d45ef998011e2d03c226c0491e07b182ea80",
+      "bytes": 30745,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/PreMatchHero.jsx",
+      "sha256": "97b5742da23fafcd10d5f8f68239d1b23de7b4be369257a4461cb5340d518cbf",
+      "bytes": 10119,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/PreScoreSlider.jsx",
+      "sha256": "30a9baeecd531ddd9c3001c2811e33d0236328969047e0a11789046312d409cf",
+      "bytes": 3898,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/PreviewModeToggle.jsx",
+      "sha256": "4bd8554446fb5ecaa7a4833cbf044667dbc4aff21d97d46f9070772144ca5a45",
+      "bytes": 2242,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/QuantsLiveSignals.jsx",
+      "sha256": "e5b5a13dc2d06900231adf2e0c89a02ba63e58ef65f3995eb650a724e1b60b02",
+      "bytes": 2942,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/Sidebar.jsx",
+      "sha256": "8be3cd09d5459e03803f99330b9cc26ad80d6b06cb01625b31ddd278f5429381",
+      "bytes": 11977,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/SimpleBinIcon.jsx",
+      "sha256": "b82590ca53aad8e83f00a612e0cefe76a87b6686938ff052fa779d69fe48c96a",
+      "bytes": 812,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/SmoothGlassBackdrop.jsx",
+      "sha256": "e0536c6d69ce8889b29ddb5adaef8dece7ae7fcdb5ed89d270cb943926de3121",
+      "bytes": 1664,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/TeamPagination.jsx",
+      "sha256": "f4554599cd9166f4078ac1a2d85b13f2444d6a95ba31b29437a8770b270f6cff",
+      "bytes": 1280,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/TimeMachineIcon.jsx",
+      "sha256": "95da000f489cbbb89986fa3c791a05df47347878f955f06971846ac68cc58e4b",
+      "bytes": 3453,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/TimeMachineModalContent.jsx",
+      "sha256": "c9e33b6c18e0f7a61f9ac328c361718a942cc6a990aef986f3eacf5eb20338ee",
+      "bytes": 17230,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/TimeRangePicker.jsx",
+      "sha256": "3b40ce945a06e2a5655002dd01ca9ee6855605975707f5d6e9712b9013e0c347",
+      "bytes": 6079,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/TopBar.jsx",
+      "sha256": "d0a0084098984d85d02bd7a87981dc310baf9c5faa6b4a24c12e208963ebdfbc",
+      "bytes": 13160,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/UnlockModal.jsx",
+      "sha256": "45728f3ed41c221398985d8e44773e62ab26abffeabc0e3c40ab2fe27b5f90e9",
+      "bytes": 7245,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/WalkForwardStrip.jsx",
+      "sha256": "9f3f334aaaf79c65b1cb3ae5d6e997ddd30bf6cf47d603c467ee7e3c76b8e751",
+      "bytes": 4462,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/WaxSealS2Logo.jsx",
+      "sha256": "7df30336b94149d450cebd3b4da056f4cceeba31a391911c01bf755d511b42ad",
+      "bytes": 1163,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/components/WaxSealStampOverlay.jsx",
+      "sha256": "5164c463d7541f7a13cefbbbc828a323f6f901c787d09c9eeb3b970324a9d3cd",
+      "bytes": 2606,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/data/futureFeaturesRoadmap.js",
+      "sha256": "6733e5fbc7219b999a168b8c944ce9b419a321b38c1aa30aac86e85393ceb176",
+      "bytes": 61359,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/data/genesisBundle.json",
+      "sha256": "7c7c86bb13cc5227f8023d7e268e28fa6c820326a76ccbc516d728f1ed6bc183",
+      "bytes": 100206,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/design/flagshipGlass.css",
+      "sha256": "77571425930d09270e4fab118daff8b914433ccb658f85c17d8eb748b1b4c30b",
+      "bytes": 34393,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/design/glassQuality.css",
+      "sha256": "87c5427c21b0b5224aca62df40321952d164538d5e214ed3c8ae7b06d588ebbe",
+      "bytes": 4894,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/design/inpirationConcepts.js",
+      "sha256": "4529917dd90fc5705a13cc623488389415bc9f99adfc6e8c671013ee07a750dd",
+      "bytes": 11893,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/design/inpirationStudio.css",
+      "sha256": "a097859ec7908418b2560476bac2abac2c9c6c163233c760a16e105541fa576d",
+      "bytes": 50954,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/design/inspiration2609.css",
+      "sha256": "f65225fd79a69e29a2e55a267927ba4f5bfc36812a9059a31960bb9341b6496a",
+      "bytes": 10059,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/design/inspiration2609.js",
+      "sha256": "43eccf6361068c5de0830987b928cbde240ee2ba2f7cc013c6369a1b49fddde2",
+      "bytes": 1024,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/design/labEditions.css",
+      "sha256": "8868373d8771a3f7d7fc0bd6245b90b231cad47d7f27f95854d0ae0dcd31659d",
+      "bytes": 33455,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/design/labEditions.js",
+      "sha256": "e0bf437aa09b6c27868556c6af2f29eda7cc1ea412101a89a918029728970656",
+      "bytes": 1549,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/design/liquidGlassThemes.css",
+      "sha256": "5f2a6275ae8d04e02e1c84f22583b07ecf006a6543e6d3f100c2d4a13d46cda6",
+      "bytes": 8860,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/design/liquidGlassThemes.js",
+      "sha256": "9781b2006a522e9b9618ead9f93dcf62bb718fb14a7a5e22a3e22f7dc518ada1",
+      "bytes": 2829,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/design/preMatchStudio.css",
+      "sha256": "ae3804048c00f81ef12be8045b0acba19f5a2de808563ce35fcf8496e7cbf8fd",
+      "bytes": 25580,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/design/teamArchive.css",
+      "sha256": "1c5b46da00add8334cccd42b6aa1458149620b2837349553fd22e574f9dbc5b3",
+      "bytes": 2287,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/design/themeSession.js",
+      "sha256": "e8e50641f20b78545d573da7e780eee625875b839f23f0d1e8af6b5b5a619cf2",
+      "bytes": 2925,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/index.css",
+      "sha256": "1dedfeec66b80362dce7f5890215c587ca6b1ac48af9da84ca740ae44fd012fa",
+      "bytes": 340267,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/adaptiveValidation.test.js",
+      "sha256": "f8f8f60ee9efdfd98bd485fee82078673a447aa017e496a9201d69bbcbd84b3c",
+      "bytes": 1083,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/aiInvestmentClient.test.js",
+      "sha256": "6daf122973cfccf795a27084a2f36ed00e3efe3b8dbf672ccebc0b56d6686f08",
+      "bytes": 2277,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/aiInvestmentSchema.test.js",
+      "sha256": "e44bcb25f7cbd42264dc0914a2c8b4dede5669cad6ccaa710f75263fe3509352",
+      "bytes": 3976,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/aiParseApi.test.js",
+      "sha256": "e78c0a7060117b9696f76409fb41d138d4a20f020104267aee0b82def0fcd5be",
+      "bytes": 5841,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/aiSettlementApi.test.js",
+      "sha256": "69f470e7a3020d17bc3c1b1c2cc1a5de4d9c89ddf639f0fd1849de281dc84b61",
+      "bytes": 3966,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/aiSettlementClient.test.js",
+      "sha256": "49f266af204b965525ecbdacc3c1bea04de6c4b14e114d0444fe7ea6daab1108",
+      "bytes": 1615,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/aiSettlementSchema.test.js",
+      "sha256": "90304d8d1723367c313d402fb407d6653dae8e99e8518fba783e2c413894aaf1",
+      "bytes": 2116,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/appearanceCacheIsolation.test.js",
+      "sha256": "69ad95b176dc61c6fa24ccbf82eda4b81a532a1b3daf79b3e8103330fb094c71",
+      "bytes": 2188,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/auditFollowup.test.js",
+      "sha256": "eb73cbf72cf775d9a16cc184289f9749766d66f8f3ecfefddccd4173769037a5",
+      "bytes": 3463,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/auditRegression.test.jsx",
+      "sha256": "9e1a30b860b7407c028206118f6f01ba673b2f70129d4907da52c3d2e715f853",
+      "bytes": 7366,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/bundleMerge.test.js",
+      "sha256": "651732b2e54868d330abe89401db56ff44ff585ca61fbd98f69518b3c7d305fc",
+      "bytes": 5567,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/calibrationRegression.test.js",
+      "sha256": "338028c70be03beacc1aa72addd8424817325fecac8978eafee798b043aec31e",
+      "bytes": 20810,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/calibrationSuggestionBudget.test.js",
+      "sha256": "5ee40fb6c33d73b10189fe056cc1f7c8e429809e375fc99fc3cf925c0aac596a",
+      "bytes": 5512,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/consoleAnalyticsClient.test.js",
+      "sha256": "2fb03950f0b52c0b2cde839c3862b5d10f4e1e7a7847b218255b664c52db5660",
+      "bytes": 2812,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/consoleAnalyticsJob.test.js",
+      "sha256": "d630e4a501079d66bbd7d9ac7a34425e5a5288a3cdb3b211be8abe17a1f4982d",
+      "bytes": 6587,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/dependencyRisk.test.js",
+      "sha256": "040303c45de53b9effef35326f5cdb8c2db9d802fe93aeef7dcd684c882b7d06",
+      "bytes": 16632,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/displayMode.test.js",
+      "sha256": "42276825b0a07d67eb465c78144a74ed10b242ec3ea3da8d7cbb478b2beecc87",
+      "bytes": 1656,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/entryParsing.test.js",
+      "sha256": "42b69adb2b9a198b851482ac02d640138ad3ef8d4c8d7c179f695260d2340bae",
+      "bytes": 6183,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/glassScrollMotion.test.js",
+      "sha256": "7d76331eb94615409237d47f51c410f937f34fbf7ed199c0eed1dcbd8584a995",
+      "bytes": 3699,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/inpirationConcepts.test.js",
+      "sha256": "13d649f6881e140d62bcff4c744b8ede9eb1ce6bf09be4f115d2e689fbded3da",
+      "bytes": 1145,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/inspiration2609.test.jsx",
+      "sha256": "894f24200c548562403ef08a1c986e90b13ee38ed9fc755bcdf46c33a9402730",
+      "bytes": 10380,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/investmentProvenance.test.js",
+      "sha256": "78f8f41d09d1d5cd568c8ed1f063a65b0be311f326bddd32d89e291fdd8e32fc",
+      "bytes": 5849,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/labEditions.test.js",
+      "sha256": "3bd37e6ded72b5cfc71e6f254ac76bcbf11c71be327cc1c4d91a15ec2d41f5b3",
+      "bytes": 4128,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/layoutMode.test.js",
+      "sha256": "e8fc84c7fd3104074f957988c6ea264bf8dd37a0b4ed0ec5ad3d3fa875dfd245",
+      "bytes": 1258,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/liquidGlassPreferences.test.js",
+      "sha256": "92b742e9232ff409cb7eed95f0dde4bf6f1df8874ae634ab702659b07ab08a36",
+      "bytes": 13077,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/liquidGlassSyncPreferences.test.js",
+      "sha256": "fa8e0ea3303754c3b3417dbf70c48f5ddd664d1b280faea5cb0b1f55637199e6",
+      "bytes": 4084,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/marketOdds.test.js",
+      "sha256": "d8d9cf107d4cb200c7726fbf855c8b5ced00ff02011d849a886e18f955b627cd",
+      "bytes": 10812,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/matchResults.test.js",
+      "sha256": "20ad409a9951df6d8d3ab5c628b54c52323926fe8fad67031cc1d2617b9f3168",
+      "bytes": 16255,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/naturalInputParser.test.js",
+      "sha256": "bb14d714f13a9638a927b45c25bf69f4636d25a930ed4425e9940f008cd9b11c",
+      "bytes": 664,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/oddsHistory.test.js",
+      "sha256": "3fe88e8b823e4e586c4f15820ab51e750d204a8273dba929d059989e2de9fcf2",
+      "bytes": 4689,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/portfolioAuditRegression.test.js",
+      "sha256": "06d596390287c80161187be95cbe39b92e10dce92e1a36e18ccd7c22d69b5171",
+      "bytes": 11324,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/preMatchBoard.test.jsx",
+      "sha256": "279c307c12f5a30c3d833fc68b871b7c31d06e6bac7ebe7f55bab5f8d29b4ff3",
+      "bytes": 11043,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/preMatchGrid.test.jsx",
+      "sha256": "7dc26e7ce75c6e2e184f98fb2d96fa7c2201c0b3f6ed8559754c6ce2a735d9d3",
+      "bytes": 4113,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/preMatchOpinion.test.js",
+      "sha256": "44c15e061ecfe5803800a5327f763bffc9e80ed2d99bd5aa07a83f78c752b8c9",
+      "bytes": 8281,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/productionValidation.test.js",
+      "sha256": "2aecd447b5774fb34aff85d1ac9da30df52283cf116c2f11343302af60c72a14",
+      "bytes": 5590,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/quantStrategy.test.js",
+      "sha256": "988e4e0ad14cc1cf6e38e7783d07d7eaf78901fc19478be9b80d82aa5900b2fd",
+      "bytes": 48558,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/quickInputPresentation.test.js",
+      "sha256": "b4e6c160d00d30eeb69ea9eac685acc33cdbd7eb6e1ab7670f170f15998c9dad",
+      "bytes": 1863,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/readQuality.test.js",
+      "sha256": "ea5465d34dce9b1525249805f6db7317a7d51a9e2d84b5a32841c4384c24460f",
+      "bytes": 20015,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/returnRisk.test.js",
+      "sha256": "4f86edc48368a57793c59a163d25191d1cd442bd8ad80f0ced60a816733bc69d",
+      "bytes": 1073,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/settlementQuickInput.test.js",
+      "sha256": "e5b8c26cb2b7331da31e32db90ec5ed4566ce06aa5d8f96aa80ac16d8c5080e2",
+      "bytes": 5365,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/simulationEngine.test.js",
+      "sha256": "a5f3860b444428520f6a2df1ee124afafc60c37fff22efa844763f1e9819cb6c",
+      "bytes": 7521,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/teamHistory.test.js",
+      "sha256": "0935ea55d2ce0f556d00868a37cfacc30acd64bc46f9e56f376e42afcad0ade2",
+      "bytes": 5358,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/teamPagination.test.jsx",
+      "sha256": "267e0fcb843e9285b38490b14605c7b7ff5d99a0b3f666d9ced8f258452cb882",
+      "bytes": 2545,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/teamRatings.test.js",
+      "sha256": "d7d3bf384908a353d8875af83eb4717d8f3347d6c38c05aec6b4fdae6363a777",
+      "bytes": 5195,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/themeSession.test.js",
+      "sha256": "776f2410c136dc1216a4031dc58108b8e460c715968f57792b913d769df03d7d",
+      "bytes": 3131,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/__tests__/warReport.test.js",
+      "sha256": "c2fd424e49899f8d4973991e57e4e7713b6a8dee20ab1fffecc62cf3dcb41e6a",
+      "bytes": 12495,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/accessTracking.js",
+      "sha256": "b26246165b10f1788a30601bd99cc71ec2f1304c55f275bf992eae76820d568c",
+      "bytes": 3439,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/adaptiveValidation.js",
+      "sha256": "8e55efb078c2a6cebc93e8d5d7f0fb6457e1c9378e520e55b78187d1adba0a2a",
+      "bytes": 952,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/aiInvestmentClient.js",
+      "sha256": "b975d6e592075b84db5c745a50e07159d5c022f2a661de0d671dab80ef752112",
+      "bytes": 3232,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/aiInvestmentSchema.js",
+      "sha256": "4a9b1eae02c2d80f796c262fe9359ad5a722e6c73e993d240524b3f40e49a5b3",
+      "bytes": 5516,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/aiSettlementClient.js",
+      "sha256": "a22df12780766098d683a2dabc776bd6fe45e7a84f4715de5805afd98a767805",
+      "bytes": 3162,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/aiSettlementSchema.js",
+      "sha256": "a80b2aad48f0aad478781df146fe7826603212d91659cdc3f64bcc3f67b3a219",
+      "bytes": 4070,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/analytics.js",
+      "sha256": "808b7f6b7a6727c3efdba8dc0b2d955a4e9cb41a873924c9d09e289452e2257e",
+      "bytes": 263652,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/analyticsSource.js",
+      "sha256": "8d424f5af73c104fa2db937e0ffded444a2f1f7b19a4946d0f6e4c889de83faf",
+      "bytes": 994,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/atomicParlay.js",
+      "sha256": "09d6c431bb72cfea8c3ee5d788d606f5ad70b1d051faca008b4ada2f2b85b227",
+      "bytes": 18880,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/cloudSync.js",
+      "sha256": "90dc6b978eb628a44f9548851d606794ac2c2b0a5a3516f7b81af3df45028552",
+      "bytes": 16707,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/consoleAnalyticsClient.js",
+      "sha256": "76ed2a23239749a94a72762e8554ab1f189e1823f387b7073c155c87c4cc3c77",
+      "bytes": 1410,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/consoleAnalyticsJob.js",
+      "sha256": "82222907aa6cbfade9fe1fadb91a03d9dde8f0d793c5d09f665bd3850e4b7536",
+      "bytes": 1237,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/demoData.js",
+      "sha256": "773f514fa6015fa823693c9e639c7a25f8053c7fc05feafcf149ca50411bf1ac",
+      "bytes": 39481,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/dependencyHistory.js",
+      "sha256": "891e42b5c7a0b123b6ed58c9a4cc76ced3e19c7047a68c25f61023a59c3206c6",
+      "bytes": 1502,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/displayMode.js",
+      "sha256": "3eaa7d5fe85d09a4c0434a7e9fa56a16121bb6bb3e258280a690a04231332e39",
+      "bytes": 6257,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/entryParsing.js",
+      "sha256": "05f4366955f6b10dd1f050e9829cf73e7f5581ed93879e1d36a70cd271d478a3",
+      "bytes": 12005,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/excel.js",
+      "sha256": "ba5a51e0ea01c28bbf8faa59394b48643bceccc26550f733ba753e7acd16625a",
+      "bytes": 19685,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/gitSync.js",
+      "sha256": "ccd125026ae7fe0251b93884e82656dd1749807da24b6bcdd3ba6347ec0bea8d",
+      "bytes": 7886,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/glassScrollMotion.js",
+      "sha256": "e8964060696d43fbc4aed7e212aceba0b8dd0ca836c2d6b4ae04c8c1223327cd",
+      "bytes": 1779,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/glossary.js",
+      "sha256": "df77878df298a9539d02b14c5b780c4625312c30bc7f3e350b9ee67e68659b4a",
+      "bytes": 5430,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/investmentForecast.js",
+      "sha256": "c6830761c03aa413ea56fbda63aa424b27c0d0481a1125054c8627fa4f345767",
+      "bytes": 4681,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/investmentIdentity.js",
+      "sha256": "499ccb8cd05040184084ffba82d18bb68ee01a06ac64fa66384be0806382eda5",
+      "bytes": 3008,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/labels.js",
+      "sha256": "0cf3ecdf0268f1565d7087aaedcf99c6cccc4598e8feaed152d51e6d8b208c71",
+      "bytes": 7977,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/layoutMode.js",
+      "sha256": "5958f097d937a361870aa4958d25445306534537f7d03e0450034af5c51ff4c1",
+      "bytes": 1193,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/localData.js",
+      "sha256": "bbcbd424b48525c8b867a660b2a14a9b8c734e04e9563c6bcb850622a698c857",
+      "bytes": 74052,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/marketOdds.js",
+      "sha256": "8a1b6c7021c9bb2d328b8adbbd03bb3342ee0c2b5dcf9cd6a92691b320d006cb",
+      "bytes": 9211,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/matchAttribution.js",
+      "sha256": "d6cfc378bba605cf977aa34745fca1ce8c5a3e2d4f78003cd4cd8305b0967e47",
+      "bytes": 1160,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/matchPrediction.js",
+      "sha256": "f9b551c5b586e4d39117aa8f02dca9445e7f823377250cb26e12497dd9ab1b70",
+      "bytes": 2838,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/matchResults.js",
+      "sha256": "76b15c04f885a81444a3cfa297efdfd2cfc64344f196b72aa8e066ca5d91fe0d",
+      "bytes": 32496,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/naturalInputParser.js",
+      "sha256": "aebf8edb0eb8e49365a9e6370f846e369d4093306f9b7385c09bf8bc696937be",
+      "bytes": 31105,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/noteFormatting.js",
+      "sha256": "4660be5c9ab12dc36d8b0b7a9ac181694f93ac73b12612d891102951cbe5674d",
+      "bytes": 1673,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/oddsHistory.js",
+      "sha256": "d2770edb279756ff9df14ab5b918971a502941cc6c1424df4ab8db07c6c41140",
+      "bytes": 10280,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/pagination.js",
+      "sha256": "13d042f71935e9ecec459ff9dc1798a4953b79d0a59d536188beb743f2f071db",
+      "bytes": 832,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/preMatchOpinion.js",
+      "sha256": "8e744470758937235af7835eeccac67aa789cc8bc3646c195bf47c0fa43f6450",
+      "bytes": 12816,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/previewStore.js",
+      "sha256": "b1088d68b148f144ceb09ec4190c6c65447b052c55b1361339ea85ffe872a34d",
+      "bytes": 2901,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/quantStrategy.js",
+      "sha256": "47f1e9cb1cb05c67b93f0ac3293d70fcba4003490f93b97d72e5d49b74568c96",
+      "bytes": 71806,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/quickInputPresentation.js",
+      "sha256": "226efae9e2b5f52d75b88fda495f68559448bc2240553a056e31986a03b2538d",
+      "bytes": 2188,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/readQuality.js",
+      "sha256": "f053442be88fe8c62268697a9d8d485dc18888aa144e0734d5a1fdeafa77aacb",
+      "bytes": 46074,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/returnRisk.js",
+      "sha256": "6a571c20e848d1fa8ae98d7a02a92ee84a31a7df6020b16094b8f36730001bf7",
+      "bytes": 828,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/settlementQuickInput.js",
+      "sha256": "5555c9ebad75df351124720346613179852d355a13647f5b3e7a308e20e00111",
+      "bytes": 14324,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/teamDatabase.js",
+      "sha256": "66f6acddf03e707c48997b931df823892d18dedb33d17b7fda6daa0f86c3dc2d",
+      "bytes": 68512,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/teamHistory.js",
+      "sha256": "e9e569cda6a33d28c8989149066cf4f8d7bb58b0a33152b907ff8f67761063be",
+      "bytes": 6321,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/teamRatings.js",
+      "sha256": "8e40b672c82aa68464cdfba5ff54637238ec754dbede54d26e3a342329c79c65",
+      "bytes": 9102,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/temporalValidation.js",
+      "sha256": "66106245ccb011ababded5926930da2d6226c740b25edb92853afba1c3841d74",
+      "bytes": 3821,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/lib/warReport.js",
+      "sha256": "8a7ac13e0cc42d0c14328016d9d2b801bfe7476aa216a746de2229f574cc818b",
+      "bytes": 24773,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/main.jsx",
+      "sha256": "d4ec71c6e06beee2b375ada95134ee506c8516984b42f3cad78cc02352595291",
+      "bytes": 2500,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/pages/AnalysisPage.jsx",
+      "sha256": "ee7854b505e8c954e6df572c78a930f250eb61d80afe9e961d2cd83d8c8bb4a2",
+      "bytes": 92965,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/pages/ComboPage.jsx",
+      "sha256": "20e96ccae6a4cee769c2b9916f9997a4f086d75909456ec377e3dc6fad2e8716",
+      "bytes": 370067,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/pages/DashboardPage.jsx",
+      "sha256": "e3204d249ce79dee4e3e23f5acc15d9da888f88729571b8a3336f92efe6891d1",
+      "bytes": 95886,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/pages/DesignStudioPage.jsx",
+      "sha256": "4635989fe403a4f41f2ce581ee8c10861154517ab1d1a74374d9864b971a3f8d",
+      "bytes": 47657,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/pages/HistoryPage.jsx",
+      "sha256": "a76d1fd7912f94d70a1c8a51b2d6981c64c610764c695f69f73dff96a95b3fa5",
+      "bytes": 64735,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/pages/MetricsPage.jsx",
+      "sha256": "3e18a76e67393115ec3a6a8e03683b65465552489eca5cdcc42867a6d62df307",
+      "bytes": 58847,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/pages/NewInvestmentPage.jsx",
+      "sha256": "b3296cb8b6ad97613e8d1395e73049a87e424e5f0765ca5b005ae9e64650ded1",
+      "bytes": 112729,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/pages/ParamsPage.jsx",
+      "sha256": "dfd6e46d3ac9138ff0317b155337cc413a17c45eae5a804c80c86badd9d50a59",
+      "bytes": 308196,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/pages/QuantsPage.jsx",
+      "sha256": "666edb30cbfb60391bccbf0c0065c2524b9456a1c0851043d8e43efe84beef0a",
+      "bytes": 112848,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/pages/SettlePage.jsx",
+      "sha256": "ce30f2e8c445a3095fea237f673febbe9dff63274ae64e0f9862db66213f6f3b",
+      "bytes": 63363,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/pages/TeamsPage.jsx",
+      "sha256": "00e8d96a65410ddcf449c680b880d6e33157e47157698af41ae145739112dfb2",
+      "bytes": 39766,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/pages/WarReportPage.jsx",
+      "sha256": "01d27a2573e9159e86edd36f9fd4f884b6bb53e70e84dd8027dbd3fad895b4be",
+      "bytes": 57988,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/src/workers/consoleAnalytics.worker.js",
+      "sha256": "9ef4e4e1652cc1905df15fcc8a3e15ba228875d6aa5a50523b892cee2d609266",
+      "bytes": 413,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/tailwind.config.js",
+      "sha256": "8b28c79038a3dd1daf7b7043d1aa8f43298e55a85cf5fcab94da0054eb3a0185",
+      "bytes": 2743,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/vercel.json",
+      "sha256": "9f35ab5590512dbfd87f2212336c8e2c4cb23596650aa3f6e4c1c42a63ac42d1",
+      "bytes": 232,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/vite.config.js",
+      "sha256": "1c6221f29a6a23a18913e5e16d403f2fb0b8597b4876240ad59a79fe10fa3605",
+      "bytes": 1515,
+      "git_mode": "100644"
+    },
+    {
+      "path": "eivra-studio/vitest.config.js",
+      "sha256": "21f41fc91fb05c46323f9a7bba132ece9f9d4ff2aa028f6ddd80f5ff2097481f",
+      "bytes": 581,
+      "git_mode": "100644"
+    }
+  ]
+}

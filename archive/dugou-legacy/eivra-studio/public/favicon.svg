@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="hydecaside C25 shield crest">
+  <defs>
+    <linearGradient id="c25ShieldBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#27221e" />
+      <stop offset="100%" stop-color="#141211" />
+    </linearGradient>
+    <linearGradient id="c25Line" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fbbf24" stop-opacity="0" />
+      <stop offset="50%" stop-color="#fbbf24" stop-opacity="1" />
+      <stop offset="100%" stop-color="#fbbf24" stop-opacity="0" />
+    </linearGradient>
+    <clipPath id="c25ShieldClip">
+      <path d="M32 2 L58 2 L58 41 L32 62 L6 41 L6 2 Z" />
+    </clipPath>
+  </defs>
+
+  <path d="M32 2 L58 2 L58 41 L32 62 L6 41 L6 2 Z" fill="url(#c25ShieldBg)" />
+
+  <g clip-path="url(#c25ShieldClip)">
+    <path d="M32 2 L58 2 L58 41 L32 62 Z" fill="#171413" fill-opacity="0.42" />
+    <path d="M32 2 L6 2 L6 41 L32 62 Z" fill="#2b2622" fill-opacity="0.32" />
+  </g>
+
+  <path d="M32 2 L58 2 L58 41 L32 62 L6 41 L6 2 Z" fill="none" stroke="#2b2522" stroke-width="1.2" />
+  <path d="M32 4.2 L55.8 4.2 L55.8 39.8 L32 58.6 L8.2 39.8 L8.2 4.2 Z" fill="none" stroke="#fbbf24" stroke-opacity="0.18" stroke-width="0.78" />
+
+  <!-- Explicit coordinates to keep optical centering stable across browser font renderers -->
+  <g font-family="Cormorant Garamond, Georgia, serif" font-size="13.2" font-weight="700" text-anchor="middle">
+    <text x="27.6" y="25.3" fill="#fafaf9">H</text>
+    <text x="36.4" y="25.3" fill="#fafaf9">D</text>
+    <line x1="23.5" y1="31.9" x2="40.5" y2="31.9" stroke="url(#c25Line)" stroke-width="1" />
+    <text x="27.6" y="43.8" fill="#fbbf24">C</text>
+    <text x="36.4" y="43.8" fill="#fbbf24">S</text>
+  </g>
+</svg>

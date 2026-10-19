@@ -1,0 +1,374 @@
+const ENTRY_MARKET_META = {
+  score: { label: '比分', rank: 1 },
+  half_full: { label: '半全场', rank: 2 },
+  handicap: { label: '让球', rank: 3 },
+  total: { label: '大小球', rank: 4 },
+  result: { label: '赛果', rank: 5 },
+  other: { label: '其他', rank: 99 },
+}
+
+const OUTCOME_TOKEN_GROUPS = {
+  win: ['w', 'win', 'home', 'homewin', 'h', '主胜', '主', '胜'],
+  draw: ['d', 'draw', 'x', '平', '平局'],
+  lose: ['l', 'lose', 'away', 'awaywin', 'a', '客胜', '客', '负'],
+}
+
+const TOTAL_DIRECTION_GROUPS = {
+  over: ['over', 'o', '大', '大球'],
+  under: ['under', 'u', '小', '小球'],
+}
+
+const OUTCOME_TOKEN_MAP = Object.entries(OUTCOME_TOKEN_GROUPS).reduce((acc, [outcome, tokens]) => {
+  tokens.forEach((token) => {
+    acc.set(String(token).trim().toLowerCase(), outcome)
+  })
+  return acc
+}, new Map())
+
+const TOTAL_DIRECTION_MAP = Object.entries(TOTAL_DIRECTION_GROUPS).reduce((acc, [direction, tokens]) => {
+  tokens.forEach((token) => {
+    acc.set(String(token).trim().toLowerCase(), direction)
+  })
+  return acc
+}, new Map())
+
+const getMarketMeta = (marketType) => ENTRY_MARKET_META[marketType] || ENTRY_MARKET_META.other
+
+const normalizeToken = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '')
+
+const parseOutcomeToken = (value) => OUTCOME_TOKEN_MAP.get(normalizeToken(value)) || null
+
+const parseTotalDirection = (value) => TOTAL_DIRECTION_MAP.get(normalizeToken(value)) || null
+
+const toNumber = (value, fallback = Number.NaN) => {
+  const parsed = Number.parseFloat(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+const buildSemanticResult = (name, marketType, semanticKey = '', detail = null) => ({
+  name,
+  marketType,
+  marketLabel: getMarketMeta(marketType).label,
+  semanticKey,
+  detail,
+})
+
+// 录入过程中的「打字安全」规范化：只做全角→半角等字符替换，绝不折叠或
+// 删除空格，这样用户可以输入像「-1 win」这种以空格分隔、甚至临时以空格结尾的
+// 文本而不会「撞墙」。空白折叠与首尾清理留到失焦/提交时由 normalizeEntryName 完成。
+export const normalizeEntryNameWhileTyping = (value) =>
+  String(value || '')
+    .replace(/，/g, ',')
+    .replace(/；/g, ';')
+    .replace(/。/g, '.')
+    .replace(/：/g, ':')
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[—–－﹣−]/g, '-')
+    .replace(/[／]/g, '/')
+    .replace(/　/g, ' ')
+
+/**
+ * 去掉尾巴上整行空白的 Entry（投前默认留两条腿的位置，投后导入不该看到空行）。
+ * 只砍尾巴，中间的空行原样保留——索引不会错位。
+ */
+export const trimTrailingEmptyEntries = (entries) => {
+  const list = Array.isArray(entries) ? [...entries] : []
+  while (
+    list.length > 1
+    && !String(list[list.length - 1]?.name || '').trim()
+    && !String(list[list.length - 1]?.odds || '').trim()
+  ) {
+    list.pop()
+  }
+  return list
+}
+
+export const normalizeEntryName = (value) =>
+  normalizeEntryNameWhileTyping(value)
+    .replace(/\s*,\s*/g, ', ')
+    .replace(/\s+/g, ' ')
+    .replace(/^[,;，；\s]+|[,;，；\s]+$/g, '')
+    .trim()
+
+const parseScoreEntry = (value) => {
+  const match = String(value || '').match(/^(\d{1,2})\s*[-:]\s*(\d{1,2})$/)
+  if (!match) return null
+  const home = Number.parseInt(match[1], 10)
+  const away = Number.parseInt(match[2], 10)
+  if (!Number.isFinite(home) || !Number.isFinite(away)) return null
+  return {
+    semanticKey: `${home}-${away}`,
+    detail: { home, away },
+  }
+}
+
+const parseHalfFullEntry = (value) => {
+  const raw = String(value || '').trim()
+  if (!raw) return null
+
+  const dashed = raw
+    .replace(/[/|>→]/g, '-')
+    .replace(/\s*-\s*/g, '-')
+    .trim()
+  const dashedMatch = dashed.match(/^([a-zA-Z\u4e00-\u9fa5]+)-([a-zA-Z\u4e00-\u9fa5]+)$/)
+  if (dashedMatch) {
+    const half = parseOutcomeToken(dashedMatch[1])
+    const full = parseOutcomeToken(dashedMatch[2])
+    if (half && full) {
+      return {
+        semanticKey: `${half}-${full}`,
+        detail: { half, full },
+      }
+    }
+  }
+
+  const spaced = raw.split(/\s+/).filter(Boolean)
+  if (spaced.length === 2) {
+    const half = parseOutcomeToken(spaced[0])
+    const full = parseOutcomeToken(spaced[1])
+    if (half && full) {
+      return {
+        semanticKey: `${half}-${full}`,
+        detail: { half, full },
+      }
+    }
+  }
+
+  const compact = dashed.replace(/-/g, '')
+  if (/^[wdl]{2}$/i.test(compact)) {
+    const half = parseOutcomeToken(compact.slice(0, 1))
+    const full = parseOutcomeToken(compact.slice(1, 2))
+    if (half && full) {
+      return {
+        semanticKey: `${half}-${full}`,
+        detail: { half, full },
+      }
+    }
+  }
+
+  if (/^[胜平负]{2}$/.test(compact)) {
+    const half = parseOutcomeToken(compact.slice(0, 1))
+    const full = parseOutcomeToken(compact.slice(1, 2))
+    if (half && full) {
+      return {
+        semanticKey: `${half}-${full}`,
+        detail: { half, full },
+      }
+    }
+  }
+
+  const compactLower = compact.toLowerCase()
+  const words = ['win', 'draw', 'lose']
+  for (let i = 0; i < words.length; i += 1) {
+    for (let j = 0; j < words.length; j += 1) {
+      const left = words[i]
+      const right = words[j]
+      if (compactLower === `${left}${right}`) {
+        return {
+          semanticKey: `${left}-${right}`,
+          detail: { half: left, full: right },
+        }
+      }
+    }
+  }
+
+  return null
+}
+
+const HANDICAP_OPPOSITE_OUTCOME = { win: 'lose', lose: 'win', draw: 'draw' }
+
+// 异号让球归一化（2026-09-25 决策）：同一让球幅度可以正反两种写法表达，
+// 例如「-1 win」与「1 lose」是同一个选择。统一规范到负号线 + 翻转结果的
+// 规范键，保证同义词在身份、去重与原子建模里落到同一个键。
+const canonicalHandicap = (line, outcome) => {
+  const numericLine = toNumber(line, Number.NaN)
+  if (!Number.isFinite(numericLine) || numericLine <= 0 || !outcome) return { line, outcome }
+  return { line: -numericLine, outcome: HANDICAP_OPPOSITE_OUTCOME[outcome] || outcome }
+}
+
+const parseHandicapEntry = (value) => {
+  const candidate = String(value || '')
+    .replace(/[()]/g, ' ')
+    .replace(/让球?/g, ' ')
+    .replace(/([+-])\s+(\d)/g, '$1$2')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!candidate) return null
+
+  const leadingNumber = candidate.match(/^([+-]?\d+(?:\.\d+)?)\s*([a-zA-Z\u4e00-\u9fa5]+)$/)
+  if (leadingNumber) {
+    const line = toNumber(leadingNumber[1], Number.NaN)
+    const outcome = parseOutcomeToken(leadingNumber[2])
+    if (Number.isFinite(line) && outcome) {
+      const canonical = canonicalHandicap(line, outcome)
+      return {
+        semanticKey: `${canonical.line}:${canonical.outcome}`,
+        detail: { line, outcome, canonicalLine: canonical.line, canonicalOutcome: canonical.outcome },
+      }
+    }
+  }
+
+  const trailingNumber = candidate.match(/^([a-zA-Z\u4e00-\u9fa5]+)\s*([+-]?\d+(?:\.\d+)?)$/)
+  if (trailingNumber) {
+    const outcome = parseOutcomeToken(trailingNumber[1])
+    const line = toNumber(trailingNumber[2], Number.NaN)
+    if (Number.isFinite(line) && outcome) {
+      const canonical = canonicalHandicap(line, outcome)
+      return {
+        semanticKey: `${canonical.line}:${canonical.outcome}`,
+        detail: { line, outcome, canonicalLine: canonical.line, canonicalOutcome: canonical.outcome },
+      }
+    }
+  }
+
+  return null
+}
+
+const parseTotalEntry = (value) => {
+  const compact = String(value || '')
+    .trim()
+    .replace(/\s+/g, '')
+  if (!compact) return null
+
+  const leadingDirection = compact.match(/^(over|under|o|u|大|小)(\d+(?:\.\d+)?)$/i)
+  if (leadingDirection) {
+    const direction = parseTotalDirection(leadingDirection[1])
+    const line = toNumber(leadingDirection[2], Number.NaN)
+    if (direction && Number.isFinite(line)) {
+      return {
+        semanticKey: `${direction}:${line}`,
+        detail: { direction, line },
+      }
+    }
+  }
+
+  const trailingDirection = compact.match(/^(\d+(?:\.\d+)?)(over|under|o|u|大|小)$/i)
+  if (trailingDirection) {
+    const line = toNumber(trailingDirection[1], Number.NaN)
+    const direction = parseTotalDirection(trailingDirection[2])
+    if (direction && Number.isFinite(line)) {
+      return {
+        semanticKey: `${direction}:${line}`,
+        detail: { direction, line },
+      }
+    }
+  }
+
+  return null
+}
+
+const parseResultEntry = (value) => {
+  const outcome = parseOutcomeToken(value)
+  if (!outcome) return null
+  return {
+    semanticKey: outcome,
+    detail: { outcome },
+  }
+}
+
+export const parseEntrySemantic = (value) => {
+  const name = normalizeEntryName(value)
+  if (!name) return buildSemanticResult('', 'other', '', null)
+
+  const score = parseScoreEntry(name)
+  if (score) return buildSemanticResult(name, 'score', score.semanticKey, score.detail)
+
+  const halfFull = parseHalfFullEntry(name)
+  if (halfFull) return buildSemanticResult(name, 'half_full', halfFull.semanticKey, halfFull.detail)
+
+  const handicap = parseHandicapEntry(name)
+  if (handicap) return buildSemanticResult(name, 'handicap', handicap.semanticKey, handicap.detail)
+
+  const total = parseTotalEntry(name)
+  if (total) return buildSemanticResult(name, 'total', total.semanticKey, total.detail)
+
+  const result = parseResultEntry(name)
+  if (result) return buildSemanticResult(name, 'result', result.semanticKey, result.detail)
+
+  return buildSemanticResult(name, 'other', normalizeToken(name), null)
+}
+
+export const normalizeEntryRecord = (entryInput, fallbackOdds = Number.NaN) => {
+  const source =
+    entryInput && typeof entryInput === 'object'
+      ? { ...entryInput }
+      : {
+          name: entryInput,
+        }
+  const semantic = parseEntrySemantic(source.name || source.entry || '')
+  // A supplied malformed quote must remain invalid, not silently inherit the
+  // parent/default price. Only genuinely absent legacy fields may use fallback.
+  const odds = Object.prototype.hasOwnProperty.call(source, 'odds')
+    ? toNumber(source.odds, Number.NaN) : toNumber(fallbackOdds, Number.NaN)
+
+  return {
+    ...source,
+    name: semantic.name,
+    odds,
+    market_type: semantic.marketType,
+    market_label: semantic.marketLabel,
+    semantic_key: semantic.semanticKey,
+    parse_detail: semantic.detail,
+  }
+}
+
+export const normalizeEntries = (entriesInput, entryText = '', fallbackOdds = Number.NaN) => {
+  if (Array.isArray(entriesInput) && entriesInput.length > 0) {
+    return entriesInput
+      .map((entry) => normalizeEntryRecord(entry, fallbackOdds))
+      .filter((entry) => entry.name)
+  }
+
+  const rawText = normalizeEntryName(entryText)
+  if (!rawText) return []
+  return rawText
+    .split(/[|,]/)
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .map((name) => normalizeEntryRecord({ name, odds: fallbackOdds }, fallbackOdds))
+    .filter((entry) => entry.name)
+}
+
+export const getPrimaryEntryMarket = (entriesInput, entryText = '') => {
+  const entries = normalizeEntries(entriesInput, entryText)
+  if (entries.length === 0) {
+    return {
+      marketType: 'other',
+      marketLabel: getMarketMeta('other').label,
+      semanticKey: '',
+    }
+  }
+
+  const counts = new Map()
+  entries.forEach((entry, index) => {
+    const marketType = String(entry.market_type || '').trim() || 'other'
+    if (!counts.has(marketType)) {
+      counts.set(marketType, {
+        count: 0,
+        rank: getMarketMeta(marketType).rank,
+        firstIndex: index,
+      })
+    }
+    counts.get(marketType).count += 1
+  })
+
+  const best = [...counts.entries()].sort((a, b) => {
+    if (b[1].count !== a[1].count) return b[1].count - a[1].count
+    if (a[1].rank !== b[1].rank) return a[1].rank - b[1].rank
+    return a[1].firstIndex - b[1].firstIndex
+  })[0]
+
+  const marketType = best ? best[0] : 'other'
+  const firstEntry = entries.find((entry) => (entry.market_type || 'other') === marketType) || entries[0]
+
+  return {
+    marketType,
+    marketLabel: getMarketMeta(marketType).label,
+    semanticKey: firstEntry?.semantic_key || '',
+  }
+}

@@ -1,0 +1,1425 @@
+import { Fragment, useEffect, useId, useMemo, useState } from 'react'
+import { Search, Filter, Trash2, Archive, Undo2, ChevronRight, ChevronDown, SquarePen } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { deleteInvestment, getInvestments, saveInvestment, setInvestmentArchived, updateInvestment } from '../lib/localData'
+import { useLabels } from '../lib/labels'
+import { isPreviewMode } from '../lib/displayMode'
+
+// 演示态首屏「秀一下」：进入历史记录页 0.9s 后，自动展开最近一条记录（与 Settle
+// 页同理），复用 History 的重力展开动画（展卷高度过渡 + 内容重力 Q 弹）——只展开不收回。
+const HISTORY_PEEK_DELAY_MS = 900
+const prefersReducedMotion = () => {
+  try {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  } catch {
+    return false
+  }
+}
+
+/* 展开行外壳：挂载后下一帧翻转 .is-open，驱动 grid-template-rows 0fr→1fr 的「展卷」
+   高度过渡（与 Quick Input 折叠同款的类切换机制，在「内容撑高的 fr 轨道」上比
+   @starting-style 可靠）。内容自身的重力 Q 弹落定由各自 CSS 动画在挂载时一并播放，
+   两者叠合即「行从 0 撑开 + 内容自上方坠入回弹」。 */
+function HistoryExpandShell({ delay, settle, children }) {
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    // 下一帧翻转 is-open，让 0fr 初始态先绘制一帧，过渡才会触发（可见时走这条路，
+    // 得到平滑展卷）。同时挂一个定时兜底：requestAnimationFrame 在页面隐藏时会被
+    // 暂停，若仅靠它则内容可能停在 0 高度被裁切——定时器即使隐藏也会触发，确保内容
+    // 永不卡在收拢态。两者谁先到都只是把 open 置真，幂等无副作用。
+    let raf2 = 0
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setOpen(true))
+    })
+    const fallback = setTimeout(() => setOpen(true), 120)
+    return () => {
+      cancelAnimationFrame(raf1)
+      cancelAnimationFrame(raf2)
+      clearTimeout(fallback)
+    }
+  }, [])
+  return (
+    <div
+      className={`history-expand-shell${open ? ' is-open' : ''}`}
+      style={{ '--history-expand-delay': delay, '--history-expand-settle': settle }}
+    >
+      <div className="history-expand-clip">{children}</div>
+    </div>
+  )
+}
+
+const LEAGUE_ORDER = ['英超', '西甲', '意甲', '德甲', '法甲', '荷甲', '葡超', '土超', '沙特联', '国际赛', '其他']
+const TEAM_LEAGUE_MAP = {
+  曼城: '英超',
+  阿森纳: '英超',
+  利物浦: '英超',
+  切尔西: '英超',
+  狼队: '英超',
+  桑德兰: '英超',
+  热刺: '英超',
+  纽卡: '英超',
+  曼联: '英超',
+  伯恩茅斯: '英超',
+  利兹联: '英超',
+  水晶宫: '英超',
+  埃弗顿: '英超',
+  富勒姆: '英超',
+  布伦特福德: '英超',
+  西汉姆: '英超',
+  西汉姆联: '英超',
+  伯恩利: '英超',
+  诺丁汉森林: '英超',
+  阿斯顿维拉: '英超',
+  维拉: '英超',
+  巴萨: '西甲',
+  皇马: '西甲',
+  马竞: '西甲',
+  黄潜: '西甲',
+  阿拉维斯: '西甲',
+  那不勒斯: '意甲',
+  博洛尼亚: '意甲',
+  国际米兰: '意甲',
+  热那亚: '意甲',
+  米兰: '意甲',
+  拜仁: '德甲',
+  勒沃库森: '德甲',
+  奥格斯堡: '德甲',
+  法兰克福: '德甲',
+  巴黎: '法甲',
+  埃因霍温: '荷甲',
+  波尔图: '葡超',
+  葡体: '葡超',
+  加拉塔萨雷: '土超',
+  利雅得新月: '沙特联',
+  达马克: '沙特联',
+}
+
+const ODDS_FILTER_OPTIONS = [
+  { value: 'all', label: '全部赔率' },
+  { value: 'lt2', label: '< 2.0', min: -Infinity, max: 2.0 },
+  { value: '2to3', label: '2.0 - 3.0', min: 2.0, max: 3.0 },
+  { value: '3to5', label: '3.0 - 5.0', min: 3.0, max: 5.0 },
+  { value: 'gte5', label: '5.0+', min: 5.0, max: Infinity },
+]
+
+const AJR_FILTER_OPTIONS = [
+  { value: 'all', label: '全部AJR' },
+  { value: 'lt04', label: '< 0.4', min: -Infinity, max: 0.4 },
+  { value: '04to06', label: '0.4 - 0.6', min: 0.4, max: 0.6 },
+  { value: '06to08', label: '0.6 - 0.8', min: 0.6, max: 0.8 },
+  { value: 'gte08', label: '0.8+', min: 0.8, max: Infinity },
+]
+
+const getConfColor = (conf) => {
+  const c = Number.parseFloat(conf)
+  if (c >= 0.8) return 'text-blue-700'
+  if (c >= 0.7) return 'text-blue-600'
+  if (c >= 0.6) return 'text-blue-500'
+  if (c >= 0.5) return 'text-sky-500'
+  return 'text-sky-400'
+}
+
+const getAJRColor = (ajr) => {
+  const a = Number.parseFloat(ajr)
+  if (Number.isNaN(a)) return 'text-stone-400'
+  if (a >= 0.8) return 'text-emerald-700'
+  if (a >= 0.7) return 'text-emerald-600'
+  if (a >= 0.6) return 'text-teal-500'
+  if (a >= 0.4) return 'text-teal-400'
+  if (a >= 0.2) return 'text-emerald-300'
+  return 'text-emerald-200'
+}
+
+const formatDate = (isoString) => {
+  const date = new Date(isoString)
+  if (Number.isNaN(date.getTime())) return '--'
+  const year = date.getFullYear()
+  const currentYear = new Date().getFullYear()
+  const shortYear = String(year).slice(-2)
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  if (year !== currentYear) return `${shortYear}.${month}.${day}`
+  return `${month}-${day}`
+}
+
+const formatProfit = (profit) => {
+  if (typeof profit !== 'number' || Number.isNaN(profit)) return '-'
+  if (profit > 0) return `+${profit}`
+  return String(profit)
+}
+
+const formatRoi = (profit, inputs) => {
+  const p = Number.parseFloat(profit)
+  const i = Number.parseFloat(inputs)
+  if (!Number.isFinite(p) || !Number.isFinite(i) || i <= 0) return '-'
+  const roiPercent = (p / i) * 100
+  if (roiPercent <= -99.95) return '--'
+  const rounded = Number(roiPercent.toFixed(1))
+  const sign = rounded > 0 ? '+' : ''
+  return `${sign}${rounded.toFixed(1)}%`
+}
+
+const getDisplayStatus = (item) => {
+  const rawStatus = item.status || 'pending'
+  if (rawStatus === 'pending') return 'pending'
+  if (rawStatus === 'draw') return 'draw'
+  const numericProfit = Number(item.profit)
+  if (Number.isFinite(numericProfit) && numericProfit === 0) return 'draw'
+  return rawStatus === 'win' ? 'win' : 'lose'
+}
+
+const getOutcomeTone = (text) => {
+  const token = String(text || '').toLowerCase()
+  if (token.includes('draw')) return 'text-sky-600'
+  if (token.includes('lose')) return 'text-rose-400'
+  if (token.includes('win')) return 'text-emerald-700'
+  return 'text-stone-600'
+}
+
+const renderOutcomeText = (value) => {
+  const text = String(value || '').trim()
+  if (!text || text === '-') return <span className="text-stone-400">-</span>
+
+  const parts = text.split(/(\s*[|+/]\s*)/g).filter(Boolean)
+  return parts.map((part, idx) => {
+    const trimmed = part.trim()
+    const isSeparator = trimmed === '|' || trimmed === '+' || trimmed === '/'
+    if (isSeparator) {
+      return (
+        <span key={`${trimmed}-${idx}`} className="text-stone-400">
+          {` ${trimmed} `}
+        </span>
+      )
+    }
+    return (
+      <span key={`${trimmed}-${idx}`} className={getOutcomeTone(trimmed)}>
+        {trimmed}
+      </span>
+    )
+  })
+}
+
+const renderStyledNote = (value) => {
+  const text = String(value || '').trim()
+  if (!text || text === '-') return <span className="text-stone-400">-</span>
+
+  const lines = text.split('\n')
+  return lines.map((line, lineIdx) => {
+    const tokens = line.split(/(\[red\][\s\S]*?\[\/red\]|\[blue\][\s\S]*?\[\/blue\]|\*\*[^*]+\*\*|\*[^*]+\*)/g).filter(Boolean)
+    return (
+      <Fragment key={`line-${lineIdx}`}>
+        {tokens.map((token, tokenIdx) => {
+          if (token.startsWith('[red]') && token.endsWith('[/red]')) {
+            return (
+              <span key={`token-${lineIdx}-${tokenIdx}`} className="text-rose-500">
+                {token.slice(5, -6)}
+              </span>
+            )
+          }
+          if (token.startsWith('[blue]') && token.endsWith('[/blue]')) {
+            return (
+              <span key={`token-${lineIdx}-${tokenIdx}`} className="text-sky-600">
+                {token.slice(6, -7)}
+              </span>
+            )
+          }
+          if (token.startsWith('**') && token.endsWith('**') && token.length >= 4) {
+            return (
+              <strong key={`token-${lineIdx}-${tokenIdx}`} className="font-semibold text-stone-700">
+                {token.slice(2, -2)}
+              </strong>
+            )
+          }
+          if (token.startsWith('*') && token.endsWith('*') && token.length >= 2) {
+            return (
+              <em key={`token-${lineIdx}-${tokenIdx}`} className="italic text-stone-700">
+                {token.slice(1, -1)}
+              </em>
+            )
+          }
+          return <span key={`token-${lineIdx}-${tokenIdx}`}>{token}</span>
+        })}
+        {lineIdx < lines.length - 1 ? <br /> : null}
+      </Fragment>
+    )
+  })
+}
+
+const stripNoteFormatting = (value) =>
+  String(value || '')
+    .replace(/\[red\]([\s\S]*?)\[\/red\]/g, '$1')
+    .replace(/\[blue\]([\s\S]*?)\[\/blue\]/g, '$1')
+    .replace(/\*\*([\s\S]*?)\*\*/g, '$1')
+    .replace(/\*([\s\S]*?)\*/g, '$1')
+    .trim()
+
+const getNotePreview = (value, limit = 14) => {
+  const plain = stripNoteFormatting(value)
+  if (!plain || plain === '-') return '-'
+  if (plain.length <= limit) return plain
+  return `${plain.slice(0, limit)}...`
+}
+
+const hasNoteContent = (value) => {
+  const plain = stripNoteFormatting(value)
+  return Boolean(plain && plain !== '-')
+}
+
+const buildMatchNoteDisplayPayload = (preNote, postNote, previewLimit = 12) => {
+  const pre = String(preNote || '').trim()
+  const post = String(postNote || '').trim()
+  const hasPre = hasNoteContent(pre)
+  const hasPost = hasNoteContent(post)
+
+  if (hasPre && hasPost) {
+    return {
+      type: 'dual',
+      label: '赛前 | 赛后备注',
+      note: `【赛前】\n${pre}\n\n【赛后】\n${post}`,
+      prePreview: getNotePreview(pre, previewLimit),
+      postPreview: getNotePreview(post, previewLimit),
+    }
+  }
+
+  if (hasPre) {
+    return {
+      type: 'single',
+      note: pre,
+    }
+  }
+
+  if (hasPost) {
+    return {
+      type: 'single',
+      note: post,
+    }
+  }
+
+  return null
+}
+
+const getStatusLabel = (status) => {
+  if (status === 'pending') return '待结算'
+  if (status === 'win') return '已中'
+  if (status === 'draw') return '平局'
+  return '未中'
+}
+
+const getStatusBadgeTone = (status) => {
+  if (status === 'pending') return 'bg-amber-100 text-amber-700'
+  if (status === 'win') return 'bg-emerald-100 text-emerald-800'
+  if (status === 'draw') return 'bg-sky-100 text-sky-700'
+  return 'bg-rose-50 text-rose-400'
+}
+
+const getMatchStatus = (match) => {
+  if (match?.is_correct === true) return 'win'
+  if (match?.is_correct === false) return 'lose'
+  return 'pending'
+}
+
+// 整体命中标识：星芒主体 + 环绕的土星式光环带（命中且出彩）。仅在 status==='win'
+// 时渲染——对 Solo 即 1场中1场、对 Combo 即 n场中n场（组合单全中才会 win）。
+// 设计：四角星芒为主体（祖母绿宝石渐变 + 顶部玻璃高光），一条略微倾斜的轨道光环
+// 像土星环带一样从星芒身后绕到身前形成纵深，外裹一层柔和灵光。语义色＝命中绿。
+const HitBadge = () => {
+  const uid = useId().replace(/:/g, '')
+  const idStar = `hb-star-${uid}`
+  const idSheen = `hb-sheen-${uid}`
+  const idGlow = `hb-glow-${uid}`
+  const idRing = `hb-ring-${uid}`
+  // 四角星芒：上下左右四个等距锐角（tip 半径 9），每条边控制点落在正中心 → 深凹收腰、
+  // 象限完全对称的「闪耀」星形。星芒是绝对主体，土星环带做得纤细扁平、只从外侧贴身环绕。
+  const starPath = 'M12 3 Q12 12 21 12 Q12 12 12 21 Q12 12 3 12 Q12 12 12 3 Z'
+  return (
+    <span className="dugou-hit-badge ml-1.5 shrink-0" title="整体命中" aria-label="整体命中">
+      <svg width="17.14" height="17.14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <defs>
+          <radialGradient id={idGlow} cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#34d399" stopOpacity="0.4" />
+            <stop offset="55%" stopColor="#10b981" stopOpacity="0.12" />
+            <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+          </radialGradient>
+          <linearGradient id={idStar} x1="12" y1="3" x2="12" y2="21" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#5eead4" />
+            <stop offset="48%" stopColor="#10b981" />
+            <stop offset="100%" stopColor="#047857" />
+          </linearGradient>
+          <linearGradient id={idSheen} x1="12" y1="3" x2="12" y2="12.5" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.92" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+          </linearGradient>
+          {/* 沿光环长轴的浓淡：浓厚祖母绿集中在左端（offset 14%），右端渐隐透明。
+              两段弧用 rotate(-18)+对调的 sweep 做整体「垂直镜像」，令浓厚端落在视觉左下、向右上渐隐。 */}
+          <linearGradient id={idRing} x1="1.6" y1="12" x2="22.4" y2="12" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#047857" stopOpacity="0" />
+            <stop offset="14%" stopColor="#059669" stopOpacity="1" />
+            <stop offset="44%" stopColor="#10b981" stopOpacity="0.95" />
+            <stop offset="74%" stopColor="#5eead4" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="#a7f3d0" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {/* 柔和灵光 */}
+        <circle cx="12" cy="12" r="11" fill={`url(#${idGlow})`} />
+        {/* 土星环 · 后半（绕到星芒身后，纤细略淡） */}
+        <path
+          d="M1.6 12 A10.4 2.6 0 0 1 22.4 12"
+          transform="rotate(-18 12 12)"
+          fill="none"
+          stroke={`url(#${idRing})`}
+          strokeWidth="1.05"
+          strokeLinecap="round"
+          opacity="0.4"
+        />
+        {/* 星芒主体 */}
+        <path d={starPath} fill={`url(#${idStar})`} />
+        {/* 顶部玻璃高光 */}
+        <path d={starPath} fill={`url(#${idSheen})`} opacity="0.6" />
+        {/* 土星环 · 前半（横跨星芒身前；浓厚端在左下，向右上渐隐） */}
+        <path
+          d="M1.6 12 A10.4 2.6 0 0 0 22.4 12"
+          transform="rotate(-18 12 12)"
+          fill="none"
+          stroke={`url(#${idRing})`}
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+      </svg>
+    </span>
+  )
+}
+
+const getTeamLeague = (teamName) => {
+  const name = String(teamName || '').trim()
+  if (!name) return '其他'
+  if (/u23/i.test(name)) return '国际赛'
+  return TEAM_LEAGUE_MAP[name] || '其他'
+}
+
+const getMatchLeague = (match) => {
+  const homeLeague = getTeamLeague(match?.home_team)
+  const awayLeague = getTeamLeague(match?.away_team)
+  return homeLeague === '其他' ? awayLeague : homeLeague
+}
+
+const inRangeFilter = (value, option) => {
+  if (!option || option.value === 'all') return true
+  const number = Number.parseFloat(value)
+  if (!Number.isFinite(number)) return false
+  const min = option.min
+  const max = option.max
+  if (Number.isFinite(max)) {
+    return number >= min && number < max
+  }
+  return number >= min
+}
+
+const buildComboTitle = (matches) => {
+  const titles = matches
+    .map((match) => `${match.home_team || '-'}vs${match.away_team || '-'}`)
+    .filter(Boolean)
+  if (titles.length === 0) return '组合'
+  if (titles.length <= 2) return titles.join(' + ')
+  return `${titles.slice(0, 2).join(' + ')} + ${titles.length - 2}场`
+}
+
+const buildRow = (item) => {
+  const firstMatch = item.matches?.[0]
+  const matches = Array.isArray(item.matches) ? item.matches : []
+  const parlaySize = Number(item.parlay_size || item.matches?.length || 1)
+  const comboName = String(item.combo_name || '').trim()
+  const kind = parlaySize === 1 ? 'Solo' : 'Combo'
+  const status = getDisplayStatus(item)
+  const comboHitCount = matches.filter((match) => match?.is_correct === true).length
+  const entries =
+    matches
+      .map((match) => {
+        if (match.entry_text) return match.entry_text
+        if (Array.isArray(match.entries)) return match.entries.map((entry) => entry.name).join(', ')
+        return ''
+      })
+      .filter(Boolean)
+      .join(' | ') || '-'
+
+  const results = matches.map((match) => match.results).filter(Boolean).join(' | ') || '-'
+
+  const preNote =
+    matches
+      .map((match) => match.note)
+      .filter(Boolean)
+      .join('；') || '-'
+
+  const matchRows = matches.map((match, idx) => ({
+    id: `${item.id}-m${idx + 1}`,
+    seqLabel: `M${idx + 1}`,
+    date: formatDate(item.created_at),
+    league: getMatchLeague(match),
+    match: `${match.home_team || '-'} vs ${match.away_team || '-'}`,
+    entries:
+      match.entry_text ||
+      (Array.isArray(match.entries) ? match.entries.map((entry) => entry.name).join(', ') : '-') ||
+      '-',
+    results: match.results || '-',
+    odds: Number(match.odds || 0).toFixed(2),
+    oddsValue: Number.parseFloat(match.odds),
+    conf: typeof match.conf === 'number' ? Number(match.conf).toFixed(2) : '-',
+    ajr: toFixedOrDash(match.match_rating, 2),
+    ajrValue: Number.parseFloat(match.match_rating),
+    status: getMatchStatus(match),
+    preNote: match.note || '-',
+    postNote: match.post_note || '-',
+  }))
+
+  const matchAjrValues = matchRows.map((entry) => entry.ajrValue).filter((value) => Number.isFinite(value))
+  const avgMatchAjr =
+    matchAjrValues.length > 0
+      ? matchAjrValues.reduce((sum, value) => sum + value, 0) / matchAjrValues.length
+      : Number.NaN
+  const investmentAjr = Number.parseFloat(item.actual_rating)
+  const displayAjrValue =
+    parlaySize > 1
+      ? avgMatchAjr
+      : Number.isFinite(investmentAjr)
+        ? investmentAjr
+        : avgMatchAjr
+
+  return {
+    id: item.id,
+    kind,
+    parlaySize,
+    date: formatDate(item.created_at),
+    match:
+      parlaySize === 1
+        ? `${firstMatch?.home_team || '-'} vs ${firstMatch?.away_team || '-'}`
+        : comboName || buildComboTitle(matches),
+    comboOverview: parlaySize > 1 ? `combo · ${parlaySize}场` : '',
+    comboHitCount,
+    entries: parlaySize > 1 ? '-' : entries,
+    results: parlaySize > 1 ? `${comboHitCount}/${parlaySize}` : results,
+    odds: Number(item.combined_odds || 0).toFixed(2),
+    conf: parlaySize > 1 ? '-' : Number(item.expected_rating || 0).toFixed(2),
+    ajr: Number.isFinite(displayAjrValue) ? displayAjrValue.toFixed(2) : '-',
+    inputs: Number(item.inputs || 0),
+    status,
+    isArchived: Boolean(item.is_archived),
+    profit: formatProfit(item.profit),
+    roi: formatRoi(item.profit, item.inputs),
+    preNote: parlaySize > 1 ? (preNote === '-' ? '-' : '见分场赛前备注') : preNote,
+    postNote: item.remarks || '-',
+    leagues: [...new Set(matchRows.map((entry) => entry.league).filter(Boolean))],
+    oddsValues: matchRows.map((entry) => entry.oddsValue).filter((value) => Number.isFinite(value)),
+    ajrValues: matchRows.map((entry) => entry.ajrValue).filter((value) => Number.isFinite(value)),
+    matchRows,
+  }
+}
+
+const toFixedOrDash = (value, digits = 2) => {
+  const n = Number.parseFloat(value)
+  if (!Number.isFinite(n)) return '-'
+  return n.toFixed(digits)
+}
+
+const formatRmbAmount = (value) => {
+  const n = Number.parseFloat(value)
+  if (!Number.isFinite(n)) return '-'
+  const rounded = Math.round(n)
+  if (Math.abs(n - rounded) < 0.01) return String(rounded)
+  return n.toFixed(2)
+}
+
+const buildDataRows = (investments) => {
+  if (!Array.isArray(investments)) return []
+
+  return investments.flatMap((item) => {
+    const matches = Array.isArray(item.matches) && item.matches.length > 0 ? item.matches : [{}]
+    const parlaySize = Number(item.parlay_size || matches.length || 1)
+    const kind = parlaySize === 1 ? 'Solo' : 'Combo'
+    const investmentStatus = getDisplayStatus(item)
+    const totalInputs = Number.parseFloat(item.inputs)
+    const totalRevenues = Number.parseFloat(item.revenues)
+    const settledProfit = Number.parseFloat(item.profit)
+    const perInput = Number.isFinite(totalInputs) && matches.length > 0 ? totalInputs / matches.length : 0
+    const fallbackPerProfit = Number.isFinite(settledProfit) && matches.length > 0 ? settledProfit / matches.length : Number.NaN
+
+    const validOdds = matches
+      .map((match) => Number.parseFloat(match?.odds))
+      .filter((odd) => Number.isFinite(odd) && odd > 0)
+    const oddsSum = validOdds.reduce((sum, odd) => sum + odd, 0)
+
+    return matches.map((match, idx) => {
+      const odds = Number.parseFloat(match?.odds)
+      const weightedRevenue =
+        Number.isFinite(totalRevenues) && totalRevenues > 0 && oddsSum > 0 && Number.isFinite(odds) && odds > 0
+          ? (totalRevenues * odds) / oddsSum
+          : Number.NaN
+      const allocatedProfit = Number.isFinite(weightedRevenue) ? weightedRevenue - perInput : fallbackPerProfit
+      const normalizedProfit = Number.isFinite(allocatedProfit) ? Number(allocatedProfit.toFixed(2)) : Number.NaN
+      const matchStatus = getMatchStatus(match)
+      const status =
+        investmentStatus === 'pending'
+          ? 'pending'
+          : matchStatus === 'pending'
+            ? investmentStatus
+            : matchStatus
+
+      const entries =
+        match.entry_text ||
+        (Array.isArray(match.entries) ? match.entries.map((entry) => entry.name).join(', ') : '-') ||
+        '-'
+
+      return {
+        id: `${item.id}-flat-${idx + 1}`,
+        investmentId: item.id,
+        isPrimary: idx === 0,
+        kind,
+        isArchived: Boolean(item.is_archived),
+        date: formatDate(item.created_at),
+        league: getMatchLeague(match),
+        match: `${match.home_team || '-'} vs ${match.away_team || '-'}`,
+        entries,
+        results: match.results || '-',
+        odds: toFixedOrDash(match.odds, 2),
+        oddsValue: Number.parseFloat(match?.odds),
+        conf: toFixedOrDash(match.conf, 2),
+        ajr: toFixedOrDash(match.match_rating, 2),
+        ajrValue: Number.parseFloat(match?.match_rating),
+        inputs: formatRmbAmount(perInput),
+        status,
+        profit:
+          investmentStatus === 'pending'
+            ? '-'
+            : formatProfit(normalizedProfit),
+        roi: investmentStatus === 'pending' ? '-' : formatRoi(normalizedProfit, perInput),
+        preNote: match.note || '-',
+        postNote: match.post_note || '-',
+      }
+    })
+  })
+}
+
+export default function HistoryPage() {
+  const navigate = useNavigate()
+  const labels = useLabels()
+  const [searchQuery, setSearchQuery] = useState('')
+  const [activeFilter, setActiveFilter] = useState('全部')
+  const [layoutMode, setLayoutMode] = useState('modern')
+  const [leagueFilter, setLeagueFilter] = useState('all')
+  const [oddsFilter, setOddsFilter] = useState('all')
+  const [ajrFilter, setAjrFilter] = useState('all')
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [pendingUndo, setPendingUndo] = useState(null)
+  // In preview mode the首屏 lands fully collapsed; shortly after entry we
+  // auto-reveal the most recent *settled combo* (fallback: most recent
+  // investment of any kind) so visitors see a fully-populated row animate
+  // open — see the peek effect below. The target is remembered here.
+  const previewPeekTarget = useMemo(() => {
+    if (!isPreviewMode()) return null
+    const investments = getInvestments().filter((inv) => !inv.__demo_seed_pending)
+    if (!investments || investments.length === 0) return null
+    const sorted = [...investments].sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at),
+    )
+    const settledCombo = sorted.find(
+      (i) => (i.parlay_size || 1) > 1 && i.status !== 'pending',
+    )
+    const target = settledCombo || sorted[0]
+    if (!target) return null
+    return { id: target.id, isCombo: (target.parlay_size || 1) > 1 }
+  }, [])
+  const [expandedComboIds, setExpandedComboIds] = useState({})
+  const [expandedSoloIds, setExpandedSoloIds] = useState({})
+  const [notePopup, setNotePopup] = useState(null)
+  // 展开是否走「秀一下」级联：首屏自动展开 / 全部展开时为 true（保留 0.71s 静置 +
+  // 逐行错峰的演示级联）；手动单击某行时置 false（去掉静置与错峰，即刻丝滑展开）。
+  const [cascadeExpand, setCascadeExpand] = useState(true)
+
+  // 演示态首屏「秀一下」：默认全部折叠，进入 0.9s 后自动展开最近一条记录，复用
+  // History 既有的展开揭示动画（historyExpandReveal）——只展开、不收回；尊重
+  // prefers-reduced-motion（降级为立即展开、不加动效）。
+  useEffect(() => {
+    if (!previewPeekTarget) return undefined
+    const reveal = () => {
+      if (previewPeekTarget.isCombo) {
+        setExpandedComboIds((prev) =>
+          prev[previewPeekTarget.id] ? prev : { ...prev, [previewPeekTarget.id]: true },
+        )
+      } else {
+        setExpandedSoloIds((prev) =>
+          prev[previewPeekTarget.id] ? prev : { ...prev, [previewPeekTarget.id]: true },
+        )
+      }
+    }
+    if (prefersReducedMotion()) {
+      reveal()
+      return undefined
+    }
+    const timer = window.setTimeout(reveal, HISTORY_PEEK_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [previewPeekTarget])
+
+  const filters = ['全部', '待结算', '已中', '未中', 'Solo', 'Combo', '已归档']
+  // In preview mode, hide demo-seed pending investments from History.
+  // These exist only to seed Portfolio candidates + Settle queue; they
+  // shouldn't appear in History until the visitor explicitly settles
+  // them or adopts a combo from Portfolio.
+  const rawInvestments = useMemo(() => {
+    const all = getInvestments()
+    if (isPreviewMode()) {
+      return all.filter((inv) => !inv.__demo_seed_pending)
+    }
+    return all
+  }, [refreshKey])
+  const rawRows = useMemo(() => rawInvestments.map(buildRow), [rawInvestments])
+  const dataRows = useMemo(() => buildDataRows(rawInvestments), [rawInvestments])
+  const leagueOptions = useMemo(() => {
+    const set = new Set()
+    rawRows.forEach((row) => {
+      ;(row.leagues || []).forEach((league) => {
+        if (league) set.add(league)
+      })
+    })
+    const sorted = [...set].sort((a, b) => {
+      const orderA = LEAGUE_ORDER.indexOf(a)
+      const orderB = LEAGUE_ORDER.indexOf(b)
+      const normalizedA = orderA === -1 ? Number.MAX_SAFE_INTEGER : orderA
+      const normalizedB = orderB === -1 ? Number.MAX_SAFE_INTEGER : orderB
+      return normalizedA - normalizedB || a.localeCompare(b, 'zh-Hans-CN')
+    })
+    return [{ value: 'all', label: '全部联赛' }, ...sorted.map((league) => ({ value: league, label: league }))]
+  }, [rawRows])
+  const activeOddsOption = useMemo(() => ODDS_FILTER_OPTIONS.find((option) => option.value === oddsFilter) || ODDS_FILTER_OPTIONS[0], [oddsFilter])
+  const activeAjrOption = useMemo(() => AJR_FILTER_OPTIONS.find((option) => option.value === ajrFilter) || AJR_FILTER_OPTIONS[0], [ajrFilter])
+
+  useEffect(
+    () => () => {
+      if (pendingUndo?.timeoutId) {
+        window.clearTimeout(pendingUndo.timeoutId)
+      }
+    },
+    [pendingUndo],
+  )
+
+  const filteredRows = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    return rawRows.filter((row) => {
+      if (activeFilter === '已归档') {
+        if (!row.isArchived) return false
+      } else if (row.isArchived) {
+        return false
+      }
+
+      const passFilter =
+        activeFilter === '全部' ||
+        activeFilter === '已归档' ||
+        (activeFilter === '待结算' && row.status === 'pending') ||
+        (activeFilter === '已中' && row.status === 'win') ||
+        (activeFilter === '未中' && row.status === 'lose') ||
+        activeFilter === row.kind
+
+      if (!passFilter) return false
+
+      if (leagueFilter !== 'all' && !(row.leagues || []).includes(leagueFilter)) return false
+      if (oddsFilter !== 'all' && !(row.oddsValues || []).some((value) => inRangeFilter(value, activeOddsOption))) return false
+      if (ajrFilter !== 'all' && !(row.ajrValues || []).some((value) => inRangeFilter(value, activeAjrOption))) return false
+      if (!query) return true
+
+      const nestedText =
+        row.matchRows
+          ?.map((item) => [item.match, item.league, item.entries, item.results, item.preNote, item.postNote].join(' '))
+          .join(' ') || ''
+      const target = [row.date, row.match, row.comboOverview, row.entries, row.preNote, row.postNote, ...(row.leagues || []), nestedText]
+        .join(' ')
+        .toLowerCase()
+      return target.includes(query)
+    })
+  }, [activeAjrOption, activeFilter, activeOddsOption, ajrFilter, leagueFilter, oddsFilter, rawRows, searchQuery])
+
+  const filteredDataRows = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    return dataRows.filter((row) => {
+      if (activeFilter === '已归档') {
+        if (!row.isArchived) return false
+      } else if (row.isArchived) {
+        return false
+      }
+
+      const passFilter =
+        activeFilter === '全部' ||
+        activeFilter === '已归档' ||
+        (activeFilter === '待结算' && row.status === 'pending') ||
+        (activeFilter === '已中' && row.status === 'win') ||
+        (activeFilter === '未中' && row.status === 'lose') ||
+        activeFilter === row.kind
+
+      if (!passFilter) return false
+
+      if (leagueFilter !== 'all' && row.league !== leagueFilter) return false
+      if (oddsFilter !== 'all' && !inRangeFilter(row.oddsValue, activeOddsOption)) return false
+      if (ajrFilter !== 'all' && !inRangeFilter(row.ajrValue, activeAjrOption)) return false
+      if (!query) return true
+
+      const target = [row.date, row.league, row.match, row.entries, row.results, row.preNote, row.postNote].join(' ').toLowerCase()
+      return target.includes(query)
+    })
+  }, [activeAjrOption, activeFilter, activeOddsOption, ajrFilter, dataRows, leagueFilter, oddsFilter, searchQuery])
+
+  const handleDeleteRecord = (id, event) => {
+    event.stopPropagation()
+    const ok = window.confirm('确认删除这条投资记录吗？此操作不可撤销。')
+    if (!ok) return
+    const target = rawInvestments.find((item) => item.id === id)
+    if (!target) return
+    if (pendingUndo?.timeoutId) {
+      window.clearTimeout(pendingUndo.timeoutId)
+    }
+    const deleted = deleteInvestment(id)
+    if (!deleted) return
+    const timeoutId = window.setTimeout(() => {
+      setPendingUndo(null)
+    }, 5000)
+    setPendingUndo({
+      id,
+      record: target,
+      timeoutId,
+    })
+    setRefreshKey((prev) => prev + 1)
+  }
+
+  const handleToggleArchive = (id, archived, event) => {
+    event.stopPropagation()
+    const ok = setInvestmentArchived(id, !archived)
+    if (!ok) return
+    setRefreshKey((prev) => prev + 1)
+  }
+
+  const handleReturnToSettle = (id, event) => {
+    event.stopPropagation()
+    const ok = updateInvestment(id, (previous) => ({
+      ...previous,
+      status: 'pending',
+      is_archived: false,
+    }))
+    if (!ok) {
+      window.alert('回退失败，请刷新后重试。')
+      return
+    }
+    setRefreshKey((prev) => prev + 1)
+    window.alert('已丢回重新结算。')
+    navigate('/settle')
+  }
+
+  const handleUndoDelete = () => {
+    if (!pendingUndo) return
+    if (pendingUndo.timeoutId) {
+      window.clearTimeout(pendingUndo.timeoutId)
+    }
+    saveInvestment(pendingUndo.record)
+    setPendingUndo(null)
+    setRefreshKey((prev) => prev + 1)
+  }
+
+  useEffect(() => {
+    const visibleIds = new Set(filteredRows.map((row) => row.id))
+    setExpandedComboIds((prev) => {
+      const next = {}
+      Object.entries(prev).forEach(([id, expanded]) => {
+        if (expanded && visibleIds.has(id)) next[id] = true
+      })
+      return next
+    })
+    setExpandedSoloIds((prev) => {
+      const next = {}
+      Object.entries(prev).forEach(([id, expanded]) => {
+        if (expanded && visibleIds.has(id)) next[id] = true
+      })
+      return next
+    })
+  }, [filteredRows])
+
+  const showNote = (note, label, event) => {
+    event.stopPropagation()
+    const plain = stripNoteFormatting(note)
+    if (!plain || plain === '-') return
+    setNotePopup({
+      note,
+      label,
+      position: { x: event.clientX, y: event.clientY },
+    })
+  }
+
+  const totalCount = layoutMode === 'modern' ? rawRows.length : dataRows.length
+  const allExpandedInModern =
+    filteredRows.length > 0 &&
+    filteredRows.every((row) => (row.parlaySize === 1 ? Boolean(expandedSoloIds[row.id]) : Boolean(expandedComboIds[row.id])))
+
+  const toggleExpandAllInModern = () => {
+    if (allExpandedInModern) {
+      setExpandedComboIds({})
+      setExpandedSoloIds({})
+      return
+    }
+    const nextComboExpanded = {}
+    const nextSoloExpanded = {}
+    filteredRows.forEach((row) => {
+      if (row.parlaySize === 1) {
+        nextSoloExpanded[row.id] = true
+      } else {
+        nextComboExpanded[row.id] = true
+      }
+    })
+    setCascadeExpand(true)
+    setExpandedComboIds(nextComboExpanded)
+    setExpandedSoloIds(nextSoloExpanded)
+  }
+
+  return (
+    <div className="page-shell page-content-wide" onClick={() => setNotePopup(null)}>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-semibold text-stone-800 font-display">历史记录</h2>
+          <p className="text-stone-400 text-sm mt-1">共 {totalCount} 条投资记录</p>
+        </div>
+        <div className="flex w-full md:w-auto flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="relative flex-1">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+            <input
+              type="text"
+              placeholder="搜索球队、日期..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="input-glow pl-10 pr-4 py-2 rounded-xl border border-stone-200 text-sm w-full sm:w-64 focus:outline-none focus:border-amber-400"
+            />
+          </div>
+          <div className="flex items-center gap-2 rounded-xl border border-stone-200 bg-white/90 px-2 py-1">
+            <Filter size={14} className="text-stone-400" />
+            <select
+              value={leagueFilter}
+              onChange={(event) => setLeagueFilter(event.target.value)}
+              className="bg-transparent text-xs text-stone-600 focus:outline-none"
+            >
+              {leagueOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <span className="text-stone-300">|</span>
+            <select
+              value={oddsFilter}
+              onChange={(event) => setOddsFilter(event.target.value)}
+              className="bg-transparent text-xs text-stone-600 focus:outline-none"
+            >
+              {ODDS_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <span className="text-stone-300">|</span>
+            <select
+              value={ajrFilter}
+              onChange={(event) => setAjrFilter(event.target.value)}
+              className="bg-transparent text-xs text-stone-600 focus:outline-none"
+            >
+              {AJR_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={() => setLayoutMode((prev) => (prev === 'modern' ? 'data' : 'modern'))}
+            className="btn-secondary btn-hover flex items-center justify-center gap-2 whitespace-nowrap"
+          >
+            {layoutMode === 'modern' ? '视图：现代' : '视图：数据'}
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-4">
+        {filters.map((tag) => (
+          <button
+            key={tag}
+            onClick={() => setActiveFilter(tag)}
+            className={`px-4 py-1.5 rounded-full text-sm btn-hover transition-all ${
+              activeFilter === tag ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+            }`}
+          >
+            {tag}
+          </button>
+        ))}
+      </div>
+
+      <div className="glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden">
+        {layoutMode === 'modern' ? (
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-stone-50 text-[11px] text-stone-500">
+                <th className="px-2.5 py-3 text-left font-medium whitespace-nowrap w-16">日期</th>
+                <th className="px-3 py-3 text-left font-medium">比赛</th>
+                <th className="px-3 py-3 text-left font-medium">Entries</th>
+                <th className="px-3 py-3 text-left font-medium">Results</th>
+                <th className="px-3 py-3 text-left font-medium">AJR</th>
+                <th className="px-3 py-3 text-left font-medium">盈亏</th>
+                <th className="px-3 py-3 text-left font-medium">ROI</th>
+                <th className="px-3 py-3 text-right font-medium">
+                  <div className="inline-flex items-center gap-2">
+                    <span>操作</span>
+                    <button
+                      type="button"
+                      onClick={toggleExpandAllInModern}
+                      className="history-expand-all-btn px-2 py-1 rounded-md border border-stone-200 text-[10px] text-stone-500 hover:text-stone-700 hover:bg-stone-50 transition-colors"
+                    >
+                      {allExpandedInModern ? '全部收起' : '全部展开'}
+                    </button>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRows.map((row, rowIndex) => {
+                const isSolo = row.parlaySize === 1
+                const isExpanded = isSolo ? Boolean(expandedSoloIds[row.id]) : Boolean(expandedComboIds[row.id])
+                // 手动单击展开（cascadeExpand=false）：静置归零 + 错峰归零 → 即刻丝滑。
+                // 首屏自动展开 / 全部展开（cascadeExpand=true）：保留 0.71s 静置（CSS 默认）
+                // 与逐行错峰，维持演示级联观感。
+                const expandSettle = cascadeExpand ? undefined : '0ms'
+                const expandBaseMs = cascadeExpand ? Math.min(rowIndex, 10) * 26 : 0
+                const expandDelay = `${expandBaseMs}ms`
+                const comboTailDelay = `${Math.min(expandBaseMs + 150 + (row.matchRows?.length || 0) * 70 + 30, 820)}ms`
+
+                return (
+                <Fragment key={row.id}>
+                  <tr className="border-t border-stone-100 bg-amber-50/20 hover:bg-amber-50/40 transition-colors text-[11px]">
+                    <td className="px-2.5 py-2.5 text-stone-500 whitespace-nowrap min-w-[64px]">{row.date}</td>
+                    <td className="px-3 py-2.5 font-medium text-stone-700">
+                      {isSolo ? (
+                        <button
+                          onClick={() => {
+                            setCascadeExpand(false)
+                            setExpandedSoloIds((prev) => ({ ...prev, [row.id]: !prev[row.id] }))
+                          }}
+                          className="w-full flex items-center justify-between gap-3 text-left group"
+                          aria-expanded={isExpanded}
+                          aria-label={isExpanded ? '收起详情' : '展开详情'}
+                        >
+                          <span className="flex min-w-0 items-center">
+                            <span className="truncate">{row.match}</span>
+                            {row.status === 'win' && <HitBadge />}
+                          </span>
+                          <span className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-full border border-stone-200 text-stone-400 group-hover:text-stone-600 group-hover:border-stone-300">
+                            {isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setCascadeExpand(false)
+                            setExpandedComboIds((prev) => ({ ...prev, [row.id]: !prev[row.id] }))
+                          }}
+                          className="inline-flex items-start gap-2 text-left group"
+                          aria-expanded={isExpanded}
+                          aria-label={isExpanded ? '收起详情' : '展开详情'}
+                        >
+                          <span className="mt-0.5 text-stone-400 group-hover:text-stone-600">
+                            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          </span>
+                          <span>
+                            <span className="flex items-center">
+                              <span>{row.match}</span>
+                              {row.status === 'win' && <HitBadge />}
+                            </span>
+                            <span className="block mt-0.5 text-[10px] font-normal text-stone-500">{row.comboOverview}</span>
+                          </span>
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 max-w-36">
+                      {row.parlaySize > 1 ? (
+                        <span className="text-stone-400">{row.parlaySize} 场</span>
+                      ) : (
+                        <div className="truncate text-stone-600">{renderOutcomeText(row.entries)}</div>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 max-w-32 font-semibold">
+                      {row.parlaySize > 1 ? (
+                        <span className="inline-flex items-center font-medium text-stone-400">
+                          {row.comboHitCount}
+                          <span className="mx-[2px] text-stone-400">/</span>
+                          {row.parlaySize}
+                        </span>
+                      ) : (
+                        <div className="truncate">{renderOutcomeText(row.results)}</div>
+                      )}
+                    </td>
+                    <td className={`px-3 py-2.5 font-semibold ${row.ajr === '-' ? 'text-stone-300' : getAJRColor(row.ajr)}`}>
+                      {row.ajr === '-' ? '—' : row.ajr}
+                    </td>
+                    <td
+                      className={`px-3 py-2.5 font-semibold ${
+                        row.profit === '-'
+                          ? 'text-stone-400'
+                          : row.status === 'draw'
+                            ? 'text-sky-600'
+                            : row.profit.startsWith('+')
+                              ? 'text-emerald-600'
+                              : 'text-rose-500'
+                      }`}
+                    >
+                      {row.profit}
+                    </td>
+                    <td
+                      className={`px-3 py-2.5 font-semibold ${
+                        row.roi === '-' || row.roi === '--' ? 'text-stone-400' : row.roi.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'
+                      }`}
+                    >
+                      {row.roi === '-' ? '—' : row.roi}
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <button
+                        onClick={(event) => handleReturnToSettle(row.id, event)}
+                        className="inline-flex items-center justify-center w-6 h-6 rounded-md text-stone-400 hover:text-violet-600 hover:bg-violet-50 transition-colors mr-[5px]"
+                        title="重新结算（编辑）"
+                        aria-label="重新结算（编辑）"
+                      >
+                        <SquarePen size={13} />
+                      </button>
+                      <button
+                        onClick={(event) => handleToggleArchive(row.id, row.isArchived, event)}
+                        className="inline-flex items-center justify-center w-6 h-6 rounded-md text-stone-400 hover:text-sky-600 hover:bg-sky-50 transition-colors mr-1"
+                        title={row.isArchived ? '取消归档' : '归档记录'}
+                        aria-label={row.isArchived ? '取消归档' : '归档记录'}
+                      >
+                        {row.isArchived ? <Undo2 size={13} /> : <Archive size={13} />}
+                      </button>
+                      <button
+                        onClick={(event) => handleDeleteRecord(row.id, event)}
+                        className="inline-flex items-center justify-center w-6 h-6 rounded-md text-stone-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                        title="删除记录"
+                        aria-label="删除记录"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </td>
+                  </tr>
+
+                  {isSolo && isExpanded && (
+                    <tr className="history-expand-row border-t border-stone-100 bg-white text-[11px]">
+                      <td colSpan={8} className="history-expand-cell px-3">
+                        <HistoryExpandShell delay={expandDelay} settle={expandSettle}>
+                          <div className="history-expand-content history-expand-content--solo flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5" style={{ '--history-expand-delay': expandDelay }}>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-stone-400">状态</span>
+                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${getStatusBadgeTone(row.status)}`}>
+                              {getStatusLabel(row.status)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-stone-400">Odds</span>
+                            <span className="font-semibold italic text-violet-600">{row.odds}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-stone-400">{labels.conf.short}</span>
+                            <span className={`font-semibold ${getConfColor(row.conf)}`}>{row.conf}</span>
+                          </div>
+                          <div className="max-w-[280px]">
+                            <span className="text-stone-400 mr-1.5">赛前备注</span>
+                            <span className="text-stone-600">{renderStyledNote(row.preNote || '-')}</span>
+                          </div>
+                          <div className="max-w-[280px]">
+                            <span className="text-stone-400 mr-1.5">赛后备注</span>
+                            <span className="text-stone-600">{renderStyledNote(row.postNote || '-')}</span>
+                          </div>
+                          </div>
+                        </HistoryExpandShell>
+                      </td>
+                    </tr>
+                  )}
+
+                  {!isSolo && isExpanded && (
+                    <tr className="history-expand-row border-t border-stone-100 bg-stone-50/60 text-[11px]">
+                      <td colSpan={8} className="history-expand-cell px-4">
+                        <HistoryExpandShell delay={expandDelay} settle={expandSettle}>
+                          <div className="history-expand-content history-expand-content--combo my-4 rounded-xl border border-stone-200 bg-white p-4" style={{ '--history-expand-delay': expandDelay }}>
+                          <div className="space-y-2">
+                            {row.matchRows.map((matchRow, matchIndex) => {
+                              const notePayload = buildMatchNoteDisplayPayload(matchRow.preNote, matchRow.postNote)
+                              return (
+                                <div
+                                  key={matchRow.id}
+                                  className="history-expand-item rounded-lg border border-stone-100 px-3 py-2"
+                                  style={{ '--history-expand-delay': `${Math.min(expandBaseMs + 150 + matchIndex * 70, 760)}ms` }}
+                                >
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <p className="text-stone-700 font-medium">
+                                      {matchRow.seqLabel} · {matchRow.match}
+                                    </p>
+                                    <p className="text-[10px] text-stone-400">{matchRow.date}</p>
+                                  </div>
+                                  <div className="mt-2 grid gap-2 md:grid-cols-6">
+                                    <div>
+                                      <p className="text-[10px] text-stone-400">Entries</p>
+                                      <p className="mt-0.5">{renderOutcomeText(matchRow.entries)}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] text-stone-400">Results</p>
+                                      <p className="mt-0.5 font-semibold">{renderOutcomeText(matchRow.results)}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] text-stone-400">Odds</p>
+                                      <p className="mt-0.5 font-semibold italic text-violet-600">{matchRow.odds}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] text-stone-400">{labels.conf.short} / AJR</p>
+                                      <p className="mt-0.5 font-semibold">
+                                        <span className={matchRow.conf === '-' ? 'text-stone-300' : getConfColor(matchRow.conf)}>
+                                          {matchRow.conf === '-' ? '—' : matchRow.conf}
+                                        </span>
+                                        <span className="mx-1 text-stone-300">/</span>
+                                        <span className={matchRow.ajr === '-' ? 'text-stone-300' : getAJRColor(matchRow.ajr)}>
+                                          {matchRow.ajr === '-' ? '—' : matchRow.ajr}
+                                        </span>
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] text-stone-400">状态</p>
+                                      <p className="mt-0.5">
+                                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${getStatusBadgeTone(matchRow.status)}`}>
+                                          {getStatusLabel(matchRow.status)}
+                                        </span>
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] text-stone-400">备注</p>
+                                      {!notePayload ? (
+                                        <p className="mt-0.5 text-stone-300">-</p>
+                                      ) : notePayload.type === 'single' ? (
+                                        <p className="mt-0.5 text-stone-600 leading-relaxed">
+                                          {renderStyledNote(notePayload.note)}
+                                        </p>
+                                      ) : (
+                                        <button
+                                          onClick={(event) => showNote(notePayload.note, notePayload.label, event)}
+                                          className="note-cell mt-0.5 inline-flex flex-col items-start gap-0.5 text-[11px] text-left text-stone-600 leading-tight"
+                                        >
+                                          <span>
+                                            <span className="text-stone-400">赛前：</span>
+                                            <span className="text-stone-600">{notePayload.prePreview}</span>
+                                          </span>
+                                          <span>
+                                            <span className="text-stone-400">赛后：</span>
+                                            <span className="text-stone-600">{notePayload.postPreview}</span>
+                                          </span>
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+
+                          <div className="history-expand-tail grid gap-2 mt-3 border-t border-stone-100 pt-3 md:grid-cols-2 xl:grid-cols-4" style={{ '--history-expand-delay': comboTailDelay }}>
+                            <div className="rounded-lg border border-stone-100 bg-stone-50 px-3 py-2">
+                              <p className="text-[10px] text-stone-400">状态</p>
+                              <p className="mt-1">
+                                <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${getStatusBadgeTone(row.status)}`}>
+                                  {getStatusLabel(row.status)}
+                                </span>
+                              </p>
+                            </div>
+                            <div className="rounded-lg border border-stone-100 bg-stone-50 px-3 py-2">
+                              <p className="text-[10px] text-stone-400">投入</p>
+                              <p className="mt-1 font-semibold text-amber-600">{row.inputs} rmb</p>
+                            </div>
+                            <div className="rounded-lg border border-stone-100 bg-stone-50 px-3 py-2">
+                              <p className="text-[10px] text-stone-400">Odds</p>
+                              <p className="mt-1 font-semibold italic text-violet-600">{row.odds}</p>
+                            </div>
+                            <div className="rounded-lg border border-stone-100 bg-stone-50 px-3 py-2">
+                              <p className="text-[10px] text-stone-400">{labels.conf.short}</p>
+                              <p className="mt-1 font-semibold text-stone-300">—</p>
+                            </div>
+                          </div>
+                            </div>
+                        </HistoryExpandShell>
+                      </td>
+                      </tr>
+                  )}
+                </Fragment>
+                )
+              })}
+
+              {filteredRows.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-6 py-16 text-center">
+                    <p className="text-sm text-stone-500">还没有匹配的数据，先去「新建投资」录入一条吧。</p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-stone-50 text-[11px] text-stone-500">
+                  <th className="px-2 py-3 text-left font-medium">日期</th>
+                  <th className="px-2 py-3 text-left font-medium">比赛</th>
+                  <th className="px-2 py-3 text-left font-medium">Entries</th>
+                  <th className="px-2 py-3 text-left font-medium">Results</th>
+                  <th className="px-2 py-3 text-left font-medium">Odds</th>
+                  <th className="px-2 py-3 text-left font-medium">{labels.conf.short}</th>
+                  <th className="px-2 py-3 text-left font-medium">AJR</th>
+                  <th className="px-2 py-3 text-left font-medium">Inputs</th>
+                  <th className="px-2 py-3 text-left font-medium">状态</th>
+                  <th className="px-2 py-3 text-left font-medium">盈亏</th>
+                  <th className="px-2 py-3 text-left font-medium">ROI</th>
+                  <th className="px-2 py-3 text-left font-medium">赛前备注</th>
+                  <th className="px-2 py-3 text-left font-medium">赛后备注</th>
+                  <th className="px-2 py-3 text-right font-medium">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredDataRows.map((row) => (
+                  <tr key={row.id} className="border-t border-stone-100 hover:bg-amber-50/30 transition-colors text-[11px]">
+                    <td className="px-2 py-2.5 text-stone-500 whitespace-nowrap">{row.date}</td>
+                    <td className="px-2 py-2.5 font-medium text-stone-700">
+                      <span className="inline-flex items-center">
+                        {row.match}
+                        {row.status === 'win' && <HitBadge />}
+                      </span>
+                    </td>
+                    <td className="px-2 py-2.5 text-stone-600">{renderOutcomeText(row.entries)}</td>
+                    <td className="px-2 py-2.5 font-semibold">{renderOutcomeText(row.results)}</td>
+                    <td className="px-2 py-2.5 font-bold italic text-violet-600">{row.odds}</td>
+                    <td className={`px-2 py-2.5 font-semibold ${row.conf === '-' ? 'text-stone-400' : getConfColor(row.conf)}`}>{row.conf}</td>
+                    <td className={`px-2 py-2.5 font-semibold ${row.ajr === '-' ? 'text-stone-400' : getAJRColor(row.ajr)}`}>{row.ajr}</td>
+                    <td className="px-2 py-2.5 font-semibold text-amber-600">{row.inputs === '-' ? '-' : `${row.inputs} rmb`}</td>
+                    <td className="px-2 py-2.5">
+                      <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${getStatusBadgeTone(row.status)}`}>
+                        {getStatusLabel(row.status)}
+                      </span>
+                    </td>
+                    <td
+                      className={`px-2 py-2.5 font-semibold ${
+                        row.profit === '-'
+                          ? 'text-stone-400'
+                          : row.status === 'draw'
+                            ? 'text-sky-600'
+                            : row.profit.startsWith('+')
+                              ? 'text-emerald-600'
+                              : 'text-rose-500'
+                      }`}
+                    >
+                      {row.profit}
+                    </td>
+                    <td
+                      className={`px-2 py-2.5 font-semibold ${
+                        row.roi === '-' || row.roi === '--' ? 'text-stone-400' : row.roi.startsWith('+') ? 'text-emerald-600' : 'text-rose-500'
+                      }`}
+                    >
+                      {row.roi === '-' ? '—' : row.roi}
+                    </td>
+                    <td className="px-2 py-2.5 max-w-32">
+                      {hasNoteContent(row.preNote) ? (
+                        <button onClick={(event) => showNote(row.preNote, '赛前备注', event)} className="note-cell block w-full truncate text-left text-stone-600">
+                          {getNotePreview(row.preNote)}
+                        </button>
+                      ) : (
+                        <span className="text-stone-300">—</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-2.5 max-w-32">
+                      {hasNoteContent(row.postNote) ? (
+                        <button onClick={(event) => showNote(row.postNote, '赛后备注', event)} className="note-cell block w-full truncate text-left text-stone-600">
+                          {getNotePreview(row.postNote)}
+                        </button>
+                      ) : (
+                        <span className="text-stone-300">—</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-2.5 text-right">
+                      {row.isPrimary ? (
+                        <>
+                          <button
+                            onClick={(event) => handleReturnToSettle(row.investmentId, event)}
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-md text-stone-400 hover:text-violet-600 hover:bg-violet-50 transition-colors mr-[5px]"
+                            title="重新结算（编辑）"
+                            aria-label="重新结算（编辑）"
+                          >
+                            <SquarePen size={13} />
+                          </button>
+                          <button
+                            onClick={(event) => handleToggleArchive(row.investmentId, row.isArchived, event)}
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-md text-stone-400 hover:text-sky-600 hover:bg-sky-50 transition-colors mr-1"
+                            title={row.isArchived ? '取消归档' : '归档记录'}
+                            aria-label={row.isArchived ? '取消归档' : '归档记录'}
+                          >
+                            {row.isArchived ? <Undo2 size={13} /> : <Archive size={13} />}
+                          </button>
+                          <button
+                            onClick={(event) => handleDeleteRecord(row.investmentId, event)}
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-md text-stone-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                            title="删除记录"
+                            aria-label="删除记录"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-stone-300">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+
+                {filteredDataRows.length === 0 && (
+                  <tr>
+                    <td colSpan={13} className="px-6 py-16 text-center">
+                      <p className="text-sm text-stone-500">还没有匹配的数据，先去「新建投资」录入一条吧。</p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {notePopup && (
+        <div
+          className="fixed bg-white rounded-xl shadow-xl border border-stone-200 p-4 max-w-72 z-50 animate-fade-in"
+          style={{
+            top: Math.min(notePopup.position.y + 10, window.innerHeight - 220),
+            left: Math.min(notePopup.position.x, window.innerWidth - 300),
+          }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-stone-400">{notePopup.label ? `${notePopup.label} · 完整内容` : '完整备注'}</span>
+            <button onClick={() => setNotePopup(null)} className="text-stone-400 hover:text-stone-600 text-sm">
+              ×
+            </button>
+          </div>
+          <div className="text-sm text-stone-700 leading-relaxed">{renderStyledNote(notePopup.note)}</div>
+        </div>
+      )}
+
+      {pendingUndo && (
+        <div className="fixed bottom-5 right-5 z-50 bg-stone-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-fade-in">
+          <span className="text-xs">记录已删除</span>
+          <button
+            onClick={handleUndoDelete}
+            className="text-xs px-2 py-1 rounded-md bg-amber-400 text-stone-900 font-medium hover:bg-amber-300 transition-colors"
+          >
+            撤销
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}

@@ -1,0 +1,2446 @@
+import { predictMatchProbability } from "../lib/matchPrediction"
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Plus, X, ChevronDown, ChevronRight, Sparkles, Loader2, ShieldCheck, Archive, RotateCcw } from 'lucide-react'
+import { bumpTeamSamples, findTeamProfile, getInvestments, getSystemConfig, getTeamProfiles, saveInvestment, saveInvestments, searchTeamProfiles } from '../lib/localData'
+import { handleNoteShortcut } from '../lib/noteFormatting'
+import { getPredictionCalibrationContext, getModeKellyRecommendations, getReservoirState } from '../lib/analytics'
+import { getPrimaryEntryMarket, normalizeEntryName, normalizeEntryNameWhileTyping, normalizeEntryRecord, trimTrailingEmptyEntries } from '../lib/entryParsing'
+import WaxSealStampOverlay, { getWaxSealStampPoint } from '../components/WaxSealStampOverlay'
+import ExplainHover from '../components/ExplainHover'
+import {
+  buildAtomicMatchProfile,
+  calcAtomicEquivalentOdds,
+  combineAtomicMatchProfiles,
+  estimateEntryAnchorOdds,
+  solveKellyFractionByAtomicDistribution,
+} from '../lib/atomicParlay'
+import { parseNaturalInput } from '../lib/naturalInputParser'
+import { requestAiInvestmentParse } from '../lib/aiInvestmentClient'
+import { AI_FSE_DEFAULT, AI_PARSE_MAX_TEXT_LENGTH } from '../lib/aiInvestmentSchema'
+import { formatStructuredQuickInput } from '../lib/quickInputPresentation'
+import { useLabels, usePreviewTextMask } from '../lib/labels'
+import { useModeLabelMap } from '../components/ModeLabel'
+import { useDisplayMode, PREVIEW_MODE, isFullMode } from '../lib/displayMode'
+import { buildForecastSnapshot, capRecommendedStake, isValidDecimalOdds, MEAN_LEG_RATING_SEMANTICS } from '../lib/investmentForecast'
+import { getMatchSourceIdentity } from '../lib/investmentIdentity'
+import { parseFinalScore, learnTeamBias, buildReadRecords } from '../lib/readQuality'
+import { buildTeamHistory, findTeamHistory } from '../lib/teamHistory'
+import PreMatchHero, { PreMatchRecords } from '../components/PreMatchHero'
+import PreMatchBoard from '../components/PreMatchBoard'
+
+const MODE_OPTIONS = ['常规', '常规-稳', '常规-杠杆', '常规-激进', '半彩票半保险', '保险产品', '赌一把']
+const DEFAULT_FSE_PERCENT = 10
+const QI_AUTO_UNFURL_DELAY_MS = 4300
+const QI_AUTO_UNFURL_GLOW_MS = 1250
+const QI_AUTO_UNFURL_SESSION_KEY = 'dugou.quick_input_intro_seen.v2'
+
+const markQuickInputIntroSeen = () => {
+  try {
+    window.sessionStorage.setItem(QI_AUTO_UNFURL_SESSION_KEY, '1')
+  } catch {
+    // Storage can be unavailable in hardened/private contexts; animation still works.
+  }
+}
+
+// 默认 Kelly 分母映射（基于需求文档 S4）
+// 保险产品用较小分母（更激进），赌一把用较大分母（更保守）
+const DEFAULT_MODE_KELLY_DIVISOR = {
+  常规: 4,
+  '常规-稳': 3.5,
+  '常规-杠杆': 4.5,
+  '常规-激进': 4.5,
+  半彩票半保险: 5,
+  保险产品: 3,
+  赌一把: 6,
+}
+const TYS_OPTIONS = ['S', 'M', 'L', 'H']
+const FID_OPTIONS = ['0', '0.25', '0.4', '0.6', '0.75']
+const CONF_QUICK_OPTIONS = [0.2, 0.4, 0.5, 0.6, 0.8]
+const FSE_QUICK_OPTIONS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
+
+const EXCLUDED_ENTRY_REASON_TEXT = {
+  missing_name: '缺少名称',
+  invalid_odds: '赔率需 > 1',
+}
+
+// 这枚数字是各场校准命中概率的算术平均，即保存时写入的
+// expected_rating_semantics = MEAN_LEG_RATING_SEMANTICS。Portfolio 会把整票命中概率写进
+// 同一个 expected_rating 字段，两者只靠该语义标签区分，所以屏幕标签必须写明口径。
+const EXPECTED_RATING_COPY = {
+  [MEAN_LEG_RATING_SEMANTICS]: {
+    label: 'Expected Rating（单场均值）',
+    hint: '各场校准命中概率的均值，非整票命中概率',
+  },
+}[MEAN_LEG_RATING_SEMANTICS]
+
+
+
+
+const createEmptyMatch = (entryCount = 2) => ({
+  homeTeam: '',
+  awayTeam: '',
+  // 投前默认给两条腿的位置（w/d/l 与比分各一个，odds 都可空）；
+  // 投后导入只看有内容的行，多余的空白行不显示。
+  entries: Array.from({ length: Math.max(1, entryCount) }, () => ({ name: '', odds: '' })),
+  conf: 50,
+  mode: '常规',
+  tys_home: 'M',
+  tys_away: 'M',
+  fid: '0.4',
+  fse_home: DEFAULT_FSE_PERCENT,
+  fse_away: DEFAULT_FSE_PERCENT,
+  note: '',
+})
+
+const normalizeTeamNameInput = (value) =>
+  String(value || '')
+    .replace(/　/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
+
+const buildId = (prefix = 'id') => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return `${prefix}_${crypto.randomUUID()}`
+  }
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+}
+
+const formatShortDateWithYear = (value) => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '--'
+  const year = String(date.getFullYear()).slice(-2)
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const parseTimestamp = (value) => {
+  const timestamp = new Date(value).getTime()
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
+const getModeBadgeClass = (mode) => {
+  if (mode === '保险产品') return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+  if (mode === '赌一把') return 'bg-rose-50 text-rose-600 border border-rose-200'
+  if (mode === '半彩票半保险') return 'bg-violet-50 text-violet-600 border border-violet-200'
+  if (mode === '常规-稳') return 'bg-sky-50 text-sky-600 border border-sky-200'
+  if (mode === '常规-杠杆' || mode === '常规-激进') return 'bg-amber-50 text-amber-700 border border-amber-200'
+  return 'bg-stone-100 text-stone-600 border border-stone-200'
+}
+
+const getConfBadgeClass = (confPercent) => {
+  if (confPercent >= 80) return 'text-blue-700'
+  if (confPercent >= 70) return 'text-blue-600'
+  if (confPercent >= 60) return 'text-sky-600'
+  if (confPercent >= 50) return 'text-sky-500'
+  return 'text-stone-500'
+}
+
+const createResettableMatchFields = () => ({
+  entries: [{ name: '', odds: '' }],
+  conf: 50,
+  mode: '常规',
+  tys_home: 'M',
+  tys_away: 'M',
+  fid: '0.4',
+  fse_home: DEFAULT_FSE_PERCENT,
+  fse_away: DEFAULT_FSE_PERCENT,
+  note: '',
+})
+
+// ── 录入草稿持久化 ──
+// 进行中的表单只存在内存里，刷新 / 手机后台回收标签页都会清空，导致「输一半全没了」。
+// 这里把录入中的表单实时写进 localStorage，下次进入自动恢复；提交成功后清除。
+const DRAFT_KEY = 'dugou.new_investment_draft.v1'
+const DRAFT_MAX_AGE_MS = 1000 * 60 * 60 * 24 // 超过 24h 的草稿不再恢复，避免旧表单意外复活
+
+const draftMatchHasContent = (match) => {
+  if (!match || typeof match !== 'object') return false
+  if (normalizeTeamNameInput(match.homeTeam)) return true
+  if (normalizeTeamNameInput(match.awayTeam)) return true
+  if (String(match.note || '').trim()) return true
+  const entries = Array.isArray(match.entries) ? match.entries : []
+  return entries.some((entry) => String(entry?.name || '').trim() || String(entry?.odds || '').trim())
+}
+
+const draftHasContent = (matches, comboName) => {
+  if (String(comboName || '').trim()) return true
+  return Array.isArray(matches) && matches.some(draftMatchHasContent)
+}
+
+const normalizeDraftMatch = (raw) => {
+  const base = createEmptyMatch()
+  if (!raw || typeof raw !== 'object') return base
+  const entries =
+    Array.isArray(raw.entries) && raw.entries.length > 0
+      ? raw.entries.map((entry) => ({ name: String(entry?.name ?? ''), odds: String(entry?.odds ?? '') }))
+      : base.entries
+  return {
+    ...base,
+    ...raw,
+    homeTeam: String(raw.homeTeam ?? ''),
+    awayTeam: String(raw.awayTeam ?? ''),
+    entries,
+    note: String(raw.note ?? ''),
+  }
+}
+
+const readInvestmentDraft = () => {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    if (!Number.isFinite(parsed.savedAt) || Date.now() - parsed.savedAt > DRAFT_MAX_AGE_MS) return null
+    const matches = Array.isArray(parsed.matches) ? parsed.matches.map(normalizeDraftMatch) : []
+    if (matches.length === 0) return null
+    const comboName = String(parsed.comboName || '')
+    if (!draftHasContent(matches, comboName)) return null
+    const parlaySize = clamp(Number.parseInt(parsed.parlaySize, 10) || matches.length, 1, 5)
+    return { parlaySize, matches, comboName, actualInput: String(parsed.actualInput ?? '') }
+  } catch {
+    return null
+  }
+}
+
+const writeInvestmentDraft = (draft) => {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...draft, savedAt: Date.now() }))
+  } catch {
+    /* localStorage 不可用——放弃草稿持久化，不影响正常录入 */
+  }
+}
+
+const clearInvestmentDraft = () => {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.removeItem(DRAFT_KEY)
+  } catch {
+    /* 忽略 */
+  }
+}
+
+const normalizeModeValue = (value) => (MODE_OPTIONS.includes(value) ? value : '常规')
+const normalizeTysValue = (value) => {
+  const text = String(value || '').trim().toUpperCase()
+  return TYS_OPTIONS.includes(text) ? text : 'M'
+}
+
+const normalizeFidOption = (value) => {
+  const num = Number.parseFloat(value)
+  if (!Number.isFinite(num)) return '0.4'
+  return (
+    [...FID_OPTIONS]
+      .map((option) => ({ option, diff: Math.abs(Number.parseFloat(option) - num) }))
+      .sort((a, b) => a.diff - b.diff)[0]?.option || '0.4'
+  )
+}
+
+const normalizeSliderPercent = (value, fallback = 50) => {
+  const num = Number.parseFloat(value)
+  if (!Number.isFinite(num)) return fallback
+  if (num <= 1.2) return clamp(Math.round(num * 100), 0, 100)
+  return clamp(Math.round(num), 0, 100)
+}
+
+const sanitizeDecimalInputText = (value, { maxDecimals = null } = {}) => {
+  let text = String(value ?? '')
+    .replace(/[。．，]/g, '.')
+    .replace(/[^\d.]/g, '')
+
+  const firstDotIdx = text.indexOf('.')
+  if (firstDotIdx >= 0) {
+    const head = text.slice(0, firstDotIdx + 1)
+    const tailRaw = text.slice(firstDotIdx + 1).replace(/\./g, '')
+    const tail = Number.isFinite(maxDecimals) ? tailRaw.slice(0, maxDecimals) : tailRaw
+    text = `${head}${tail}`
+  }
+  return text
+}
+
+const sanitizeIntegerInputText = (value) =>
+  String(value ?? '').replace(/[^\d]/g, '')
+
+const normalizeTeamKey = (value) => normalizeTeamNameInput(value).toLowerCase()
+
+const normalizeMatchupKey = (homeTeam, awayTeam) => {
+  const home = normalizeTeamKey(homeTeam)
+  const away = normalizeTeamKey(awayTeam)
+  if (!home || !away) return ''
+  return [home, away].sort().join('::')
+}
+
+const buildEntryDraftsFromHistory = (match) => {
+  const entryList = Array.isArray(match?.entries) ? match.entries : []
+  const normalizedEntries = entryList
+    .map((entry) => {
+      const name = normalizeEntryName(entry?.name || '')
+      const odd = Number.parseFloat(entry?.odds)
+      return {
+        name,
+        odds: Number.isFinite(odd) && odd > 0 ? String(odd) : '',
+      }
+    })
+    .filter((entry) => entry.name || entry.odds)
+
+  if (normalizedEntries.length > 0) return normalizedEntries
+
+  const fallbackText = String(match?.entry_text || '').trim()
+  if (fallbackText) {
+    const names = fallbackText
+      .split(',')
+      .map((name) => normalizeEntryName(name))
+      .filter(Boolean)
+    const fallbackOdds = Number.parseFloat(match?.odds)
+    if (names.length > 0) {
+      return names.map((name, idx) => ({
+        name,
+        odds: idx === 0 && Number.isFinite(fallbackOdds) && fallbackOdds > 0 ? String(fallbackOdds) : '',
+      }))
+    }
+  }
+
+  return [{ name: '', odds: '' }]
+}
+
+const getHistoryOddsLabel = (match, entries) => {
+  const directOdds = Number.parseFloat(match?.odds)
+  if (Number.isFinite(directOdds) && directOdds > 0) return directOdds.toFixed(2)
+  const firstEntryOdds = Number.parseFloat(entries.find((entry) => Number.parseFloat(entry?.odds) > 0)?.odds)
+  if (Number.isFinite(firstEntryOdds) && firstEntryOdds > 0) return firstEntryOdds.toFixed(2)
+  return '--'
+}
+
+export default function NewInvestmentPage() {
+  const navigate = useNavigate()
+  const labels = useLabels()
+  const maskMode = useModeLabelMap()
+  const maskText = usePreviewTextMask()
+  const displayMode = useDisplayMode()
+  const isPreview = displayMode === PREVIEW_MODE
+  const [dataVersion, setDataVersion] = useState(0)
+  // 进入页面时一次性读取草稿——刷新 / 标签页被回收后恢复进行中的录入。
+  const restoredDraftRef = useRef(undefined)
+  if (restoredDraftRef.current === undefined) {
+    restoredDraftRef.current = readInvestmentDraft()
+  }
+  const restoredDraft = restoredDraftRef.current
+  const [parlaySize, setParlaySize] = useState(() => restoredDraft?.parlaySize ?? 1)
+  const [matches, setMatches] = useState(() => restoredDraft?.matches ?? [createEmptyMatch()])
+  const [comboName, setComboName] = useState(() => restoredDraft?.comboName ?? '')
+  const [showModeDropdown, setShowModeDropdown] = useState({})
+  const [actualInput, setActualInput] = useState(() => restoredDraft?.actualInput ?? '150')
+  const [activeTeamInput, setActiveTeamInput] = useState(null)
+  const [profilesVersion, setProfilesVersion] = useState(0)
+  const [historyPrefillApplied, setHistoryPrefillApplied] = useState({})
+  const [historyFloatDismissed, setHistoryFloatDismissed] = useState({})
+  const [quickInputText, setQuickInputText] = useState('')
+  // 首屏自动展卷后保持展开；用户仍可手动收起。
+  const [quickInputOpen, setQuickInputOpen] = useState(false)
+  const [quickIntroUnfurl, setQuickIntroUnfurl] = useState(false)
+  const [quickInputResult, setQuickInputResult] = useState(null)
+  const [quickComboIndex, setQuickComboIndex] = useState(0)
+  const [quickInputPhase, setQuickInputPhase] = useState('idle')
+  const [quickInputMeta, setQuickInputMeta] = useState(null)
+  const [waxSealBurst, setWaxSealBurst] = useState({ active: false, token: 0, x: 0, y: 0 })
+  const [confirmPersistPending, setConfirmPersistPending] = useState(false)
+  // 投前研判（默认）/ 投后导入：本轮两视图复刻同一套界面，投前的升级下一轮在此分叉。
+  const [viewMode, setViewMode] = useState('pre')
+  const [systemConfig] = useState(() => getSystemConfig())
+  const persistTimerRef = useRef(null)
+  const persistIdleRef = useRef(null)
+  const quickUnfurlTimersRef = useRef([])
+  const quickAiAbortRef = useRef(null)
+  const quickInputSourceRef = useRef('')
+
+  const quickShown = quickInputOpen
+
+  useEffect(() => {
+    let shouldPlayIntro = true
+    try {
+      shouldPlayIntro = window.sessionStorage.getItem(QI_AUTO_UNFURL_SESSION_KEY) !== '1'
+    } catch {
+      // Storage unavailable: preserve the first-mount animation as a safe fallback.
+    }
+
+    let reducedMotion = false
+    try {
+      reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    } catch {
+      // matchMedia unavailable: use the normal animated path.
+    }
+    if (!shouldPlayIntro) {
+      setQuickInputOpen(true)
+      return undefined
+    }
+    if (reducedMotion) {
+      markQuickInputIntroSeen()
+      setQuickInputOpen(true)
+      return undefined
+    }
+
+    const timers = quickUnfurlTimersRef.current
+    timers.push(window.setTimeout(() => {
+      markQuickInputIntroSeen()
+      setQuickIntroUnfurl(true)
+      setQuickInputOpen(true)
+    }, QI_AUTO_UNFURL_DELAY_MS))
+    timers.push(window.setTimeout(() => {
+      setQuickIntroUnfurl(false)
+    }, QI_AUTO_UNFURL_DELAY_MS + QI_AUTO_UNFURL_GLOW_MS))
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer))
+      quickUnfurlTimersRef.current = []
+    }
+  }, [])
+
+  useEffect(() => () => quickAiAbortRef.current?.abort(), [])
+
+  const teamProfiles = useMemo(() => getTeamProfiles(), [profilesVersion])
+  const historicalMatchLibrary = useMemo(() => {
+    const investments = getInvestments().filter((item) => !item?.is_archived)
+    return investments
+      .flatMap((investment) => {
+        const matchesInInvestment = Array.isArray(investment?.matches) ? investment.matches : []
+        return matchesInInvestment
+          .map((match, matchIdx) => {
+            const homeTeam = normalizeTeamNameInput(match?.home_team)
+            const awayTeam = normalizeTeamNameInput(match?.away_team)
+            const matchupKey = normalizeMatchupKey(homeTeam, awayTeam)
+            if (!matchupKey) return null
+            const homeKey = normalizeTeamKey(homeTeam)
+            const awayKey = normalizeTeamKey(awayTeam)
+            const entries = buildEntryDraftsFromHistory(match)
+            const entryPreview = entries
+              .map((entry) => String(entry.name || '').trim())
+              .filter(Boolean)
+              .join(' / ')
+            const oddsLabel = getHistoryOddsLabel(match, entries)
+            return {
+              id: `${investment.id || 'inv'}_${match?.id || matchIdx}`,
+              createdAt: investment.created_at,
+              createdAtTs: parseTimestamp(investment.created_at),
+              dateLabel: formatShortDateWithYear(investment.created_at),
+              homeKey,
+              awayKey,
+              matchupKey,
+              entries,
+              entryPreview,
+              oddsLabel,
+              mode: normalizeModeValue(match?.mode),
+              confPercent: normalizeSliderPercent(match?.conf, 50),
+              tys_home: normalizeTysValue(match?.tys_home),
+              tys_away: normalizeTysValue(match?.tys_away),
+              fid: normalizeFidOption(match?.fid),
+              fse_home: normalizeSliderPercent(match?.fse_home, DEFAULT_FSE_PERCENT),
+              fse_away: normalizeSliderPercent(match?.fse_away, DEFAULT_FSE_PERCENT),
+              note: String(match?.note || ''),
+            }
+          })
+          .filter(Boolean)
+      })
+      .sort((a, b) => b.createdAtTs - a.createdAtTs)
+  }, [dataVersion])
+  const historySuggestionsByMatchup = useMemo(() => {
+    const map = new Map()
+    historicalMatchLibrary.forEach((item) => {
+      if (!map.has(item.matchupKey)) map.set(item.matchupKey, [])
+      map.get(item.matchupKey).push(item)
+    })
+    map.forEach((items, key) => {
+      map.set(
+        key,
+        [...items].sort((a, b) => b.createdAtTs - a.createdAtTs),
+      )
+    })
+    return map
+  }, [historicalMatchLibrary])
+  const latestTeamFseMap = useMemo(() => {
+    const map = new Map()
+    historicalMatchLibrary.forEach((item) => {
+      if (item.homeKey && !map.has(item.homeKey)) {
+        map.set(item.homeKey, { value: item.fse_home, dateLabel: item.dateLabel })
+      }
+      if (item.awayKey && !map.has(item.awayKey)) {
+        map.set(item.awayKey, { value: item.fse_away, dateLabel: item.dateLabel })
+      }
+    })
+    return map
+  }, [historicalMatchLibrary])
+  // 实时蓄水池余额（cycle-aware）：建议下注金额与风险上限都以"可用资金"为基数
+  // （2026-09-25 决策：蓄水池余额扣除未结算在途投入；周期性结算后自动以新周期口径计算）。
+  const reservoirState = useMemo(() => getReservoirState(), [systemConfig, dataVersion])
+  const poolCapital = reservoirState.availableCash
+  // 投前：每场各自的「登记比分」（Entry 里写了 2-1 这类）。有比分的场次才展开研究板，
+  // 没有比分的场次整块折叠——投后导入与没写比分的场次都不受影响。
+  const scoreOpinionsByMatch = useMemo(
+    () =>
+      matches.map((match) => {
+        for (const entry of match.entries || []) {
+          const parsed = parseFinalScore(entry?.name)
+          if (parsed) return { point: parsed }
+        }
+        return null
+      }),
+    [matches],
+  )
+
+  // 我对各球队（分主客场）的历史登记偏差：从已结算账本里在线学出。
+  // 只读取、不写；账本没有变化时不重算。
+  const teamBiasModel = useMemo(() => {
+    try {
+      return learnTeamBias(buildReadRecords(getInvestments()))
+    } catch {
+      return null
+    }
+  }, [dataVersion])
+  // 投前：每支球队的过往记录（投前登记 / 投后复盘 / 预测与结果），最新在前。
+  const teamHistoryMap = useMemo(() => {
+    try {
+      return buildTeamHistory(getInvestments())
+    } catch {
+      return new Map()
+    }
+  }, [dataVersion])
+  // 研究板回传的「这场 Entry 的概率」——投前时若命中就替换这场的仓位输入。
+  const [preMatchOpinions, setPreMatchOpinions] = useState({})
+  const handlePreOpinionChange = (payload) => {
+    if (!payload) return
+    setPreMatchOpinions((prev) => ({ ...prev, [payload.matchIndex]: payload }))
+  }
+  const riskCap = useMemo(
+    () => capRecommendedStake(Number.MAX_SAFE_INTEGER, poolCapital, systemConfig.riskCapRatio),
+    [poolCapital, systemConfig.riskCapRatio],
+  )
+  const [calibrationContext, setCalibrationContext] = useState(() =>
+    getPredictionCalibrationContext({ detail: 'lite' }),
+  )
+
+  // S4: 根据历史数据计算每个 Mode 的最优 Kelly 分母
+  const modeKellyMap = useMemo(() => {
+    const recommendations = getModeKellyRecommendations()
+    const map = new Map()
+    recommendations.forEach((row) => {
+      if (row.samples >= 3) {
+        // 样本量足够时使用历史数据推荐值
+        map.set(row.mode, row.kellyDivisor)
+      }
+    })
+    return map
+  }, [dataVersion])
+
+  // 获取某个 Mode 的 Kelly 分母（优先使用历史数据，否则用默认值）
+  const getKellyDivisorForMode = (mode) => {
+    if (modeKellyMap.has(mode)) return modeKellyMap.get(mode)
+    return DEFAULT_MODE_KELLY_DIVISOR[mode] || systemConfig.kellyDivisor
+  }
+
+  useEffect(() => {
+    const onDataChanged = (event) => {
+      if (event?.detail?.uiOnly === true) return
+      setDataVersion((prev) => prev + 1)
+    }
+    window.addEventListener('dugou:data-changed', onDataChanged)
+    return () => window.removeEventListener('dugou:data-changed', onDataChanged)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    let idleId = null
+    let timeoutId = null
+
+    setCalibrationContext(getPredictionCalibrationContext({ detail: 'lite' }))
+
+    const hydrateFull = () => {
+      if (cancelled) return
+      const fullContext = getPredictionCalibrationContext({ detail: 'full', includeWeightSuggestions: false })
+      if (!cancelled) setCalibrationContext(fullContext)
+    }
+
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+      idleId = window.requestIdleCallback(hydrateFull, { timeout: 1200 })
+    } else {
+      timeoutId = window.setTimeout(hydrateFull, 0)
+    }
+
+    return () => {
+      cancelled = true
+      if (idleId !== null && typeof window !== 'undefined' && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(idleId)
+      }
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId)
+      }
+    }
+  }, [dataVersion])
+
+  useEffect(
+    () => () => {
+      if (persistTimerRef.current) {
+        window.clearTimeout(persistTimerRef.current)
+      }
+      if (persistIdleRef.current && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(persistIdleRef.current)
+      }
+    },
+    [],
+  )
+
+  const prevParlaySizeRef = useRef(parlaySize)
+  useEffect(() => {
+    setMatches((prev) =>
+      Array.from({ length: parlaySize }, (_, i) => {
+        if (!prev[i]) return createEmptyMatch()
+        return {
+          ...prev[i],
+          entries: prev[i].entries.map((entry) => ({ ...entry })),
+        }
+      }),
+    )
+    // 仅在用户真正切换串关数量时重置默认仓位；挂载时（含 StrictMode 双调用）
+    // 不要覆盖 actualInput——它可能来自恢复的草稿。
+    if (prevParlaySizeRef.current !== parlaySize) {
+      setActualInput(parlaySize > 1 ? '80' : '150')
+    }
+    prevParlaySizeRef.current = parlaySize
+  }, [parlaySize])
+
+  // 进行中的表单实时存草稿（刷新 / 标签页被回收也不丢）；空表单则清掉草稿。
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      if (draftHasContent(matches, comboName)) {
+        writeInvestmentDraft({ parlaySize, matches, comboName, actualInput })
+      } else {
+        clearInvestmentDraft()
+      }
+    }, 500)
+    return () => window.clearTimeout(handle)
+  }, [parlaySize, matches, comboName, actualInput])
+
+  useEffect(() => {
+    setHistoryPrefillApplied((prev) => {
+      const next = {}
+      Object.keys(prev).forEach((key) => {
+        if (Number.parseInt(key, 10) < parlaySize) {
+          next[key] = prev[key]
+        }
+      })
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next
+    })
+  }, [parlaySize])
+
+  useEffect(() => {
+    setHistoryFloatDismissed((prev) => {
+      const next = {}
+      Object.keys(prev).forEach((key) => {
+        if (Number.parseInt(key, 10) < parlaySize) {
+          next[key] = prev[key]
+        }
+      })
+      return Object.keys(next).length === Object.keys(prev).length ? prev : next
+    })
+  }, [parlaySize])
+
+  const updateMatch = (idx, field, value) => {
+    setMatches((prev) => {
+      const next = [...prev]
+      const normalizedValue =
+        field === 'homeTeam' || field === 'awayTeam' ? normalizeTeamNameInput(value) : value
+      if (field === 'homeTeam' || field === 'awayTeam') {
+        const fseField = field === 'homeTeam' ? 'fse_home' : 'fse_away'
+        const latestFse = latestTeamFseMap.get(normalizeTeamKey(normalizedValue))
+        next[idx] = {
+          ...next[idx],
+          [field]: normalizedValue,
+          [fseField]: latestFse?.value ?? DEFAULT_FSE_PERCENT,
+        }
+      } else {
+        next[idx] = { ...next[idx], [field]: normalizedValue }
+      }
+      return next
+    })
+    if (field === 'homeTeam' || field === 'awayTeam') {
+      setHistoryPrefillApplied((prev) => {
+        if (!Object.prototype.hasOwnProperty.call(prev, idx)) return prev
+        const next = { ...prev }
+        delete next[idx]
+        return next
+      })
+      setHistoryFloatDismissed((prev) => {
+        if (!Object.prototype.hasOwnProperty.call(prev, idx)) return prev
+        const next = { ...prev }
+        delete next[idx]
+        return next
+      })
+    }
+  }
+
+  const updateEntry = (idx, entryIdx, field, value) => {
+    setMatches((prev) => {
+      const next = [...prev]
+      const match = next[idx]
+      const entries = [...match.entries]
+      const oldEntry = entries[entryIdx]
+      const normalizedValue =
+        field === 'name' ? normalizeEntryNameWhileTyping(value) : sanitizeDecimalInputText(value, { maxDecimals: 2 })
+      entries[entryIdx] = {
+        ...oldEntry,
+        [field]: normalizedValue,
+        // 手改过赔率之后就不再让机构回填覆盖（清空也不回填）。
+        ...(field === 'odds' ? { oddsFromMarket: false } : {}),
+      }
+      next[idx] = { ...match, entries }
+      return next
+    })
+  }
+
+  // 投前固定给两条腿的位置（结果 + 比分 = 四个格子），不够就补空行。
+  useEffect(() => {
+    if (viewMode !== 'pre') return
+    setMatches((prev) => {
+      let changed = false
+      const next = prev.map((match) => {
+        const rows = Array.isArray(match.entries) ? match.entries : []
+        if (rows.length >= 2) return match
+        changed = true
+        return {
+          ...match,
+          entries: [...rows, ...Array.from({ length: 2 - rows.length }, () => ({ name: '', odds: '' }))],
+        }
+      })
+      return changed ? next : prev
+    })
+  }, [viewMode, matches])
+
+  // 机构拉到这一场的赔率后，自动回填还空着的 odds（1X2 与比分盘）。
+  // 只填空位、只填一次：填过之后字段非空就不会再写，也不会覆盖手改过的值。
+  useEffect(() => {
+    if (viewMode !== 'pre') return
+    setMatches((prev) => {
+      let changed = false
+      const next = prev.map((match, index) => {
+        const opinion = preMatchOpinions[index]
+        const marketOdds = opinion?.active ? opinion.marketEntryOdds : null
+        if (!Array.isArray(marketOdds) || marketOdds.length === 0) return match
+        let namedIndex = -1
+        let matchChanged = false
+        const entries = match.entries.map((entry) => {
+          if (!String(entry?.name || '').trim()) return entry
+          namedIndex += 1
+          const odds = marketOdds[namedIndex]
+          if (!Number.isFinite(odds)) return entry
+          if (String(entry.odds || '').trim()) return entry
+          if (entry.oddsFromMarket === false) return entry
+          matchChanged = true
+          return { ...entry, odds: String(odds), oddsFromMarket: true }
+        })
+        if (!matchChanged) return match
+        changed = true
+        return { ...match, entries }
+      })
+      return changed ? next : prev
+    })
+  }, [preMatchOpinions, viewMode])
+
+  // 失焦时对 Entry 名称做完整规范化（折叠多余空格、去掉首尾标点/空白）。
+  const finalizeEntryName = (idx, entryIdx) => {
+    setMatches((prev) => {
+      const next = [...prev]
+      const match = next[idx]
+      if (!match) return prev
+      const entries = [...match.entries]
+      const oldEntry = entries[entryIdx]
+      if (!oldEntry) return prev
+      const cleaned = normalizeEntryName(oldEntry.name)
+      if (cleaned === oldEntry.name) return prev
+      entries[entryIdx] = { ...oldEntry, name: cleaned }
+      next[idx] = { ...match, entries }
+      return next
+    })
+  }
+
+  const addEntry = (idx) => {
+    setMatches((prev) => {
+      const next = [...prev]
+      next[idx] = { ...next[idx], entries: [...next[idx].entries, { name: '', odds: '' }] }
+      return next
+    })
+  }
+
+  const removeEntry = (idx, entryIdx) => {
+    setMatches((prev) => {
+      const next = [...prev]
+      if (next[idx].entries.length <= 1) return prev
+      const entries = [...next[idx].entries]
+      entries.splice(entryIdx, 1)
+      next[idx] = { ...next[idx], entries }
+      return next
+    })
+  }
+
+  const parseOdds = (value) => Number.parseFloat(value)
+
+  const normalizeEntry = (entry) =>
+    normalizeEntryRecord({ name: entry.name, odds: parseOdds(entry.odds) }, parseOdds(entry.odds))
+
+  // 计算与「未计入」提示共用同一判定，显示永远不会和 calcMatchOdds / combinedOdds 分叉。
+  const isUsableEntry = (entry) => Boolean(entry.name) && isValidDecimalOdds(entry.odds)
+
+  const getValidEntries = (entries) => entries.map(normalizeEntry).filter(isUsableEntry)
+
+  // 同一条 Entry 可能名称与赔率同时不合规，按录入顺序先判名称。
+  const getExcludedEntries = (entries) =>
+    (entries || [])
+      .map((entry, index) => ({
+        index,
+        hasInput: Boolean(String(entry.name || '').trim() || String(entry.odds || '').trim()),
+        normalized: normalizeEntry(entry),
+      }))
+      .filter(({ normalized }) => !isUsableEntry(normalized))
+      .map(({ index, hasInput, normalized }) => ({ index, hasInput, reason: normalized.name ? 'invalid_odds' : 'missing_name' }))
+
+  const describeExcludedEntries = (excluded) => {
+    const counts = new Map()
+    excluded.forEach((row) => counts.set(row.reason, (counts.get(row.reason) || 0) + 1))
+    return [...counts]
+      .map(([reason, count]) => (counts.size > 1 ? `${EXCLUDED_ENTRY_REASON_TEXT[reason]} ${count} 条` : EXCLUDED_ENTRY_REASON_TEXT[reason]))
+      .join(' · ')
+  }
+
+  const calcMatchOdds = (entries) => {
+    const validEntries = getValidEntries(entries)
+    return calcAtomicEquivalentOdds(validEntries, systemConfig.defaultOdds)
+  }
+
+  const calcMatchAnchorOdds = (entries) => {
+    const validEntries = getValidEntries(entries)
+    return estimateEntryAnchorOdds(validEntries, systemConfig.defaultOdds)
+  }
+
+  const calcAdjustedConf = (match) => predictMatchProbability({
+    ...match, conf: match.conf / 100, fse_home: match.fse_home / 100, fse_away: match.fse_away / 100,
+  }, systemConfig, calibrationContext)
+
+  const atomicMatchProfiles = useMemo(
+    () =>
+      matches
+        .map((match, index) => {
+          const home = normalizeTeamNameInput(match.homeTeam)
+          const away = normalizeTeamNameInput(match.awayTeam)
+          const validEntries = getValidEntries(match.entries)
+          if (!home || !away || validEntries.length === 0) return null
+
+          // 投前：这场 Entry 的概率来自「我的进球分布」（默认按历史平均差修正；
+          // 「我坚持」时为原始输入）。分布能把同场多条腿逐格判出来，就用我的分布
+          // 直接算这一场的仓位分布；判不了的盘口退回生产管线。
+          const opinion = viewMode === 'pre' ? preMatchOpinions[index] : null
+          const scoreInfo = scoreOpinionsByMatch[index] || null
+          const opinionApplies = opinion?.active && scoreInfo
+            && opinion.registered?.home === scoreInfo.point.home
+            && opinion.registered?.away === scoreInfo.point.away
+          const opinionProfile = opinionApplies && opinion.profile?.supported ? opinion.profile : null
+          if (opinionProfile) {
+            return { ...opinionProfile, unionProbability: opinionProfile.hitProbability }
+          }
+          const unionProbability = calcAdjustedConf(match)
+          return {
+            ...buildAtomicMatchProfile({
+              entries: validEntries,
+              unionProbability,
+              fallbackOdds: systemConfig.defaultOdds,
+            }),
+            unionProbability,
+          }
+        })
+        .filter(Boolean),
+    [calibrationContext, matches, preMatchOpinions, scoreOpinionsByMatch, systemConfig, viewMode],
+  )
+
+  const combinedAtomicProfile = useMemo(
+    () => combineAtomicMatchProfiles(atomicMatchProfiles),
+    [atomicMatchProfiles],
+  )
+
+  const combinedOdds = useMemo(() => {
+    if (atomicMatchProfiles.length === 0) return Number.NaN
+    const conditionalOdds = Number(combinedAtomicProfile.conditionalOdds)
+    if (Number.isFinite(conditionalOdds) && conditionalOdds > 0) {
+      return conditionalOdds
+    }
+    const fallback = matches.reduce((product, match) => {
+      const home = normalizeTeamNameInput(match.homeTeam)
+      const away = normalizeTeamNameInput(match.awayTeam)
+      const validEntries = getValidEntries(match.entries)
+      if (!home || !away || validEntries.length === 0) return product
+      return product * calcMatchOdds(match.entries)
+    }, 1)
+    return Number.isFinite(fallback) ? fallback : 0
+  }, [atomicMatchProfiles.length, combinedAtomicProfile, matches, systemConfig.defaultOdds])
+
+  const expectedRating = useMemo(() => {
+    if (atomicMatchProfiles.length === 0) return Number.NaN
+    const average = atomicMatchProfiles.reduce((sum, row) => sum + row.hitProbability, 0) / atomicMatchProfiles.length
+    return Number.isFinite(average) ? average : 0
+  }, [atomicMatchProfiles])
+
+  // 纯展示派生值：被 getValidEntries 排除、因而没有进入赔率计算的 Entry。
+  // 只有用户已经开始录入的行才算「被丢掉的腿」，否则空表单一打开就会报警。
+  const excludedEntriesByMatch = matches.map((match) => getExcludedEntries(match.entries).filter((row) => row.hasInput))
+  const excludedEntryTotal = excludedEntriesByMatch.reduce((sum, rows) => sum + rows.length, 0)
+
+  // S4: 计算综合 Kelly 分母（加权平均各场 Mode 的 Kelly 分母）
+  const effectiveKellyDivisor = useMemo(() => {
+    if (matches.length === 0) return systemConfig.kellyDivisor
+    const divisors = matches.map((match) => getKellyDivisorForMode(match.mode))
+    const avg = divisors.reduce((sum, d) => sum + d, 0) / divisors.length
+    return Number.isFinite(avg) ? avg : systemConfig.kellyDivisor
+  }, [matches, modeKellyMap, systemConfig.kellyDivisor])
+
+  const recommendedInvest = useMemo(() => {
+    if (combinedAtomicProfile.valid === false || combinedAtomicProfile.modelStatus === 'approximate' || atomicMatchProfiles.length !== matches.length) return 0
+    const states = combinedAtomicProfile.states || []
+    if (states.length === 0) return 0
+    const kelly = solveKellyFractionByAtomicDistribution(states, 0.95)
+    if (!Number.isFinite(kelly) || kelly <= 0) return 0
+    // S4: 使用动态 Kelly 分母（基于 Mode），并应用 walk-forward 反馈
+    // FIX: Use walk-forward Kelly divisor when available (was bypassed before)
+    const wfFeedback = calibrationContext?.walkForwardFeedback
+    const wfKellyDivisor = wfFeedback?.ready && Number.isFinite(wfFeedback.adjustments?.kellyDivisor)
+      ? wfFeedback.adjustments.kellyDivisor
+      : effectiveKellyDivisor
+    const finalKellyDivisor = Math.max(1, wfKellyDivisor)
+    const raw = poolCapital * (kelly / finalKellyDivisor)
+    // FIX: Removed confidenceLift heuristic (0.88 + expected * 0.24). Pure fractional Kelly.
+    return capRecommendedStake(raw, poolCapital, systemConfig.riskCapRatio)
+  }, [calibrationContext, combinedAtomicProfile, effectiveKellyDivisor, riskCap, poolCapital, systemConfig.riskCapRatio, atomicMatchProfiles.length, matches.length])
+
+  const getTeamSuggestions = (query) => searchTeamProfiles(query, teamProfiles, 6)
+
+  const applyTeamSuggestion = (matchIdx, side, profileName) => {
+    const targetField = side === 'home' ? 'homeTeam' : 'awayTeam'
+    updateMatch(matchIdx, targetField, profileName)
+    setActiveTeamInput(null)
+  }
+
+  const getTeamHint = (name) => {
+    if (!name) return null
+    const profile = findTeamProfile(name, teamProfiles)
+    if (!profile) return '新球队（确认投资后自动建档）'
+    const clean = normalizeTeamNameInput(name)
+    if (clean && clean !== profile.teamName) {
+      return `将自动规范为 ${profile.teamName}`
+    }
+    return maskText(`${profile.totalSamples}场 · REP ${profile.avgRep.toFixed(2)}`)
+  }
+
+  const canonicalizeTeamName = (name) => {
+    const clean = normalizeTeamNameInput(name)
+    if (!clean) return ''
+    const profile = findTeamProfile(clean, teamProfiles)
+    return profile?.teamName || clean
+  }
+
+  const resolveTypingTeamName = (name) => {
+    const clean = normalizeTeamNameInput(name)
+    if (!clean) return ''
+    const profile = findTeamProfile(clean, teamProfiles)
+    return profile?.teamName || clean
+  }
+
+  const getMatchOddsWarnings = (entries) => {
+    const validOdds = getValidEntries(entries).map((entry) => entry.odds)
+    const warnings = []
+    if (validOdds.length === 0) return warnings
+    const maxOdds = Math.max(...validOdds)
+    const minOdds = Math.min(...validOdds)
+    if (maxOdds > 15) {
+      warnings.push(`最高赔率 ${maxOdds.toFixed(2)} 偏高，请确认是否小数点录入错误。`)
+    }
+    if (minOdds < 1.1) {
+      warnings.push(`最低赔率 ${minOdds.toFixed(2)} 偏低，请确认是否录入正确。`)
+    }
+    if (validOdds.length > 1 && maxOdds / Math.max(minOdds, 0.01) > 8) {
+      warnings.push('同场 Entry 赔率跨度较大，请确认是否跨盘口混录。')
+    }
+    if (validOdds.length > 1) {
+      const atomicOdds = calcMatchOdds(entries)
+      if (Number.isFinite(atomicOdds) && atomicOdds <= 1.05) {
+        warnings.push(`同场多 Entry 当前等效赔率约 ${atomicOdds.toFixed(2)}，更偏向对冲结构。`)
+      }
+    }
+    return warnings
+  }
+
+  const applyHistoryPrefill = (idx, historyItem) => {
+    if (!historyItem) return
+    setMatches((prev) => {
+      const next = [...prev]
+      const current = next[idx]
+      if (!current) return prev
+
+      const currentHomeKey = normalizeTeamNameInput(current.homeTeam).toLowerCase()
+      const currentAwayKey = normalizeTeamNameInput(current.awayTeam).toLowerCase()
+      const reversed = currentHomeKey === historyItem.awayKey && currentAwayKey === historyItem.homeKey
+
+      next[idx] = {
+        ...current,
+        entries: historyItem.entries.map((entry) => ({ ...entry })),
+        conf: historyItem.confPercent,
+        mode: historyItem.mode,
+        tys_home: reversed ? historyItem.tys_away : historyItem.tys_home,
+        tys_away: reversed ? historyItem.tys_home : historyItem.tys_away,
+        fid: historyItem.fid,
+        fse_home: reversed ? historyItem.fse_away : historyItem.fse_home,
+        fse_away: reversed ? historyItem.fse_home : historyItem.fse_away,
+        note: historyItem.note,
+      }
+      return next
+    })
+    setHistoryPrefillApplied((prev) => ({
+      ...prev,
+      [idx]: {
+        id: historyItem.id,
+        dateLabel: historyItem.dateLabel,
+        mode: historyItem.mode,
+        confPercent: historyItem.confPercent,
+        entryPreview: historyItem.entryPreview,
+        oddsLabel: historyItem.oddsLabel,
+      },
+    }))
+    setHistoryFloatDismissed((prev) => {
+      if (!Object.prototype.hasOwnProperty.call(prev, idx)) return prev
+      const next = { ...prev }
+      delete next[idx]
+      return next
+    })
+    setShowModeDropdown((prev) => ({ ...prev, [idx]: false }))
+  }
+
+  const clearHistoryPrefill = (idx) => {
+    setMatches((prev) => {
+      const next = [...prev]
+      const current = next[idx]
+      if (!current) return prev
+      next[idx] = {
+        ...current,
+        ...createResettableMatchFields(),
+      }
+      return next
+    })
+    setHistoryPrefillApplied((prev) => {
+      if (!Object.prototype.hasOwnProperty.call(prev, idx)) return prev
+      const next = { ...prev }
+      delete next[idx]
+      return next
+    })
+    setHistoryFloatDismissed((prev) => {
+      if (!Object.prototype.hasOwnProperty.call(prev, idx)) return prev
+      const next = { ...prev }
+      delete next[idx]
+      return next
+    })
+  }
+
+  const dismissHistorySuggestions = (idx) => {
+    setHistoryFloatDismissed((prev) => {
+      if (prev[idx]) return prev
+      return {
+        ...prev,
+        [idx]: true,
+      }
+    })
+  }
+
+  const validateDraft = (draft, label = '') => {
+    const input = Number.parseFloat(String(draft?.actualInput ?? '').trim())
+    const prefix = label ? `${label}：` : ''
+    if (!Number.isFinite(input) || input <= 0) {
+      return `${prefix}请先填写 Inputs 实际投资金额（必须大于 0）。`
+    }
+
+    const draftMatches = Array.isArray(draft?.matches) ? draft.matches : []
+    if (draftMatches.length === 0) return `${prefix}至少需要 1 场比赛。`
+    for (let idx = 0; idx < draftMatches.length; idx += 1) {
+      const match = draftMatches[idx]
+      if (!match.homeTeam.trim() || !match.awayTeam.trim()) {
+        return `${prefix}第 ${idx + 1} 场还没填完主队/客队。`
+      }
+      if (match.homeTeam.trim() === match.awayTeam.trim()) {
+        return `${prefix}第 ${idx + 1} 场主队和客队不能相同。`
+      }
+      const validEntries = getValidEntries(match.entries)
+      const incompleteEntry = match.entries.some((entry) =>
+        (String(entry.name || '').trim() || String(entry.odds || '').trim()) &&
+        (!String(entry.name || '').trim() || !isValidDecimalOdds(entry.odds)))
+      if (incompleteEntry) return `${prefix}第 ${idx + 1} 场每条 Entry 都需填写名称及大于 1 的十进制赔率。`
+      if (validEntries.length === 0) {
+        return `${prefix}第 ${idx + 1} 场至少要有 1 条有效 Entry（名称 + 大于 1 的赔率）。`
+      }
+      const profile = buildAtomicMatchProfile({ entries: validEntries, unionProbability: calcAdjustedConf(match), fallbackOdds: systemConfig.defaultOdds })
+      if (profile.valid === false) return `${prefix}第 ${idx + 1} 场赔率结构无法建模，请检查 Entry。`
+    }
+    return ''
+  }
+
+  const resetForm = () => {
+    setMatches(Array.from({ length: parlaySize }, () => createEmptyMatch()))
+    setActualInput('')
+    setShowModeDropdown({})
+    setActiveTeamInput(null)
+    setHistoryPrefillApplied({})
+    setHistoryFloatDismissed({})
+  }
+
+  const calculateDraftMetrics = (draftMatches) => {
+    const profiles = draftMatches.map((match) => {
+      const unionProbability = calcAdjustedConf(match)
+      return {
+        ...buildAtomicMatchProfile({
+          entries: getValidEntries(match.entries),
+          unionProbability,
+          fallbackOdds: systemConfig.defaultOdds,
+        }),
+        unionProbability,
+      }
+    })
+    const combinedProfile = combineAtomicMatchProfiles(profiles)
+    const conditionalOdds = Number(combinedProfile.conditionalOdds)
+    const fallbackOdds = draftMatches.reduce((product, match) => product * calcMatchOdds(match.entries), 1)
+    const draftCombinedOdds = Number.isFinite(conditionalOdds) && conditionalOdds > 0
+      ? conditionalOdds
+      : fallbackOdds
+    const draftExpectedRating = profiles.length > 0
+      ? profiles.reduce((sum, profile) => sum + profile.hitProbability, 0) / profiles.length
+      : 0
+    const divisors = draftMatches.map((match) => getKellyDivisorForMode(match.mode))
+    const draftKellyDivisor = divisors.length > 0
+      ? divisors.reduce((sum, divisor) => sum + divisor, 0) / divisors.length
+      : systemConfig.kellyDivisor
+    const kelly = combinedProfile.valid === false || combinedProfile.modelStatus === 'approximate'
+      ? 0 : solveKellyFractionByAtomicDistribution(combinedProfile.states || [], 0.95)
+    const wfFeedback = calibrationContext?.walkForwardFeedback
+    const wfKellyDivisor = wfFeedback?.ready && Number.isFinite(wfFeedback.adjustments?.kellyDivisor)
+      ? wfFeedback.adjustments.kellyDivisor
+      : draftKellyDivisor
+    const rawSuggestion = Number.isFinite(kelly) && kelly > 0
+      ? poolCapital * (kelly / Math.max(1, wfKellyDivisor))
+      : 0
+
+    return {
+      profiles,
+      combinedProfile,
+      combinedOdds: Number.isFinite(draftCombinedOdds) ? draftCombinedOdds : 0,
+      expectedRating: Number.isFinite(draftExpectedRating) ? draftExpectedRating : 0,
+      recommendedInvest: capRecommendedStake(rawSuggestion, poolCapital, systemConfig.riskCapRatio),
+    }
+  }
+
+  const buildInvestmentPayloadFromDraft = (draft, label = '') => {
+    const validationMessage = validateDraft(draft, label)
+    if (validationMessage) return { validationMessage, payload: null }
+    const draftMatches = draft.matches
+    const draftMetrics = calculateDraftMetrics(draftMatches)
+    const investmentId = buildId('inv')
+    const generatedAt = new Date().toISOString()
+    const normalizedMatches = draftMatches.map((match) => {
+      const validEntries = getValidEntries(match.entries)
+      const entryMarket = getPrimaryEntryMarket(validEntries, validEntries.map((entry) => entry.name).join(', '))
+      const matchOdds = calcMatchOdds(match.entries)
+      const fseHome = Number((match.fse_home / 100).toFixed(2))
+      const fseAway = Number((match.fse_away / 100).toFixed(2))
+      return {
+        id: buildId('match'),
+        home_team: canonicalizeTeamName(match.homeTeam),
+        away_team: canonicalizeTeamName(match.awayTeam),
+        entries: validEntries,
+        entry_text: validEntries.map((entry) => entry.name).join(', '),
+        entry_market_type: entryMarket.marketType,
+        entry_market_label: entryMarket.marketLabel,
+        entry_semantic_key: entryMarket.semanticKey,
+        odds: Number(matchOdds.toFixed(2)),
+        conf: Number((match.conf / 100).toFixed(2)),
+        mode: match.mode,
+        tys_home: match.tys_home,
+        tys_away: match.tys_away,
+        fid: Number.parseFloat(match.fid),
+        fse_home: fseHome,
+        fse_away: fseAway,
+        fse_match: Number(Math.sqrt(fseHome * fseAway).toFixed(2)),
+        note: match.note.trim(),
+        results: '',
+        is_correct: null,
+        match_rating: null,
+        match_rep: null,
+      }
+    })
+    normalizedMatches.forEach((match, index) => {
+      Object.assign(match, getMatchSourceIdentity(match, investmentId))
+      match.calibrated_probability = draftMetrics.profiles[index].hitProbability
+    })
+    const forecastSnapshot = buildForecastSnapshot({
+      combinedProfile: draftMetrics.combinedProfile,
+      generatedAt,
+      calibrationMetadata: calibrationContext.metadata,
+      legs: normalizedMatches.map((match, index) => ({ match, profile: draftMetrics.profiles[index], investmentId })),
+    })
+    if (!forecastSnapshot) return { validationMessage: `${label ? `${label}：` : ''}预测分布无效，请检查输入后重试。`, payload: null }
+
+    const newInvestment = {
+      id: investmentId,
+      created_at: generatedAt,
+      parlay_size: draftMatches.length,
+      combo_name: String(draft.comboName || '').trim(),
+      inputs: Number.parseFloat(String(draft.actualInput).trim()),
+      suggested_amount: draftMetrics.recommendedInvest,
+      expected_rating: Number(draftMetrics.expectedRating.toFixed(2)),
+      expected_rating_semantics: MEAN_LEG_RATING_SEMANTICS,
+      forecast_snapshot: forecastSnapshot,
+      ticket_hit_probability: forecastSnapshot.ticket_hit_probability,
+      ticket_profit_probability: forecastSnapshot.ticket_profit_probability,
+      expected_return: forecastSnapshot.expected_return,
+      combined_odds: Number(draftMetrics.combinedOdds.toFixed(2)),
+      status: 'pending',
+      revenues: null,
+      profit: null,
+      actual_rating: null,
+      rep: null,
+      remarks: '',
+      matches: normalizedMatches,
+    }
+
+    return { validationMessage: '', payload: { newInvestment, normalizedMatches } }
+  }
+
+  const buildInvestmentPayload = () => {
+    const { validationMessage, payload } = buildInvestmentPayloadFromDraft({ matches, actualInput, comboName })
+    if (validationMessage) window.alert(validationMessage)
+    return payload
+  }
+
+  const normalizeQuickMatch = (draft) => {
+    const { _nlMeta: ignoredMeta, ...safeDraft } = draft || {}
+    void ignoredMeta
+    const homeTeam = canonicalizeTeamName(safeDraft.homeTeam)
+    const awayTeam = canonicalizeTeamName(safeDraft.awayTeam)
+    const resolveFse = (value, teamName) => {
+      const usesTeamDefault = value === null || value === undefined || value === '' || String(value).trim().toLowerCase() === AI_FSE_DEFAULT
+      if (!usesTeamDefault) return normalizeSliderPercent(value, DEFAULT_FSE_PERCENT)
+      return latestTeamFseMap.get(normalizeTeamKey(teamName))?.value ?? DEFAULT_FSE_PERCENT
+    }
+    return {
+      ...createEmptyMatch(),
+      ...safeDraft,
+      homeTeam,
+      awayTeam,
+      entries: Array.isArray(safeDraft.entries) && safeDraft.entries.length > 0
+        ? safeDraft.entries.slice(0, 5).map((entry) => ({
+            name: String(entry?.name || ''),
+            odds: String(entry?.odds || ''),
+          }))
+        : [{ name: '', odds: '' }],
+      conf: normalizeSliderPercent(safeDraft.conf, 50),
+      mode: normalizeModeValue(safeDraft.mode),
+      tys_home: normalizeTysValue(safeDraft.tys_home),
+      tys_away: normalizeTysValue(safeDraft.tys_away),
+      fid: normalizeFidOption(safeDraft.fid),
+      fse_home: resolveFse(safeDraft.fse_home, homeTeam),
+      fse_away: resolveFse(safeDraft.fse_away, awayTeam),
+    }
+  }
+
+  const normalizeQuickCombo = (combo) => {
+    const parsedInput = Number.parseFloat(String(combo?.actualInput ?? ''))
+    return {
+      comboName: String(combo?.comboName || ''),
+      actualInput: Number.isFinite(parsedInput) && parsedInput > 0 ? parsedInput : null,
+      matches: (Array.isArray(combo?.matches) ? combo.matches : []).slice(0, 5).map(normalizeQuickMatch),
+    }
+  }
+
+  const loadQuickComboIntoForm = (combo) => {
+    if (!combo || combo.matches.length === 0) return
+    const newSize = combo.matches.length
+    // Programmatic Quick Input must keep its parsed amount. Without advancing
+    // this ref, the regular parlay-size effect would replace it with 80/150.
+    prevParlaySizeRef.current = newSize
+    setParlaySize(newSize)
+    setMatches(combo.matches.map((match) => ({
+      ...match,
+      entries: match.entries.map((entry) => ({ ...entry })),
+    })))
+    setActualInput(combo.actualInput === null ? '' : String(combo.actualInput))
+    setComboName(combo.comboName)
+    setShowModeDropdown({})
+    setActiveTeamInput(null)
+    setHistoryPrefillApplied({})
+    setHistoryFloatDismissed({})
+  }
+
+  const captureActiveQuickCombo = (result = quickInputResult) => {
+    if (!Array.isArray(result?.combos) || !result.combos[quickComboIndex]) return result
+    const parsedInput = Number.parseFloat(String(actualInput || ''))
+    const combos = result.combos.map((combo, index) => index === quickComboIndex
+      ? {
+          comboName,
+          actualInput: Number.isFinite(parsedInput) && parsedInput > 0 ? parsedInput : null,
+          matches: matches.map((match) => ({
+            ...match,
+            entries: match.entries.map((entry) => ({ ...entry })),
+          })),
+        }
+      : combo)
+    return { ...result, combos }
+  }
+
+  const applyQuickInputResult = (result) => {
+    const sourceCombos = Array.isArray(result?.combos) && result.combos.length > 0
+      ? result.combos
+      : (Array.isArray(result?.matches) && result.matches.length > 0 ? [result] : [])
+    const combos = sourceCombos.slice(0, 5).map(normalizeQuickCombo).filter((combo) => combo.matches.length > 0)
+    const normalizedResult = {
+      ...result,
+      combos,
+    }
+    setQuickComboIndex(0)
+    setQuickInputResult(normalizedResult)
+    setQuickInputText(formatStructuredQuickInput(normalizedResult))
+    if (combos[0]) loadQuickComboIntoForm(combos[0])
+  }
+
+  const handleQuickComboSelect = (nextIndex) => {
+    if (nextIndex === quickComboIndex || !quickInputResult?.combos?.[nextIndex]) return
+    const captured = captureActiveQuickCombo()
+    setQuickInputResult(captured)
+    setQuickInputText(formatStructuredQuickInput(captured))
+    setQuickComboIndex(nextIndex)
+    loadQuickComboIntoForm(captured.combos[nextIndex])
+  }
+
+  const handleQuickInput = async (overrideText) => {
+    // Example chips pass their sentence directly; the toolbar button passes a
+    // click event (ignored) and falls back to the textarea's current value.
+    const text = typeof overrideText === 'string' ? overrideText : quickInputText
+    if (!text.trim()) return
+
+    quickAiAbortRef.current?.abort()
+    quickInputSourceRef.current = text
+    setQuickInputMeta(null)
+    setQuickInputResult(null)
+
+    if (isPreview) {
+      const result = parseNaturalInput(text)
+      applyQuickInputResult(result)
+      setQuickInputPhase('local')
+      return
+    }
+
+    const controller = new AbortController()
+    quickAiAbortRef.current = controller
+    setQuickInputPhase('loading')
+    try {
+      const result = await requestAiInvestmentParse(text, { signal: controller.signal })
+      if (controller.signal.aborted) return
+      applyQuickInputResult(result)
+      setQuickInputMeta({
+        model: result.model,
+        attempts: result.attempts,
+        totalTokens: result.usage?.totalTokens || 0,
+      })
+      setQuickInputPhase('ai')
+    } catch (error) {
+      if (controller.signal.aborted || error?.reason === 'request_cancelled') return
+      const fallbackReason = {
+        ai_not_configured: 'AI 尚未配置',
+        provider_rate_limited: 'AI 请求较多',
+        provider_timeout: 'AI 响应超时',
+        client_timeout: 'AI 响应超时',
+        provider_auth_failed: 'AI 密钥无效',
+        unauthorized: '登录状态不可用',
+        invalid_token: '登录状态已失效',
+        text_too_long: '输入内容过长',
+      }[error?.reason] || 'AI 暂时不可用'
+      const localResult = parseNaturalInput(text)
+      applyQuickInputResult({
+        ...localResult,
+        diagnostics: [
+          { level: 'info', message: `${fallbackReason}，已自动使用本地解析。` },
+          ...(localResult.diagnostics || []),
+        ],
+      })
+      setQuickInputMeta({ reason: error?.reason || 'unknown' })
+      setQuickInputPhase('fallback')
+    } finally {
+      if (quickAiAbortRef.current === controller) quickAiAbortRef.current = null
+    }
+  }
+
+  const resetQuickInput = ({ restoreSource = false } = {}) => {
+    quickAiAbortRef.current?.abort()
+    setQuickInputText(restoreSource ? quickInputSourceRef.current : '')
+    if (!restoreSource) quickInputSourceRef.current = ''
+    setQuickInputResult(null)
+    setQuickComboIndex(0)
+    setQuickInputPhase('idle')
+    setQuickInputMeta(null)
+  }
+
+  const persistInvestmentFromPayload = (payload) => {
+    if (!payload) return null
+    const { newInvestment, normalizedMatches } = payload
+    let saved = null
+    try {
+      saved = saveInvestment(newInvestment)
+    } catch (err) {
+      // 落库失败（容量超限 / 存储不可用等）——保留草稿与表单供重试，
+      // 绝不静默清空确认过的录入。
+      console.error('[DuGou] 投资落库失败，已保留草稿待恢复：', err)
+      return null
+    }
+    if (!saved) return null
+    bumpTeamSamples(normalizedMatches.flatMap((item) => [item.home_team, item.away_team]))
+    setProfilesVersion((prev) => prev + 1)
+    setComboName('')
+    resetForm()
+    resetQuickInput()
+    // 仅当确认写进真实本地存储（FULL 模式落库成功）才清草稿。
+    // 预览 / 降级态下保留草稿，确认过的单子绝不凭空消失。
+    if (saved && isFullMode()) clearInvestmentDraft()
+    return saved
+  }
+
+  const persistInvestmentsFromPayloads = (payloads) => {
+    if (!Array.isArray(payloads) || payloads.length === 0) return []
+    let saved = []
+    try {
+      saved = saveInvestments(payloads.map((payload) => payload.newInvestment))
+    } catch (err) {
+      console.error('[DuGou] 批量投资落库失败，已保留全部草稿待恢复：', err)
+      return []
+    }
+    if (saved.length !== payloads.length) return []
+    const teamNames = payloads.flatMap(({ normalizedMatches }) =>
+      normalizedMatches.flatMap((item) => [item.home_team, item.away_team]))
+    bumpTeamSamples(teamNames)
+    setProfilesVersion((prev) => prev + 1)
+    setComboName('')
+    resetForm()
+    resetQuickInput()
+    if (isFullMode()) clearInvestmentDraft()
+    return saved
+  }
+
+  const persistCurrentInvestment = () => {
+    const payload = buildInvestmentPayload()
+    if (!payload) return null
+    return persistInvestmentFromPayload(payload)
+  }
+
+  const queueBackgroundPersist = (persistTask) => {
+    const runPersist = () => {
+      persistTimerRef.current = null
+      persistIdleRef.current = null
+      try {
+        persistTask()
+      } finally {
+        setConfirmPersistPending(false)
+        setWaxSealBurst((prev) => (prev.active ? { ...prev, active: false } : prev))
+      }
+    }
+
+    const queueIdlePersist = () => {
+      if (typeof window.requestIdleCallback === 'function') {
+        persistIdleRef.current = window.requestIdleCallback(runPersist, { timeout: 2200 })
+        return
+      }
+      persistTimerRef.current = window.setTimeout(runPersist, 720)
+    }
+
+    // Let the seal animation fully enter first, then persist in background.
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        persistTimerRef.current = window.setTimeout(queueIdlePersist, 120)
+      })
+    })
+  }
+
+  const triggerWaxSealStamp = (target) => {
+    const point = getWaxSealStampPoint(target)
+    setWaxSealBurst((prev) => ({
+      active: true,
+      token: prev.token + 1,
+      x: point.x,
+      y: point.y,
+    }))
+  }
+
+  const handleWaxSealStampDone = () => {
+    setWaxSealBurst((prev) => ({ ...prev, active: false }))
+  }
+
+  const handleConfirmInvestment = (event) => {
+    if (confirmPersistPending) return
+    const payload = buildInvestmentPayload()
+    if (!payload) return
+    setConfirmPersistPending(true)
+    triggerWaxSealStamp(event?.currentTarget)
+    queueBackgroundPersist(() => persistInvestmentFromPayload(payload))
+  }
+
+  const handleQuickArchive = (event) => {
+    if (confirmPersistPending) return
+    const captured = captureActiveQuickCombo()
+    const payloads = []
+    for (let index = 0; index < (captured?.combos?.length || 0); index += 1) {
+      const { validationMessage, payload } = buildInvestmentPayloadFromDraft(
+        captured.combos[index],
+        `组合 ${index + 1}`,
+      )
+      if (validationMessage) {
+        window.alert(validationMessage)
+        handleQuickComboSelect(index)
+        return
+      }
+      payloads.push(payload)
+    }
+    if (payloads.length === 0) return
+    setQuickInputResult(captured)
+    setQuickInputText(formatStructuredQuickInput(captured))
+    setConfirmPersistPending(true)
+    triggerWaxSealStamp(event?.currentTarget)
+    queueBackgroundPersist(() => persistInvestmentsFromPayloads(payloads))
+  }
+
+  const handleAddToCombo = () => {
+    const saved = persistCurrentInvestment()
+    if (!saved) return
+    navigate('/combo')
+  }
+
+  const quickInputHasStructuredResult = Boolean(
+    quickInputResult?.combos?.length > 0 && ['ai', 'fallback', 'local'].includes(quickInputPhase),
+  )
+  const quickInputComboCount = quickInputResult?.combos?.length || 0
+  const quickInputMatchCount = quickInputResult?.combos?.reduce(
+    (sum, combo) => sum + (combo.matches?.length || 0),
+    0,
+  ) || 0
+
+  const viewSwitch = (
+        <div className="pre-view-switch" role="tablist" aria-label="投资视图切换" data-testid="investment-view-switch">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={viewMode === 'pre'}
+            onClick={() => setViewMode('pre')}
+            data-testid="view-switch-pre"
+            className={`pre-view-side pre-view-side--pre${viewMode === 'pre' ? ' is-active' : ''}`}
+          >
+            <span>投前</span>
+            <span>研判</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={viewMode === 'post'}
+            onClick={() => setViewMode('post')}
+            data-testid="view-switch-post"
+            className={`pre-view-side pre-view-side--post${viewMode === 'post' ? ' is-active' : ''}`}
+          >
+            <span>投后</span>
+            <span>导入</span>
+          </button>
+        </div>
+  )
+
+  const quickInputCard = (
+      <div className="settle-ai-quick-card motion-v2-surface glow-card mb-5 overflow-hidden rounded-2xl border lab-new-quick">
+        <button
+          onClick={() => {
+            quickUnfurlTimersRef.current.forEach((timer) => window.clearTimeout(timer))
+            quickUnfurlTimersRef.current = []
+            markQuickInputIntroSeen()
+            setQuickIntroUnfurl(false)
+            setQuickInputOpen((open) => !open)
+          }}
+          aria-expanded={quickShown}
+          className="settle-ai-trigger qi-trigger motion-v2-ghost-btn flex w-full items-center gap-2 px-4 py-3 text-left"
+        >
+          <ChevronRight size={14} strokeWidth={2.2} className={`qi-chevron settle-ai-chevron${quickShown ? ' is-open' : ''}`} />
+          <span className="settle-ai-title">Quick Input</span>
+          <span className="settle-ai-beta-badge ml-1">LAB · AI</span>
+          <span className="settle-ai-subtitle ml-1">大模型自然语言快捷录入</span>
+        </button>
+  
+        <div
+          className={`qi-collapse${quickShown ? ' is-open' : ''}${quickIntroUnfurl ? ' is-peeking' : ''}`}
+          inert={quickShown ? undefined : ''}
+        >
+          <div className="qi-collapse-inner">
+            <div className="settle-ai-body space-y-2 px-4 pb-4 pt-3">
+              <textarea
+                value={quickInputText}
+                onChange={(event) => {
+                  quickAiAbortRef.current?.abort()
+                  setQuickInputText(event.target.value)
+                  if (quickInputResult || quickInputPhase === 'loading') {
+                    setQuickInputResult(null)
+                    setQuickInputPhase('idle')
+                    setQuickInputMeta(null)
+                  }
+                }}
+                maxLength={AI_PARSE_MAX_TEXT_LENGTH}
+                readOnly={quickInputHasStructuredResult}
+                placeholder={'示例：1. 利兹联1-2拜仁 conf 0.45 odds 4.3 fse 0.72 mode 赌一把  阿森纳2-0利物浦 odds 3.9 conf 0.71  140块\n2. 巴萨3-3皇马 odds 7.5 20块'}
+                rows={quickInputHasStructuredResult ? Math.min(16, 4 + quickInputMatchCount * 3) : 3}
+                aria-label={quickInputHasStructuredResult ? '解析后的结构化投资数据' : '自然语言投资描述'}
+                aria-describedby="quick-input-privacy"
+                className={`settle-ai-textarea input-glow w-full px-3 py-2 rounded-xl border text-sm focus:outline-none resize-none${quickInputHasStructuredResult ? ' is-structured' : ''}`}
+              />
+              {quickInputHasStructuredResult && quickInputComboCount > 1 && (
+                <div className="qi-combo-switcher is-champagne" role="tablist" aria-label="已识别的投资组合">
+                  <span className="qi-combo-switcher-label">{quickInputComboCount} 单</span>
+                  <div className="qi-combo-tabs">
+                    {quickInputResult.combos.map((combo, index) => (
+                      <button
+                        key={`${index}-${combo.comboName || 'combo'}`}
+                        type="button"
+                        role="tab"
+                        aria-selected={index === quickComboIndex}
+                        onClick={() => handleQuickComboSelect(index)}
+                        className={`qi-combo-tab${index === quickComboIndex ? ' is-active' : ''}`}
+                      >
+                        <span>{combo.comboName || `组合 ${index + 1}`}</span>
+                        <small>{combo.matches.length} 场 · {Number(combo.actualInput) > 0 ? `¥${Number(combo.actualInput)}` : '待补金额'}</small>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {!quickInputHasStructuredResult && (
+                  <button
+                    type="button"
+                    onClick={handleQuickInput}
+                    disabled={!quickInputText.trim() || quickInputPhase === 'loading'}
+                    aria-busy={quickInputPhase === 'loading'}
+                    className="settle-ai-parse-btn"
+                  >
+                    {quickInputPhase === 'loading'
+                      ? <Loader2 size={13} className="qi-ai-spinner" aria-hidden="true" />
+                      : <Sparkles size={13} aria-hidden="true" />}
+                    <span>{quickInputPhase === 'loading' ? '正在理解…' : (isPreview ? '解析并填入' : 'AI 解析并填入')}</span>
+                  </button>
+                )}
+                {quickInputHasStructuredResult && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleQuickArchive}
+                      disabled={confirmPersistPending}
+                      className="settle-ai-archive-btn"
+                    >
+                      {confirmPersistPending
+                        ? <Loader2 size={13} className="qi-ai-spinner" aria-hidden="true" />
+                        : <Archive size={13} aria-hidden="true" />}
+                      <span>{confirmPersistPending ? '正在入档…' : `一键入档${quickInputComboCount > 1 ? ` · ${quickInputComboCount} 单` : ''}`}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => resetQuickInput({ restoreSource: true })}
+                      disabled={confirmPersistPending}
+                      className="qi-reinput-btn"
+                    >
+                      <RotateCcw size={12} aria-hidden="true" />
+                      重新输入
+                    </button>
+                  </>
+                )}
+                {quickInputText.trim() && !quickInputHasStructuredResult && (
+                  <button
+                    type="button"
+                    onClick={() => resetQuickInput()}
+                    className="px-3 py-1.5 rounded-lg text-xs text-stone-500 hover:text-stone-700 hover:bg-stone-100 transition-colors"
+                  >
+                    清空
+                  </button>
+                )}
+                <span id="quick-input-privacy" className="settle-ai-privacy">
+                  <ShieldCheck size={11} aria-hidden="true" />
+                  {quickInputHasStructuredResult
+                    ? `已将组合 ${quickComboIndex + 1} 填入下方 · 入档前会逐单校验`
+                    : (isPreview ? '演示数据仅在浏览器内解析' : '只填表，不会自动保存')}
+                </span>
+              </div>
+  
+              {quickInputResult && (
+                <div
+                  className={`settle-ai-result is-${quickInputPhase}`}
+                  role="status"
+                  aria-live="polite"
+                >
+                  <div className="qi-ai-result-heading">
+                    <span className="settle-ai-result-orb" aria-hidden="true"><Sparkles size={11} /></span>
+                    <span>
+                      {quickInputPhase === 'ai' && 'DeepSeek 已完成结构化'}
+                      {quickInputPhase === 'fallback' && '已无缝切换至本地解析'}
+                      {quickInputPhase === 'local' && '本地解析完成'}
+                    </span>
+                    {quickInputPhase === 'ai' && quickInputMeta?.model && (
+                      <span className="qi-ai-model">{quickInputMeta.model}</span>
+                    )}
+                  </div>
+                  {quickInputMatchCount > 0 && (
+                    <p className="settle-ai-result-summary">
+                      已识别 {quickInputComboCount} 个组合 · 共 {quickInputMatchCount} 场比赛
+                      {quickInputResult.confidence >= 0.7 ? '' : ' (部分字段可能需要手动补充)'}
+                      {quickInputPhase === 'ai' && quickInputMeta?.totalTokens > 0
+                        ? ` · ${quickInputMeta.totalTokens} tokens`
+                        : ''}
+                    </p>
+                  )}
+                  {(quickInputResult.diagnostics || []).map((d, i) => (
+                    <p
+                      key={i}
+                      className={`settle-ai-diagnostic is-${d.level || 'info'}`}
+                    >
+                      {d.message}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        {/* 旧的比分网格已停用（保留文件方便回调）：投前的研究板现在长在每场比赛卡片里。 */}
+      </div>
+  )
+  return (
+    <div className="page-shell page-content-fluid motion-v2-scope lab-new-page" data-investment-view={viewMode}>
+      <div className="mb-8 lab-page-heading flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold text-stone-800 font-display">新建投资</h2>
+          <p className="text-stone-400 text-sm mt-1.5 leading-relaxed">
+            {viewMode === 'pre'
+              ? '投前研判 · 登记我对这场的观点：两队 → Entries → 进球区间与浓度 → 比分云图'
+              : '投后导入 · 录入比赛信息与预测参数 · Record match predictions & calibration parameters'}
+          </p>
+        </div>
+        {viewMode !== 'pre' && viewSwitch}
+      </div>
+
+      {viewMode === 'pre' ? (
+        <div className="pre-top-row">
+          {quickInputCard}
+          {viewSwitch}
+        </div>
+      ) : quickInputCard}
+
+
+      <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden lab-new-ticket">
+        <div className="px-6 py-5 border-b border-stone-100 bg-stone-50/50 lab-new-construction">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-4 flex-nowrap min-w-0">
+              <span className="text-sm text-stone-600 whitespace-nowrap">Portfolio Construction</span>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => setParlaySize(size)}
+                    className={`w-10 h-10 rounded-xl text-sm font-medium btn-hover transition-all ${
+                      size === parlaySize
+                        ? 'bg-gradient-to-br from-amber-400 to-orange-400 text-white shadow-lg shadow-orange-200/40'
+                        : 'bg-white border border-stone-200 text-stone-500 hover:border-amber-300 hover:text-amber-600'
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+              <span className="text-xs text-stone-400 ml-2 whitespace-nowrap">{parlaySize === 1 ? '(single match)' : `(${parlaySize} matches combo)`}</span>
+            </div>
+
+            {parlaySize > 1 && (
+              <div className="w-40 md:w-44 shrink-0">
+                <input
+                  type="text"
+                  placeholder="title name (可选)"
+                  value={comboName}
+                  onChange={(event) => setComboName(event.target.value)}
+                  className="input-glow w-full px-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="p-6 space-y-6 lab-new-matches">
+          {matches.map((match, idx) => {
+            const homeSuggestions =
+              activeTeamInput?.matchIdx === idx && activeTeamInput?.side === 'home' ? getTeamSuggestions(match.homeTeam) : []
+            const awaySuggestions =
+              activeTeamInput?.matchIdx === idx && activeTeamInput?.side === 'away' ? getTeamSuggestions(match.awayTeam) : []
+            const matchupKey = normalizeMatchupKey(match.homeTeam, match.awayTeam)
+            const historySuggestions = matchupKey ? (historySuggestionsByMatchup.get(matchupKey) || []).slice(0, 3) : []
+            const appliedHistory = historyPrefillApplied[idx] || null
+            const isHistorySuggestionDismissed = Boolean(historyFloatDismissed[idx])
+            const homeTeamKey = normalizeTeamKey(match.homeTeam)
+            const awayTeamKey = normalizeTeamKey(match.awayTeam)
+            const homeFseHistorySuggestion = homeTeamKey ? (latestTeamFseMap.get(homeTeamKey) ?? null) : null
+            const awayFseHistorySuggestion = awayTeamKey ? (latestTeamFseMap.get(awayTeamKey) ?? null) : null
+            const excludedEntries = excludedEntriesByMatch[idx] || []
+            // 投后导入只看有内容的行（投前默认留了两条腿的位置）。
+            const displayEntries = viewMode === 'pre' ? match.entries : trimTrailingEmptyEntries(match.entries)
+            // 投前：这场的登记比分、两队的过往记录（都只在投前用，投后导入不变）。
+            const preEntries = match.entries.map(normalizeEntry).filter((entry) => entry.name)
+            const scoreInfo = viewMode === 'pre' ? (scoreOpinionsByMatch[idx] || null) : null
+            const heroRecords = viewMode === 'pre'
+              ? {
+                  home: findTeamHistory(teamHistoryMap, match.homeTeam),
+                  away: findTeamHistory(teamHistoryMap, match.awayTeam),
+                }
+              : { home: [], away: [] }
+
+            return (
+              <div key={idx} className={`motion-v2-match-card relative lab-new-match ${idx > 0 ? 'pt-6 border-t border-stone-100' : ''}`}>
+                {appliedHistory ? (
+                  <div className="absolute right-1 top-0 z-30 history-float-wrap">
+                    <div className="history-float-panel history-float-enter px-2.5 py-2">
+                      <div className="relative z-[1] flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[9px] uppercase tracking-[0.11em] text-stone-500/95">已套用历史参数</p>
+                          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/65 text-stone-600 border border-white/70">
+                              {appliedHistory.dateLabel}
+                            </span>
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${getModeBadgeClass(appliedHistory.mode)}`}>{maskMode(appliedHistory.mode)}</span>
+                            <span className={`text-[10px] font-semibold ${getConfBadgeClass(appliedHistory.confPercent)}`}>
+                              {maskText('Conf')} {(appliedHistory.confPercent / 100).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => clearHistoryPrefill(idx)}
+                          className="relative z-[1] shrink-0 px-2 py-0.5 rounded-md text-[10px] font-medium border border-amber-200/90 bg-amber-50/90 text-amber-700 hover:bg-amber-100 transition-colors"
+                        >
+                          撤回
+                        </button>
+                      </div>
+                      <p className="relative z-[1] mt-1.5 text-[10px] text-stone-500 truncate">
+                        <span>
+                          Entries · <span className="font-semibold">{appliedHistory.entryPreview || '未记录'}</span>
+                        </span>
+                        <span className="ml-1.5 text-[10px] italic text-violet-600">
+                          odds <span className="font-semibold">{appliedHistory.oddsLabel || '--'}</span>
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  historySuggestions.length > 0 && !isHistorySuggestionDismissed && (
+                    <div className="absolute right-1 top-0 z-30 history-float-wrap">
+                      <div className="history-float-panel history-float-enter px-2.5 py-2">
+                        <div className="relative z-[1] flex items-center justify-between gap-2">
+                          <span className="text-[9px] uppercase tracking-[0.11em] text-stone-500/95">历史对阵匹配</span>
+                          <span className="text-[9px] text-stone-400/95">{historySuggestions.length} 条</span>
+                        </div>
+                        <div className="relative z-[1] mt-1.5 space-y-1 max-h-36 overflow-y-auto custom-scrollbar pr-0.5">
+                          {historySuggestions.map((historyItem) => (
+                            <button
+                              key={historyItem.id}
+                              type="button"
+                              onClick={() => applyHistoryPrefill(idx, historyItem)}
+                              className="history-float-item motion-v2-row w-full text-left rounded-lg border border-white/75 bg-white/72 px-2 py-1.5 hover:border-amber-200/80 hover:bg-amber-50/70"
+                            >
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/70 text-stone-600 border border-stone-200/80">
+                                  {historyItem.dateLabel}
+                                </span>
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded-md ${getModeBadgeClass(historyItem.mode)}`}>{maskMode(historyItem.mode)}</span>
+                                <span className={`text-[10px] font-semibold ${getConfBadgeClass(historyItem.confPercent)}`}>
+                                  {maskText('Conf')} {(historyItem.confPercent / 100).toFixed(2)}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-[10px] text-stone-500 truncate">
+                                <span>
+                                  Entries · <span className="font-semibold">{historyItem.entryPreview || '未记录'}</span>
+                                </span>
+                                <span className="ml-1.5 text-[10px] italic text-violet-600">
+                                  odds <span className="font-semibold">{historyItem.oddsLabel || '--'}</span>
+                                </span>
+                              </p>
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => dismissHistorySuggestions(idx)}
+                          title="关闭历史匹配浮层"
+                          className="absolute bottom-1 right-1 z-[2] h-4 w-4 inline-flex items-center justify-center rounded-full border border-white/70 bg-white/58 hover:bg-white/88 text-[11px] font-medium leading-none text-stone-400 transition-colors"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  )
+                )}
+
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center">
+                    <span className="text-amber-600 text-xs font-bold">{idx + 1}</span>
+                  </div>
+                  <span className="text-sm font-medium text-stone-700">{viewMode === 'pre' ? '对阵 · 两队 PK' : '比赛信息'}</span>
+                </div>
+
+                {viewMode === 'pre' ? (
+                  <PreMatchHero
+                    homeTeam={match.homeTeam}
+                    awayTeam={match.awayTeam}
+                    onTeamChange={(side, value) => {
+                      updateMatch(idx, side === 'home' ? 'homeTeam' : 'awayTeam', resolveTypingTeamName(value))
+                      setActiveTeamInput({ matchIdx: idx, side })
+                    }}
+                    onTeamFocus={(side) => setActiveTeamInput({ matchIdx: idx, side })}
+                    onTeamBlur={() => setActiveTeamInput(null)}
+                    onPickSuggestion={(side, name) => applyTeamSuggestion(idx, side, name)}
+                    activeSide={activeTeamInput?.matchIdx === idx ? activeTeamInput.side : null}
+                    /* 投前不要自动匹配的历史提示：写着队名就好，别在旁边堆 REP 之类的记录。 */
+                    suggestions={{ home: [], away: [] }}
+                    hintFor={() => null}
+                  />
+                ) : (
+                <div className="grid grid-cols-11 gap-3 items-center mb-4">
+                  <div className="col-span-5 relative">
+                    <label className="text-xs text-stone-400 mb-1.5 block">主队</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="输入球队名或缩写..."
+                        value={match.homeTeam}
+                        onFocus={() => setActiveTeamInput({ matchIdx: idx, side: 'home' })}
+                        onBlur={() => setTimeout(() => setActiveTeamInput(null), 120)}
+                        onChange={(event) => {
+                          updateMatch(idx, 'homeTeam', resolveTypingTeamName(event.target.value))
+                          setActiveTeamInput({ matchIdx: idx, side: 'home' })
+                        }}
+                        className="input-glow w-full px-4 py-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400"
+                      />
+                      {match.homeTeam && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-stone-400 pointer-events-none">
+                          {getTeamHint(match.homeTeam)}
+                        </div>
+                      )}
+                    </div>
+                    {homeSuggestions.length > 0 && (
+                      <div className="absolute top-full mt-1 left-0 right-0 bg-white rounded-xl border border-stone-200 shadow-lg z-20 overflow-hidden">
+                        {homeSuggestions.map((team) => (
+                          <button
+                            key={`${team.teamId}-home-${idx}`}
+                            type="button"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => applyTeamSuggestion(idx, 'home', team.teamName)}
+                            className="w-full px-3 py-2 text-left hover:bg-amber-50 transition-colors"
+                          >
+                            <div className="text-sm text-stone-700">{team.teamName}</div>
+                            <div className="text-[11px] text-stone-400">
+                              {team.totalSamples} 场 · {maskText('REP')} {team.avgRep.toFixed(2)}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="col-span-1 text-center text-stone-300 text-lg">vs</div>
+
+                  <div className="col-span-5 relative">
+                    <label className="text-xs text-stone-400 mb-1.5 block">客队</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="输入球队名或缩写..."
+                        value={match.awayTeam}
+                        onFocus={() => setActiveTeamInput({ matchIdx: idx, side: 'away' })}
+                        onBlur={() => setTimeout(() => setActiveTeamInput(null), 120)}
+                        onChange={(event) => {
+                          updateMatch(idx, 'awayTeam', resolveTypingTeamName(event.target.value))
+                          setActiveTeamInput({ matchIdx: idx, side: 'away' })
+                        }}
+                        className="input-glow w-full px-4 py-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400"
+                      />
+                      {match.awayTeam && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-stone-400 pointer-events-none">
+                          {getTeamHint(match.awayTeam)}
+                        </div>
+                      )}
+                    </div>
+                    {awaySuggestions.length > 0 && (
+                      <div className="absolute top-full mt-1 left-0 right-0 bg-white rounded-xl border border-stone-200 shadow-lg z-20 overflow-hidden">
+                        {awaySuggestions.map((team) => (
+                          <button
+                            key={`${team.teamId}-away-${idx}`}
+                            type="button"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => applyTeamSuggestion(idx, 'away', team.teamName)}
+                            className="w-full px-3 py-2 text-left hover:bg-amber-50 transition-colors"
+                          >
+                            <div className="text-sm text-stone-700">{team.teamName}</div>
+                            <div className="text-[11px] text-stone-400">
+                              {team.totalSamples} 场 · {maskText('REP')} {team.avgRep.toFixed(2)}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                )}
+
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs text-stone-400">
+                      {viewMode === 'pre' ? 'Entries · 结果一条 · 比分一条（odds 都可空）' : 'Entries 预测结果'}
+                    </label>
+                    <button onClick={() => addEntry(idx)} className="text-xs text-amber-500 hover:text-amber-600 flex items-center gap-1">
+                      <Plus size={12} /> 添加 Entry
+                    </button>
+                  </div>
+                  {viewMode === 'pre' ? (
+                    <div className="pre-entries" data-testid={`pre-entries-${idx}`}>
+                      {displayEntries.map((entry, entryIdx) => (
+                        <div key={`entry-${entryIdx}`} className="pre-entry-pair">
+                          <input
+                            type="text"
+                            placeholder={entryIdx === 0 ? 'w/d/l' : entryIdx === 1 ? '2-1' : '更多'}
+                            value={entry.name}
+                            onChange={(event) => updateEntry(idx, entryIdx, 'name', event.target.value)}
+                            onBlur={() => finalizeEntryName(idx, entryIdx)}
+                            aria-label={`第 ${entryIdx + 1} 条 Entry`}
+                            data-testid={`pre-entry-name-${idx}-${entryIdx}`}
+                            className="pre-entry-name"
+                          />
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="odds（可空）"
+                            value={entry.odds}
+                            onChange={(event) => updateEntry(idx, entryIdx, 'odds', event.target.value)}
+                            aria-label={`第 ${entryIdx + 1} 条 Entry 的赔率`}
+                            data-testid={`pre-entry-odds-${idx}-${entryIdx}`}
+                            className="pre-entry-odds"
+                          />
+                          {entryIdx >= 2 && (
+                            <button
+                              type="button"
+                              onClick={() => removeEntry(idx, entryIdx)}
+                              aria-label={`删除第 ${entryIdx + 1} 条 Entry`}
+                              className="pre-entry-remove"
+                            >
+                              <X size={15} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                  <div className="space-y-2">
+                    {displayEntries.map((entry, entryIdx) => (
+                      <div key={entryIdx} className="grid grid-cols-11 gap-3 items-center">
+                        <div className="col-span-5">
+                          <input
+                            type="text"
+                            placeholder={isPreview ? 'win / draw / -2.5 lose' : '主胜 / 平 / 大2.5...'}
+                            value={entry.name}
+                            onChange={(event) => updateEntry(idx, entryIdx, 'name', event.target.value)}
+                            onBlur={() => finalizeEntryName(idx, entryIdx)}
+                            className="input-glow w-full px-4 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400"
+                          />
+                        </div>
+                        <div className="col-span-1" />
+                        <div className="col-span-4">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="Odds"
+                            value={entry.odds}
+                            onChange={(event) => updateEntry(idx, entryIdx, 'odds', event.target.value)}
+                            className="input-glow w-full px-4 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400"
+                          />
+                        </div>
+                        <div className="col-span-1 text-center">
+                          {match.entries.length > 1 && (
+                            <button onClick={() => removeEntry(idx, entryIdx)} className="text-stone-400 hover:text-rose-500 transition-colors">
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  )}
+                  {getValidEntries(displayEntries).length > 1 && (
+                    <p className="text-xs text-stone-500 mt-2">
+                      Overall Odds（原子等效）:{' '}
+                      <span className="font-semibold text-amber-600">{calcMatchOdds(displayEntries).toFixed(2)}</span>
+                    </p>
+                  )}
+                  {excludedEntries.length > 0 && (
+                    <p className="mt-1 text-[11px] text-amber-600">
+                      {excludedEntries.length} 条 Entry 未计入（{describeExcludedEntries(excludedEntries)}）
+                    </p>
+                  )}
+                  {getMatchOddsWarnings(displayEntries).length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {getMatchOddsWarnings(displayEntries).map((warning, warningIdx) => (
+                        <p key={warningIdx} className="text-[11px] text-rose-500">
+                          ⚠ {maskText(warning)}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {viewMode === 'pre' && (
+                  <PreMatchRecords
+                    homeTeam={match.homeTeam}
+                    awayTeam={match.awayTeam}
+                    records={heroRecords}
+                  />
+                )}
+
+                {viewMode === 'pre' && (
+                  <PreMatchBoard
+                    matchIndex={idx}
+                    homeTeam={match.homeTeam}
+                    awayTeam={match.awayTeam}
+                    entries={preEntries}
+                    detectedScore={scoreInfo?.point ?? null}
+                    biasModel={teamBiasModel}
+                    onOpinionChange={handlePreOpinionChange}
+                  />
+                )}
+
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div className="relative">
+                    <label className="text-xs text-stone-400 mb-1.5 block">{labels.formLabel.mode}</label>
+                    <button
+                      onClick={() => setShowModeDropdown((prev) => ({ ...prev, [idx]: !prev[idx] }))}
+                      className="input-glow w-full px-4 py-3 rounded-xl border border-stone-200 text-sm text-left bg-white flex items-center justify-between hover:border-amber-300 transition-colors"
+                    >
+                      <span>{maskMode(match.mode)}</span>
+                      <ChevronDown size={14} className="text-stone-400" />
+                    </button>
+                    {showModeDropdown[idx] && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-stone-200 rounded-xl shadow-lg z-10 overflow-hidden animate-fade-in">
+                        {MODE_OPTIONS.map((opt) => (
+                          <button
+                            type="button"
+                            key={opt}
+                            onClick={() => {
+                              updateMatch(idx, 'mode', opt)
+                              setShowModeDropdown((prev) => ({ ...prev, [idx]: false }))
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                              match.mode === opt ? 'bg-amber-50 text-amber-700' : 'hover:bg-stone-50'
+                            }`}
+                          >
+                            {maskMode(opt)}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="text-xs text-stone-400 mb-1.5 block">{labels.formLabel.conf}</label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={match.conf}
+                        onChange={(event) => updateMatch(idx, 'conf', Number.parseInt(event.target.value, 10))}
+                        className="flex-1"
+                      />
+                      <span className="text-sm font-medium text-amber-600 w-10">{(match.conf / 100).toFixed(2)}</span>
+                    </div>
+                    <div className="mt-2 pr-[3rem]">
+                      <div className="flex items-center justify-between">
+                        {CONF_QUICK_OPTIONS.map((value) => (
+                          <button
+                            key={value}
+                            onClick={() => updateMatch(idx, 'conf', Math.round(value * 100))}
+                            className={`px-2 py-[3px] text-[10px] rounded-lg btn-hover transition-all ${
+                              match.conf === value * 100
+                                ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                                : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+                            }`}
+                          >
+                            {value}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <details className="group" open>
+                  <summary className="flex items-center gap-2 cursor-pointer text-sm text-stone-500 hover:text-stone-700 mb-3 select-none">
+                    <ChevronRight size={12} className="group-open:rotate-90 transition-transform" />
+                    <span>{labels.formLabel.calibrationGroup}</span>
+                  </summary>
+                  <div className="pl-4 border-l-2 border-amber-100">
+                    <div className="grid grid-cols-4 gap-4 mb-3">
+                      <div>
+                        <label className="text-xs text-stone-400 mb-1.5 block">{labels.formLabel.tysHome}</label>
+                        <div className="flex gap-1">
+                          {TYS_OPTIONS.map((value) => (
+                            <button
+                              key={value}
+                              onClick={() => updateMatch(idx, 'tys_home', value)}
+                              className={`flex-1 py-2 rounded-lg text-xs font-medium btn-hover transition-all ${
+                                value === match.tys_home
+                                  ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                                  : 'bg-stone-50 text-stone-500 border border-stone-100 hover:border-stone-200'
+                              }`}
+                            >
+                              {value}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs text-stone-400 mb-1.5 block">{labels.formLabel.tysAway}</label>
+                        <div className="flex gap-1">
+                          {TYS_OPTIONS.map((value) => (
+                            <button
+                              key={value}
+                              onClick={() => updateMatch(idx, 'tys_away', value)}
+                              className={`flex-1 py-2 rounded-lg text-xs font-medium btn-hover transition-all ${
+                                value === match.tys_away
+                                  ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                                  : 'bg-stone-50 text-stone-500 border border-stone-100 hover:border-stone-200'
+                              }`}
+                            >
+                              {value}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-xs text-stone-400 mb-1.5 block">{labels.formLabel.fid}</label>
+                        <div className="flex gap-1">
+                          {FID_OPTIONS.map((value) => (
+                            <button
+                              key={value}
+                              onClick={() => updateMatch(idx, 'fid', value)}
+                              className={`flex-1 py-2 rounded-lg text-xs font-medium btn-hover transition-all ${
+                                value === match.fid
+                                  ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                                  : 'bg-stone-50 text-stone-500 border border-stone-100 hover:border-stone-200'
+                              }`}
+                            >
+                              {value}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <div className="mb-1.5 flex items-center justify-between gap-2">
+                          <label className="text-xs text-stone-400 block">{labels.formLabel.fseHome}</label>
+                          {homeFseHistorySuggestion && (
+                            <button
+                              type="button"
+                              onClick={() => updateMatch(idx, 'fse_home', homeFseHistorySuggestion.value)}
+                              title={maskText(`${match.homeTeam || '主队'} 最近历史 FSE ${homeFseHistorySuggestion.dateLabel}`)}
+                              className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all ${
+                                match.fse_home === homeFseHistorySuggestion.value
+                                  ? 'border-sky-300 bg-sky-100 text-sky-700 shadow-[0_6px_14px_rgba(56,189,248,0.22)]'
+                                  : 'border-sky-200/80 bg-sky-50/90 text-sky-700 hover:bg-sky-100 shadow-[0_6px_12px_rgba(56,189,248,0.16)]'
+                              }`}
+                            >
+                              {(homeFseHistorySuggestion.value / 100).toFixed(2)}
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={match.fse_home}
+                            onChange={(event) => updateMatch(idx, 'fse_home', Number.parseInt(event.target.value, 10))}
+                            className="flex-1"
+                          />
+                          <span className="text-sm font-medium text-stone-600 w-10">{(match.fse_home / 100).toFixed(2)}</span>
+                        </div>
+                        <div className="mt-1 pr-[1.25rem]">
+                          <div className="flex items-center justify-between">
+                            {FSE_QUICK_OPTIONS.map((value) => (
+                              <button
+                                key={value}
+                                onClick={() => updateMatch(idx, 'fse_home', Math.round(value * 100))}
+                                className={`px-1.5 py-0.5 text-[10px] rounded btn-hover ${
+                                  match.fse_home === value * 100 ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-400'
+                                }`}
+                              >
+                                {value}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="mb-1.5 flex items-center justify-between gap-2">
+                          <label className="text-xs text-stone-400 block">{labels.formLabel.fseAway}</label>
+                          {awayFseHistorySuggestion && (
+                            <button
+                              type="button"
+                              onClick={() => updateMatch(idx, 'fse_away', awayFseHistorySuggestion.value)}
+                              title={maskText(`${match.awayTeam || '客队'} 最近历史 FSE ${awayFseHistorySuggestion.dateLabel}`)}
+                              className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all ${
+                                match.fse_away === awayFseHistorySuggestion.value
+                                  ? 'border-sky-300 bg-sky-100 text-sky-700 shadow-[0_6px_14px_rgba(56,189,248,0.22)]'
+                                  : 'border-sky-200/80 bg-sky-50/90 text-sky-700 hover:bg-sky-100 shadow-[0_6px_12px_rgba(56,189,248,0.16)]'
+                              }`}
+                            >
+                              {(awayFseHistorySuggestion.value / 100).toFixed(2)}
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={match.fse_away}
+                            onChange={(event) => updateMatch(idx, 'fse_away', Number.parseInt(event.target.value, 10))}
+                            className="flex-1"
+                          />
+                          <span className="text-sm font-medium text-stone-600 w-10">{(match.fse_away / 100).toFixed(2)}</span>
+                        </div>
+                        <div className="mt-1 pr-[1.25rem]">
+                          <div className="flex items-center justify-between">
+                            {FSE_QUICK_OPTIONS.map((value) => (
+                              <button
+                                key={value}
+                                onClick={() => updateMatch(idx, 'fse_away', Math.round(value * 100))}
+                                className={`px-1.5 py-0.5 text-[10px] rounded btn-hover ${
+                                  match.fse_away === value * 100 ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-400'
+                                }`}
+                              >
+                                {value}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </details>
+
+                <div className="mt-4">
+                  <label className="text-xs text-stone-400 mb-1.5 block">赛前备注</label>
+                  <textarea
+                    rows={2}
+                    placeholder="选填，记录预判依据或关注点..."
+                    value={match.note}
+                    onChange={(event) => updateMatch(idx, 'note', event.target.value)}
+                    onKeyDown={(event) => {
+                      handleNoteShortcut(event, match.note, (next) => updateMatch(idx, 'note', next))
+                    }}
+                    className="input-glow w-full px-4 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400 resize-y min-h-16"
+                  />
+                  <p className="mt-1 text-[10px] text-stone-400">快捷键：Cmd/Ctrl+B 粗体 · Cmd/Ctrl+I 斜体 · Cmd/Ctrl+Shift+R 红色 · Cmd/Ctrl+Shift+B 蓝色</p>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        <div className="px-6 py-6 bg-gradient-to-r from-stone-50 to-orange-50/30 border-t border-stone-100 lab-new-footer">
+          {combinedAtomicProfile.modelStatus === 'approximate' && (
+            <p role="status" className="mb-3 text-xs text-amber-700">同场混合或重叠选项尚不支持精确联合建模，已停用自动仓位建议；仍可按实际投入手动入档。</p>
+          )}
+          <div className="flex items-center justify-between gap-4 max-[960px]:flex-wrap">
+            <div className="flex items-center gap-6 min-w-0 flex-nowrap">
+              <div className="flex flex-col items-start">
+                <ExplainHover term="odds">
+                  <span className="text-xs text-stone-400 block whitespace-nowrap cursor-help underline decoration-dotted decoration-stone-300 underline-offset-2">综合 Odds</span>
+                </ExplainHover>
+                <span className="text-xl font-semibold text-stone-800">{Number.isFinite(combinedOdds) ? combinedOdds.toFixed(2) : '--'}</span>
+                {Number.isFinite(combinedOdds) && excludedEntryTotal > 0 && (
+                  <span className="block text-[10px] text-amber-600 mt-0.5">
+                    {excludedEntryTotal} 条 Entry 未计入（{describeExcludedEntries(excludedEntriesByMatch.flat())}）
+                  </span>
+                )}
+              </div>
+              <div className="w-px h-10 bg-stone-200" />
+              <div>
+                <span className="text-xs text-stone-400 block whitespace-nowrap">{EXPECTED_RATING_COPY.label}</span>
+                <span className="text-xl font-semibold text-stone-800">{Number.isFinite(expectedRating) ? expectedRating.toFixed(2) : '--'}</span>
+                <span className="block text-[10px] text-stone-400 mt-0.5">{EXPECTED_RATING_COPY.hint}</span>
+              </div>
+              <div className="w-px h-10 bg-stone-200" />
+              <div>
+                <span className="text-xs text-stone-400 block whitespace-nowrap">Recom. Invest</span>
+                <span className="text-xl font-semibold text-amber-600">¥ {recommendedInvest}</span>
+              </div>
+              <div className="w-px h-10 bg-stone-200" />
+              <div>
+                <span className="text-xs text-stone-400 block whitespace-nowrap">风控上限</span>
+                <span className="text-sm text-stone-500">¥ {riskCap} ({Math.round(systemConfig.riskCapRatio * 100)}%)</span>
+                <span className="block text-[10px] text-stone-400 mt-0.5">
+                  蓄水池 ¥{reservoirState.poolBalance} · 在途冻结 ¥{reservoirState.inFlightCommitment} · 可用 ¥{reservoirState.availableCash}
+                </span>
+                <span className="block text-[10px] text-stone-400 mt-0.5">
+                  Atomic Kelly÷{effectiveKellyDivisor.toFixed(1)} · Conf×{calibrationContext.multipliers.conf.toFixed(2)} · FSE×
+                  {calibrationContext.multipliers.fse.toFixed(2)} · TeamCal {calibrationContext.teamCalibration?.teamCount || 0}队 ·
+                  MarketLean {(calibrationContext.marketBlend?.marketLean || 0).toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 flex-nowrap shrink-0">
+              <div>
+                <label className="text-xs text-stone-400 mb-1 block">Inputs 实际投资</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={actualInput}
+                  onChange={(event) => setActualInput(sanitizeIntegerInputText(event.target.value))}
+                  className="input-glow w-28 px-3 py-2 rounded-xl border border-stone-200 text-sm font-medium focus:outline-none focus:border-amber-400"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={(event) => handleConfirmInvestment(event)}
+                  disabled={confirmPersistPending}
+                  className={`btn-primary btn-hover ${confirmPersistPending ? 'opacity-80 cursor-not-allowed' : ''}`}
+                >
+                  {confirmPersistPending ? '印章确认中...' : '确认投资'}
+                </button>
+                <button
+                  onClick={handleAddToCombo}
+                  className="px-5 py-2 border border-stone-300 text-stone-600 rounded-xl text-xs font-medium hover:bg-stone-50 hover:border-amber-300 btn-hover transition-all"
+                >
+                  + 加入今日备选
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <WaxSealStampOverlay burst={waxSealBurst} onDone={handleWaxSealStampDone} />
+    </div>
+  )
+}

@@ -1,0 +1,1472 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import {
+  Activity,
+  Award,
+  BarChart3,
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Cloud,
+  Flag,
+  Layers,
+  Pencil,
+  Percent,
+  ReceiptText,
+  ShieldCheck,
+  Swords,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+  X,
+} from 'lucide-react'
+import { getCyclePeriods, getWarReport } from '../lib/warReport'
+import { getSystemConfig, runCloudSyncNow, saveSystemConfig, setCycleTitle } from '../lib/localData'
+import CountUp from '../components/CountUp'
+import { useModeLabelMap } from '../components/ModeLabel'
+import { isPreviewMode } from '../lib/displayMode'
+
+/**
+ * WarReportPage — 「战报」：按周期复盘的结算台。
+ *
+ * 周期沿用蓄水池那条分界线（见 lib/warReport.js），所以这里看到的每一期
+ * 与「蓄水池余额 · 历史明细」里的止盈/止损刀口一一对应，不是另一套时间轴。
+ *
+ * 视觉以 Apple 式信息产品为基准：暖白底、柔和材质、清晰的大数字层级，
+ * 让周期数据本身成为主角，只用少量系统蓝提示交互与状态。
+ */
+
+const LEDGER_PAGE_SIZE = 10
+const DETAIL_PAGE_SIZE = 7
+
+const toRmb = (value) => `¥${Math.round(Number(value) || 0).toLocaleString('zh-CN')}`
+const toSigned = (value, digits = 0) => {
+  const num = Number(value) || 0
+  return `${num > 0 ? '+' : num < 0 ? '−' : ''}${Math.abs(num).toFixed(digits)}`
+}
+const toSignedPct = (value, digits = 1) => {
+  const num = Number(value) || 0
+  return `${num > 0 ? '+' : num < 0 ? '−' : ''}${Math.abs(num).toFixed(digits)}%`
+}
+const toneOf = (value) => (value > 0 ? 'win' : value < 0 ? 'lose' : 'flat')
+
+const medianOf = (values) => {
+  const sorted = values.filter(Number.isFinite).slice().sort((a, b) => a - b)
+  if (sorted.length === 0) return 0
+  const middle = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle]
+}
+
+const entryTitle = (entry) => {
+  const matches = Array.isArray(entry?.matches) ? entry.matches : []
+  if (matches.length === 0) return '未命名投注'
+  const first = matches[0]
+  const base = `${first.homeTeam || '—'} vs ${first.awayTeam || '—'}`
+  return matches.length > 1 ? `${base} +${matches.length - 1}` : base
+}
+
+const GRADE_TONE = {
+  S: 'is-grade-s',
+  A: 'is-grade-a',
+  B: 'is-grade-b',
+  C: 'is-grade-c',
+  D: 'is-grade-d',
+  '—': 'is-grade-none',
+}
+
+/* ── 周期选择器 ───────────────────────────────────────────────────────── */
+
+function PeriodCard({ period, active, onSelect }) {
+  const tone = toneOf(period.profit)
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(period.id)}
+      className={`wr-period-card ${active ? 'is-active' : ''} is-${tone}`}
+      role="tab"
+      aria-selected={active}
+      aria-label={`${period.name}，${period.isOpen ? '进行中' : '已归档'}，净盈亏 ${toSigned(period.profit)} 元`}
+    >
+      <div className="wr-period-card__top">
+        <span className="wr-period-card__ordinal">SEASON {String(period.ordinal).padStart(2, '0')}</span>
+        <span className={`wr-period-card__state ${period.isOpen ? 'is-live' : ''}`}>
+          <i aria-hidden="true" />
+          {period.isOpen ? '进行中' : '已归档'}
+        </span>
+      </div>
+      <p className="wr-period-card__name" title={period.name}>{period.name}</p>
+      <p className="wr-period-card__profit">
+        {toSigned(period.profit)}
+        <em>rmb</em>
+      </p>
+      <p className="wr-period-card__meta">
+        {period.settledCount} 笔结算 <i /> 本金 {toRmb(period.baseCapital)}
+      </p>
+    </button>
+  )
+}
+
+/* ── 裁决横幅 ─────────────────────────────────────────────────────────── */
+
+function VerdictBanner({ report, runKey, onRename, children }) {
+  const { period, kpi } = report
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(period.title)
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    setEditing(false)
+    setDraft(period.title)
+  }, [period.id, period.title])
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus()
+  }, [editing])
+
+  const commit = () => {
+    const next = draft.trim()
+    setEditing(false)
+    if (next !== period.title) onRename(period.id, next)
+  }
+
+  const tone = toneOf(kpi.profit)
+  const spanLabel = [
+    period.startAt ? new Date(period.startAt).toLocaleDateString('zh-CN') : '起始',
+    period.endAt ? new Date(period.endAt).toLocaleDateString('zh-CN') : '至今',
+  ].join(' — ')
+
+  return (
+    <div className={`wr-banner ${GRADE_TONE[kpi.grade] || 'is-grade-none'}`}>
+      <div className="wr-banner__sheen" aria-hidden="true" />
+      <div className="wr-banner__grid" aria-hidden="true" />
+      <span className="wr-banner__corner is-tl" aria-hidden="true" />
+      <span className="wr-banner__corner is-tr" aria-hidden="true" />
+      <span className="wr-banner__corner is-bl" aria-hidden="true" />
+      <span className="wr-banner__corner is-br" aria-hidden="true" />
+
+      <div className="wr-banner__body">
+        {/* 标题 + 战果 */}
+        <div className="wr-banner__main">
+          <div className="wr-banner__eyebrow">
+            <Swords size={13} />
+            <span>Season {String(period.ordinal).padStart(2, '0')} · Summary</span>
+            {period.isOpen && <em className="wr-banner__live">进行中</em>}
+          </div>
+
+          {editing ? (
+            <div className="wr-rename">
+              <input
+                ref={inputRef}
+                value={draft}
+                maxLength={24}
+                onChange={(event) => setDraft(event.target.value)}
+                aria-label={`S${period.ordinal} 周期标题`}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') commit()
+                  if (event.key === 'Escape') {
+                    setDraft(period.title)
+                    setEditing(false)
+                  }
+                }}
+                placeholder="输入周期标题"
+                className="wr-rename__input"
+              />
+              <button type="button" onClick={commit} className="wr-rename__btn is-ok" title="保存">
+                <Check size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDraft(period.title)
+                  setEditing(false)
+                }}
+                className="wr-rename__btn"
+                title="取消"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <h2 className="wr-banner__title">
+              {period.name}
+              <button type="button" onClick={() => setEditing(true)} className="wr-banner__edit" title="编辑周期标题">
+                <Pencil size={13} />
+              </button>
+            </h2>
+          )}
+
+          <p className="wr-banner__span">{spanLabel}</p>
+
+          <div className="wr-banner__figures">
+            <div className="wr-figure is-primary">
+              <span className="wr-figure__label">周期净盈亏</span>
+              <span className={`wr-figure__value is-${tone}`}>
+                <CountUp
+                  value={kpi.profit}
+                  runKey={runKey}
+                  duration={1100}
+                  format={(n) => toSigned(n)}
+                />
+                <em>rmb</em>
+              </span>
+            </div>
+            <span className="wr-figure__sep" aria-hidden="true" />
+            <div className="wr-figure">
+              <span className="wr-figure__label">投注 ROI</span>
+              <span className={`wr-figure__value is-${toneOf(kpi.roi)}`}>
+                <CountUp
+                  value={kpi.roi}
+                  runKey={runKey}
+                  duration={1100}
+                  delay={120}
+                  format={(n) => toSignedPct(n)}
+                />
+              </span>
+            </div>
+            <span className="wr-figure__sep" aria-hidden="true" />
+            <div className="wr-figure">
+              <span className="wr-figure__label">本金回报</span>
+              <span className={`wr-figure__value is-${toneOf(kpi.returnOnBase)}`}>
+                <CountUp
+                  value={kpi.returnOnBase}
+                  runKey={runKey}
+                  duration={1100}
+                  delay={240}
+                  format={(n) => toSignedPct(n)}
+                />
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 评级徽章 */}
+        <div className="wr-emblem" aria-label={`周期评级 ${kpi.grade}，${kpi.gradeTitle}`}>
+          <span className="wr-emblem__halo" aria-hidden="true" />
+          <span className="wr-emblem__orbit" aria-hidden="true">
+            <i />
+          </span>
+          <span className="wr-emblem__ring" aria-hidden="true" />
+          <span className="wr-emblem__plate">
+            <span className="wr-emblem__grade">{kpi.grade}</span>
+          </span>
+          <span className="wr-emblem__caption">PERFORMANCE</span>
+          <span className="wr-emblem__title">{kpi.gradeTitle}</span>
+        </div>
+      </div>
+
+      {children && <div className="wr-banner__kpis">{children}</div>}
+    </div>
+  )
+}
+
+/* ── KPI 格 ───────────────────────────────────────────────────────────── */
+
+function KpiTile({ label, value, sub, tone = 'flat', Icon, index = 0, action = null, children = null, onOpen }) {
+  const handleKeyDown = (event) => {
+    if (!onOpen || (event.key !== 'Enter' && event.key !== ' ')) return
+    event.preventDefault()
+    onOpen()
+  }
+
+  return (
+    <div
+      className={`wr-kpi is-${tone} ${onOpen ? 'is-interactive' : ''}`}
+      style={{ '--wr-delay': `${index * 55}ms` }}
+      role={onOpen ? 'button' : undefined}
+      tabIndex={onOpen ? 0 : undefined}
+      aria-label={onOpen ? `查看${label}明细` : undefined}
+      onClick={onOpen}
+      onKeyDown={handleKeyDown}
+    >
+      <div className="wr-kpi__head">
+        {Icon && <Icon size={13} />}
+        <span>{label}</span>
+        {action}
+      </div>
+      {children || (
+        <>
+          <p className="wr-kpi__value">{value}</p>
+          {sub && <p className="wr-kpi__sub">{sub}</p>}
+        </>
+      )}
+    </div>
+  )
+}
+
+function BaseCapitalTile({ period, onSave, onOpen, index = 0 }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(String(period.baseCapital))
+  const [saveState, setSaveState] = useState('idle')
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    setEditing(false)
+    setDraft(String(period.baseCapital))
+  }, [period.id, period.baseCapital])
+
+  useEffect(() => {
+    if (editing) inputRef.current?.select()
+  }, [editing])
+
+  const cancel = () => {
+    setDraft(String(period.baseCapital))
+    setEditing(false)
+  }
+
+  const commit = async () => {
+    const amount = Number.parseFloat(draft)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      cancel()
+      return
+    }
+    setEditing(false)
+    setSaveState('syncing')
+    let result
+    try {
+      result = await onSave(Number(amount.toFixed(2)))
+    } catch {
+      result = { ok: false }
+    }
+    setSaveState(result?.ok === false ? 'error' : result?.preview ? 'preview' : 'saved')
+    window.setTimeout(() => setSaveState('idle'), 2400)
+  }
+
+  return (
+    <KpiTile
+      index={index}
+      Icon={Wallet}
+      label="周期本金"
+      onOpen={editing ? undefined : onOpen}
+      action={!editing ? (
+        <button
+          type="button"
+          className="wr-kpi__edit"
+          onClick={(event) => {
+            event.stopPropagation()
+            setEditing(true)
+          }}
+          aria-label="编辑周期本金"
+        >
+          <Pencil size={11} />
+        </button>
+      ) : null}
+    >
+      {editing ? (
+        <div className="wr-capital-edit" onClick={(event) => event.stopPropagation()}>
+          <span>¥</span>
+          <input
+            ref={inputRef}
+            type="number"
+            min="0.01"
+            step="0.01"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') commit()
+              if (event.key === 'Escape') cancel()
+            }}
+            aria-label="周期本金金额"
+          />
+          <button type="button" onClick={commit} aria-label="保存周期本金"><Check size={12} /></button>
+          <button type="button" onClick={cancel} aria-label="取消编辑"><X size={12} /></button>
+        </div>
+      ) : (
+        <>
+          <p className="wr-kpi__value">{toRmb(period.baseCapital)}</p>
+          <p className="wr-kpi__sub">
+            {saveState === 'syncing'
+              ? '正在写入并同步…'
+              : saveState === 'saved'
+                ? '已写入 · 云端同步完成'
+                : saveState === 'preview'
+                  ? '演示数据已更新'
+                  : saveState === 'error'
+                    ? '本地已写入 · 云同步失败'
+                    : period.allocation > 0
+                      ? `含开局划拨 ${toRmb(period.allocation)}`
+                      : '期内注资合计'}
+          </p>
+        </>
+      )}
+    </KpiTile>
+  )
+}
+
+const buildMetricDetail = (metricId, report) => {
+  const { period, kpi } = report
+  const settled = report.entries.filter((entry) => entry.settled)
+  const chronological = settled.slice().sort((a, b) => a.createdTs - b.createdTs)
+  const latest = chronological.slice().reverse()
+  const wins = settled.filter((entry) => entry.profit > 0)
+  const roiValues = settled.map((entry) => entry.roi).filter(Number.isFinite)
+  const winningRois = wins.map((entry) => entry.roi).filter(Number.isFinite)
+  const stakeValues = settled.map((entry) => entry.inputs).filter(Number.isFinite)
+  const periodLabel = period.name
+  const pctOfBase = (value) => period.baseCapital > 0 ? (value / period.baseCapital) * 100 : 0
+
+  const common = {
+    periodLabel,
+    count: settled.length,
+    records: latest,
+  }
+
+  const definitions = {
+    baseCapital: {
+      ...common,
+      Icon: Wallet,
+      label: '周期本金',
+      value: toRmb(period.baseCapital),
+      tone: 'flat',
+      kicker: 'Capital foundation',
+      description: '周期本金是本期所有回报率与风险刻度的资金基准。编辑会同时校准周期划拨台账与总资金，并立即同步云端。',
+      stats: [
+        { label: '开局划拨', value: toRmb(period.allocation) },
+        { label: '期内注资', value: toRmb(period.injected) },
+        { label: '结束余额', value: toRmb(period.endBalance), tone: toneOf(period.endBalance - period.baseCapital) },
+      ],
+      events: period.injections.map((item) => ({
+        id: item.id,
+        date: new Date(item.created_at).toLocaleDateString('zh-CN'),
+        label: item.note || '资金注入',
+        value: toRmb(item.amount),
+      })),
+      records: [],
+    },
+    hitRate: {
+      ...common,
+      Icon: CheckCircle2,
+      label: '命中率',
+      value: `${kpi.hitRate.toFixed(1)}%`,
+      tone: kpi.hitRate >= 50 ? 'win' : 'lose',
+      kicker: 'Outcome accuracy',
+      description: '以已结算投资单为单位计算；串关只要整单盈利即记为命中，待结算单不进入分母。',
+      stats: [
+        { label: '命中', value: `${kpi.wins} 笔`, tone: 'win' },
+        { label: '失手', value: `${kpi.losses} 笔`, tone: 'lose' },
+        { label: '待结算', value: `${kpi.pendingCount} 笔` },
+      ],
+    },
+    totalInputs: {
+      ...common,
+      Icon: Layers,
+      label: '投入总额',
+      value: toRmb(kpi.totalInputs),
+      tone: 'flat',
+      kicker: 'Capital deployed',
+      description: '汇总本周期全部已结算投资的实际投入；待结算资金单独列示，不污染已实现收益口径。',
+      stats: [
+        { label: '结算笔数', value: `${kpi.settledCount} 笔` },
+        { label: '均注', value: toRmb(kpi.avgStake) },
+        { label: '中位注额', value: toRmb(medianOf(stakeValues)) },
+      ],
+      records: settled.slice().sort((a, b) => b.inputs - a.inputs),
+    },
+    totalRevenue: {
+      ...common,
+      Icon: ReceiptText,
+      label: '收入总额',
+      value: toRmb(kpi.totalRevenue),
+      tone: toneOf(kpi.profit),
+      kicker: 'Gross proceeds',
+      description: '收入总额是所有已结算投注返还金额之和；减去投入总额后，得到本周期净利润。',
+      stats: [
+        { label: '投入', value: toRmb(kpi.totalInputs) },
+        { label: '净利润', value: `${toSigned(kpi.profit)} rmb`, tone: toneOf(kpi.profit) },
+        { label: '加权 ROI', value: toSignedPct(kpi.roi), tone: toneOf(kpi.roi) },
+      ],
+      records: settled.slice().sort((a, b) => b.revenues - a.revenues),
+    },
+    maxDrawdown: {
+      ...common,
+      Icon: TrendingDown,
+      label: '最大回撤',
+      value: toRmb(kpi.maxDrawdown),
+      tone: kpi.maxDrawdown > 0 ? 'lose' : 'flat',
+      kicker: 'Peak-to-trough risk',
+      description: '净值从阶段峰值向后跌至谷值的最大距离，用来观察本周期实际承受过的最深资金压力。',
+      stats: [
+        { label: '占本金', value: toSignedPct(-pctOfBase(kpi.maxDrawdown)), tone: 'lose' },
+        { label: '最差单笔', value: kpi.worstEntry ? `${toSigned(kpi.worstEntry.profit)} rmb` : '—', tone: 'lose' },
+        { label: '结束余额', value: toRmb(period.endBalance), tone: toneOf(kpi.profit) },
+      ],
+      records: chronological,
+    },
+    maxRunup: {
+      ...common,
+      Icon: TrendingUp,
+      label: '最大升幅',
+      value: toRmb(kpi.maxRunup),
+      tone: kpi.maxRunup > 0 ? 'win' : 'flat',
+      kicker: 'Trough-to-peak expansion',
+      description: '累计盈亏从阶段谷值回升至后续峰值的最大距离；资金注入不计入表现升幅。',
+      stats: [
+        { label: '占本金', value: toSignedPct(pctOfBase(kpi.maxRunup)), tone: 'win' },
+        { label: '最佳单笔', value: kpi.bestEntry ? `${toSigned(kpi.bestEntry.profit)} rmb` : '—', tone: 'win' },
+        { label: '盈利单', value: `${kpi.wins} 笔` },
+      ],
+      records: wins.slice().sort((a, b) => b.profit - a.profit),
+    },
+    streak: {
+      ...common,
+      Icon: TrendingUp,
+      label: '最长连胜',
+      value: `${kpi.bestWinStreak} 连`,
+      tone: kpi.bestWinStreak >= kpi.worstLoseStreak ? 'win' : 'lose',
+      kicker: 'Outcome momentum',
+      description: '按投注发生顺序统计连续盈利与连续亏损，走盘不会打断也不会延长序列。',
+      stats: [
+        { label: '最长连胜', value: `${kpi.bestWinStreak} 连`, tone: 'win' },
+        { label: '最长连败', value: `${kpi.worstLoseStreak} 连`, tone: 'lose' },
+        { label: '样本', value: `${kpi.settledCount} 笔` },
+      ],
+      records: chronological,
+    },
+    bestEntry: {
+      ...common,
+      Icon: Award,
+      label: '单笔最佳',
+      value: kpi.bestEntry ? `${toSigned(kpi.bestEntry.profit)} rmb` : '—',
+      tone: 'win',
+      kicker: 'Best single result',
+      description: '按单笔已实现盈亏排序，展示本周期收益贡献最高与最低的投资。',
+      stats: [
+        { label: '最佳 ROI', value: kpi.bestEntry ? toSignedPct(kpi.bestEntry.roi) : '—', tone: 'win' },
+        { label: '最差盈亏', value: kpi.worstEntry ? `${toSigned(kpi.worstEntry.profit)} rmb` : '—', tone: 'lose' },
+        { label: '盈亏差', value: kpi.bestEntry && kpi.worstEntry ? toRmb(kpi.bestEntry.profit - kpi.worstEntry.profit) : '—' },
+      ],
+      records: [kpi.bestEntry, kpi.worstEntry].filter(Boolean),
+    },
+    medianRoi: {
+      ...common,
+      Icon: Percent,
+      label: '中位数 ROI',
+      value: toSignedPct(kpi.medianRoi),
+      tone: toneOf(kpi.medianRoi),
+      kicker: 'Median ticket return',
+      description: '将每笔已结算投资的 ROI 从低到高排列后取中间值，比平均数更不容易被极端大赔率单扭曲。',
+      stats: [
+        { label: '最低', value: roiValues.length ? toSignedPct(Math.min(...roiValues)) : '—', tone: 'lose' },
+        { label: '中位', value: toSignedPct(kpi.medianRoi), tone: toneOf(kpi.medianRoi) },
+        { label: '最高', value: roiValues.length ? toSignedPct(Math.max(...roiValues)) : '—', tone: 'win' },
+      ],
+      records: settled.slice().sort((a, b) => a.roi - b.roi),
+    },
+    medianWinningRoi: {
+      ...common,
+      Icon: BarChart3,
+      label: '中位数盈利 ROI',
+      value: toSignedPct(kpi.medianWinningRoi),
+      tone: wins.length ? 'win' : 'flat',
+      kicker: 'Median winning return',
+      description: '只保留盈利投资，再取单笔 ROI 的中位数，用来观察一张典型盈利单的回报强度。',
+      stats: [
+        { label: '盈利样本', value: `${wins.length} 笔` },
+        { label: '最低盈利 ROI', value: winningRois.length ? toSignedPct(Math.min(...winningRois)) : '—', tone: 'win' },
+        { label: '最高盈利 ROI', value: winningRois.length ? toSignedPct(Math.max(...winningRois)) : '—', tone: 'win' },
+      ],
+      records: wins.slice().sort((a, b) => a.roi - b.roi),
+    },
+    averageRoi: {
+      ...common,
+      Icon: Percent,
+      label: '平均 ROI',
+      value: toSignedPct(kpi.averageRoi),
+      tone: toneOf(kpi.averageRoi),
+      kicker: 'Mean ticket return',
+      description: '每笔投资 ROI 的算术平均；它让每张单拥有相同权重，与按投入加权的“投注 ROI”并非同一指标。',
+      stats: [
+        { label: '算术平均', value: toSignedPct(kpi.averageRoi), tone: toneOf(kpi.averageRoi) },
+        { label: '投入加权', value: toSignedPct(kpi.roi), tone: toneOf(kpi.roi) },
+        { label: '两者差值', value: toSignedPct(kpi.averageRoi - kpi.roi), tone: toneOf(kpi.averageRoi - kpi.roi) },
+      ],
+    },
+    averageWinningRoi: {
+      ...common,
+      Icon: Activity,
+      label: '平均盈利 ROI',
+      value: toSignedPct(kpi.averageWinningRoi),
+      tone: wins.length ? 'win' : 'flat',
+      kicker: 'Mean winning return',
+      description: '只在盈利投资中计算单笔 ROI 的算术平均，用来识别盈利尾部是否显著拉高整体收益。',
+      stats: [
+        { label: '盈利样本', value: `${wins.length} 笔` },
+        { label: '平均', value: toSignedPct(kpi.averageWinningRoi), tone: 'win' },
+        { label: '中位', value: toSignedPct(kpi.medianWinningRoi), tone: 'win' },
+      ],
+      records: wins.slice().sort((a, b) => b.roi - a.roi),
+    },
+  }
+
+  return definitions[metricId] || null
+}
+
+function MetricDetailCard({ detail, onClose }) {
+  const [page, setPage] = useState(0)
+
+  useEffect(() => {
+    setPage(0)
+  }, [detail])
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onClose()
+    }
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [onClose])
+
+  if (!detail) return null
+
+  const records = Array.isArray(detail.records) ? detail.records : []
+  const totalPages = Math.max(1, Math.ceil(records.length / DETAIL_PAGE_SIZE))
+  const safePage = Math.min(page, totalPages - 1)
+  const visibleRecords = records.slice(safePage * DETAIL_PAGE_SIZE, (safePage + 1) * DETAIL_PAGE_SIZE)
+  const Icon = detail.Icon
+
+  return createPortal(
+    <div className="wr-detail-backdrop" role="presentation" onMouseDown={onClose}>
+      <section
+        className={`wr-detail-card is-${detail.tone}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="wr-detail-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="wr-detail-card__aurora" aria-hidden="true"><i /><i /><i /></div>
+        <button type="button" className="wr-detail-card__close" onClick={onClose} aria-label="关闭指标明细">
+          <X size={16} />
+        </button>
+
+        <header className="wr-detail-hero">
+          <div className="wr-detail-hero__icon"><Icon size={20} /></div>
+          <div className="wr-detail-hero__copy">
+            <p>{detail.kicker}</p>
+            <h2 id="wr-detail-title">{detail.label}</h2>
+            <span>{detail.periodLabel} · {detail.count} 笔已结算</span>
+          </div>
+          <strong className={`is-${detail.tone}`}>{detail.value}</strong>
+        </header>
+
+        <p className="wr-detail-card__description">{detail.description}</p>
+
+        <div className="wr-detail-stats">
+          {detail.stats.map((item) => (
+            <div key={item.label} className={`is-${item.tone || 'flat'}`}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
+        </div>
+
+        {Array.isArray(detail.events) && detail.events.length > 0 && (
+          <div className="wr-detail-events">
+            <div className="wr-detail-section-head"><span>资金事件</span><em>{detail.events.length} 条</em></div>
+            {detail.events.map((event) => (
+              <div key={event.id} className="wr-detail-event">
+                <span>{event.date}</span>
+                <strong>{event.label}</strong>
+                <em>{event.value}</em>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {records.length > 0 && (
+          <div className="wr-detail-ledger">
+            <div className="wr-detail-section-head">
+              <span>支撑明细</span>
+              <em>{safePage * DETAIL_PAGE_SIZE + 1}–{Math.min(records.length, (safePage + 1) * DETAIL_PAGE_SIZE)} / {records.length}</em>
+            </div>
+            <div className="wr-detail-ledger__rows">
+              {visibleRecords.map((entry) => (
+                <div key={`${detail.label}-${entry.id}`} className={`wr-detail-row is-${toneOf(entry.profit)}`}>
+                  <span className="wr-detail-row__date">{entry.dateLabel}</span>
+                  <div className="wr-detail-row__main">
+                    <strong>{entryTitle(entry)}</strong>
+                    <span>{entry.matches.map((match) => match.entryText).filter(Boolean).join(' + ') || '—'} · 投入 {toRmb(entry.inputs)}</span>
+                  </div>
+                  <div className="wr-detail-row__result">
+                    <strong>{toSigned(entry.profit)} rmb</strong>
+                    <span>{toSignedPct(entry.roi)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {totalPages > 1 && (
+              <div className="wr-detail-pager">
+                <span>{safePage + 1} / {totalPages}</span>
+                <div>
+                  <button type="button" disabled={safePage === 0} onClick={() => setPage((value) => Math.max(0, value - 1))} aria-label="上一页明细">
+                    <ChevronLeft size={15} />
+                  </button>
+                  <button type="button" disabled={safePage >= totalPages - 1} onClick={() => setPage((value) => Math.min(totalPages - 1, value + 1))} aria-label="下一页明细">
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+    </div>,
+    document.body,
+  )
+}
+
+/* ── 净值曲线 ─────────────────────────────────────────────────────────── */
+
+function CampaignCurve({ curve }) {
+  const points = Array.isArray(curve) ? curve : []
+  const [activePoint, setActivePoint] = useState(null)
+
+  useEffect(() => {
+    setActivePoint(null)
+  }, [curve])
+
+  if (points.length < 2) {
+    return <div className="wr-empty">本周期尚无已结算流水，曲线待战果填充。</div>
+  }
+
+  const W = 760
+  const H = 168
+  const padX = 14
+  const padTop = 16
+  const padBottom = 22
+
+  const values = points.map((p) => p.balance)
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const span = max - min || Math.max(1, Math.abs(max) || 1)
+  const investmentCount = Math.max(0, ...points.map((point) => Number(point.investmentNumber) || 0))
+  const x = (investmentNumber) => padX + (investmentCount > 0 ? investmentNumber / investmentCount : 0) * (W - padX * 2)
+  const y = (v) => padTop + (1 - (v - min) / span) * (H - padTop - padBottom)
+  const last = points[points.length - 1]
+
+  const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.investmentNumber).toFixed(1)},${y(p.balance).toFixed(1)}`).join(' ')
+  const area = `${line} L${x(last.investmentNumber).toFixed(1)},${H - padBottom} L${x(0).toFixed(1)},${H - padBottom} Z`
+  const zeroY = min <= 0 && max >= 0 ? y(0) : null
+  const tone = last.balance >= points[0].balance ? 'win' : 'lose'
+  const betPoints = points.filter((point) => point.kind === 'bet')
+  const ticks = []
+  for (let value = 0; value <= investmentCount; value += 10) ticks.push(value)
+  if (ticks[ticks.length - 1] !== investmentCount) ticks.push(investmentCount)
+
+  return (
+    <div className={`wr-curve is-${tone}`}>
+      <div className="wr-curve__plot" onMouseLeave={() => setActivePoint(null)}>
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="wr-curve__svg">
+          <defs>
+            <linearGradient id="wrCurveFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--wr-curve-stroke)" stopOpacity="0.34" />
+              <stop offset="100%" stopColor="var(--wr-curve-stroke)" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {[0.25, 0.5, 0.75].map((ratio) => (
+            <line
+              key={ratio}
+              x1={padX}
+              y1={padTop + ratio * (H - padTop - padBottom)}
+              x2={W - padX}
+              y2={padTop + ratio * (H - padTop - padBottom)}
+              className="wr-curve__guide"
+            />
+          ))}
+          {zeroY !== null && (
+            <line x1={padX} y1={zeroY} x2={W - padX} y2={zeroY} className="wr-curve__zero" />
+          )}
+          <path d={area} fill="url(#wrCurveFill)" />
+          <path d={line} className="wr-curve__line" />
+          {points.map((point, index) => point.kind === 'injection' ? (
+            <circle
+              key={`inj-${index}`}
+              cx={x(point.investmentNumber)}
+              cy={y(point.balance)}
+              r="3.4"
+              className="wr-curve__inject"
+            />
+          ) : null)}
+          {betPoints.map((point) => (
+            <circle
+              key={`${point.ts}-${point.investmentNumber}`}
+              cx={x(point.investmentNumber)}
+              cy={y(point.balance)}
+              r="8"
+              tabIndex="0"
+              className={`wr-curve__hover-target ${activePoint === point ? 'is-active' : ''}`}
+              onMouseEnter={() => setActivePoint(point)}
+              onFocus={() => setActivePoint(point)}
+              onBlur={() => setActivePoint(null)}
+              onPointerDown={() => setActivePoint(point)}
+              aria-label={`${point.fullDateLabel}，${point.label}，盈亏 ${toSigned(point.delta)} 元`}
+            />
+          ))}
+          <circle cx={x(last.investmentNumber)} cy={y(last.balance)} r="4" className="wr-curve__head" />
+        </svg>
+        {activePoint && (
+          <div
+            className={`wr-curve__tooltip ${activePoint.investmentNumber / Math.max(1, investmentCount) < 0.12
+              ? 'is-left-edge'
+              : activePoint.investmentNumber / Math.max(1, investmentCount) > 0.88
+                ? 'is-right-edge'
+                : ''}`}
+            style={{
+              left: `${(x(activePoint.investmentNumber) / W) * 100}%`,
+              top: `${(y(activePoint.balance) / H) * 100}%`,
+            }}
+          >
+            <span>{activePoint.fullDateLabel} · 第 {activePoint.investmentNumber} 笔</span>
+            <strong>{activePoint.label}</strong>
+            <em className={`is-${toneOf(activePoint.delta)}`}>盈亏 {toSigned(activePoint.delta)} rmb</em>
+          </div>
+        )}
+      </div>
+      <div className="wr-curve__number-axis" aria-label={`投资笔数 0 至 ${investmentCount}`}>
+        <small>投资笔数</small>
+        {ticks.map((tick) => (
+          <span key={tick} style={{ left: `${(x(tick) / W) * 100}%` }}>{tick}</span>
+        ))}
+      </div>
+      <div className="wr-curve__axis">
+        <span>{points[0].dateLabel || '开局'}</span>
+        <span className="wr-curve__legend">
+          <i className="wr-curve__dot is-inject" /> 注资 / 划拨
+        </span>
+        <span>{last.dateLabel || '至今'}</span>
+      </div>
+    </div>
+  )
+}
+
+/* ── 战绩节奏 ─────────────────────────────────────────────────────────── */
+
+function OutcomeDigest({ entries, kpi }) {
+  const settled = entries.filter((row) => row.settled).slice().reverse()
+  const recent = settled.slice(-18)
+
+  return (
+    <div className="wr-panel wr-outcome">
+      <div className="wr-panel__head">
+        <Activity size={14} />
+        <div>
+          <p className="wr-panel__eyebrow">Outcome sequence</p>
+          <h3>结果序列</h3>
+        </div>
+        <span className="wr-panel__count">按发生顺序</span>
+      </div>
+
+      {recent.length === 0 ? (
+        <div className="wr-empty">本周期尚无已结算战果。</div>
+      ) : (
+        <>
+          <div className="wr-outcome__score">
+            <div>
+              <strong>{kpi.wins}</strong>
+              <span>命中</span>
+            </div>
+            <i aria-hidden="true" />
+            <div>
+              <strong>{kpi.losses}</strong>
+              <span>失手</span>
+            </div>
+            <i aria-hidden="true" />
+            <div>
+              <strong>{kpi.pendingCount}</strong>
+              <span>在途</span>
+            </div>
+          </div>
+
+          <div className="wr-outcome__sequence" aria-label="最近战绩序列">
+            {recent.map((row, index) => {
+              const tone = toneOf(row.profit)
+              return (
+                <span
+                  key={row.id}
+                  className={`is-${tone}`}
+                  title={`${row.fullDateLabel} · ${row.profit > 0 ? '命中' : row.profit < 0 ? '失手' : '走盘'} · ${toSigned(row.profit)} 元`}
+                  style={{ '--wr-seq-delay': `${index * 34}ms` }}
+                >
+                  {row.profit > 0 ? 'W' : row.profit < 0 ? 'L' : 'D'}
+                </span>
+              )
+            })}
+          </div>
+          <p className="wr-outcome__hint">显示最近 {recent.length} 笔 · 从左至右</p>
+
+          <div className="wr-outcome__split">
+            <div>
+              <span>最佳单笔</span>
+              <strong className="is-win">{kpi.bestEntry ? toSigned(kpi.bestEntry.profit) : '—'}</strong>
+            </div>
+            <div>
+              <span>最差单笔</span>
+              <strong className="is-lose">{kpi.worstEntry ? toSigned(kpi.worstEntry.profit) : '—'}</strong>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/* ── 分项战果（通用条形榜） ───────────────────────────────────────────── */
+
+function BreakdownList({
+  title,
+  Icon,
+  rows,
+  emptyHint,
+  renderLabel,
+  metric = 'profit',
+  showEmpty = false,
+  includeRoiInDetails = false,
+  className = '',
+}) {
+  const visible = showEmpty ? rows : rows.filter((row) => row.settled > 0)
+  const hasData = visible.some((row) => row.settled > 0)
+
+  // 条长与主数字编码同一个量 —— 显示 ROI 就按 ROI 的量级排条，
+  // 显示盈亏就按盈亏排条。否则「数字最大的条最短」会读成假信号。
+  const valueOf = (row) => (metric === 'roi' ? row.roi : row.profit)
+  const scale = Math.max(1e-6, ...visible.map((row) => Math.abs(valueOf(row))))
+
+  return (
+    <div className={`wr-panel wr-breakdown ${className}`}>
+      <div className="wr-panel__head">
+        <Icon size={14} />
+        <div>
+          <p className="wr-panel__eyebrow">Performance split</p>
+          <h3>{title}</h3>
+        </div>
+      </div>
+      {!hasData ? (
+        <div className="wr-empty">{emptyHint}</div>
+      ) : (
+        <ul className="wr-bars">
+          {visible.map((row, index) => {
+            const value = valueOf(row)
+            const tone = row.settled === 0 ? 'idle' : toneOf(row.profit)
+            const width = row.settled === 0 ? '0%' : `${Math.max(3, (Math.abs(value) / scale) * 48)}%`
+            return (
+              <li
+                key={row.key}
+                className={`wr-bar is-${tone}`}
+                style={{ '--wr-delay': `${index * 45}ms`, '--wr-bar-size': width }}
+              >
+                <div className="wr-bar__row">
+                  <span className="wr-bar__label">
+                    <i>{String(index + 1).padStart(2, '0')}</i>
+                    {renderLabel ? renderLabel(row) : row.label}
+                  </span>
+                  <span className="wr-bar__metric">
+                    {row.settled === 0 ? '—' : metric === 'roi' ? toSignedPct(row.roi) : `${toSigned(row.profit)} rmb`}
+                  </span>
+                </div>
+                <div className="wr-bar__track">
+                  <span className="wr-bar__fill" />
+                </div>
+                <div className="wr-bar__foot">
+                  <span>
+                    {row.settled === 0
+                      ? '本期无样本'
+                      : includeRoiInDetails
+                        ? ''
+                      : metric === 'roi'
+                        ? `${toSigned(row.profit)} rmb`
+                        : `ROI ${toSignedPct(row.roi)}`}
+                  </span>
+                  <span>
+                    {row.settled === 0
+                      ? ''
+                      : `${Math.round(row.count)} 笔 · 投入 ${toRmb(row.inputs)} · 命中 ${row.hitRate.toFixed(0)}%${includeRoiInDetails ? ` · ROI ${toSignedPct(row.roi)}` : ''}`}
+                  </span>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+/* ── 逐笔流水 ─────────────────────────────────────────────────────────── */
+
+function EntryLedger({ entries, modeLabel }) {
+  const [page, setPage] = useState(0)
+
+  useEffect(() => {
+    setPage(0)
+  }, [entries])
+
+  const totalPages = Math.max(1, Math.ceil(entries.length / LEDGER_PAGE_SIZE))
+  const safePage = Math.min(page, totalPages - 1)
+  const rows = entries.slice(safePage * LEDGER_PAGE_SIZE, safePage * LEDGER_PAGE_SIZE + LEDGER_PAGE_SIZE)
+  const rangeStart = entries.length === 0 ? 0 : safePage * LEDGER_PAGE_SIZE + 1
+  const rangeEnd = Math.min(entries.length, safePage * LEDGER_PAGE_SIZE + rows.length)
+
+  return (
+    <div className="wr-panel wr-panel--wide">
+      <div className="wr-panel__head">
+        <Layers size={14} />
+        <div>
+          <p className="wr-panel__eyebrow">Investment history</p>
+          <h3>下注明细</h3>
+        </div>
+        <span className="wr-panel__fresh"><ShieldCheck size={12} /> 结果实时匹配</span>
+      </div>
+
+      {entries.length === 0 ? (
+        <div className="wr-empty">本周期还没有任何下注记录。</div>
+      ) : (
+        <>
+          <div className="wr-ledger">
+            <table className="wr-ledger__table">
+              <thead>
+                <tr>
+                  <th className="w-[76px]">日期</th>
+                  <th>对阵 · 选项</th>
+                  <th className="w-[72px] text-right">注额</th>
+                  <th className="w-[68px] text-right">赔率</th>
+                  <th className="w-[68px] text-center">结果</th>
+                  <th className="w-[92px] text-right">盈亏</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => {
+                  const tone = row.settled ? toneOf(row.profit) : 'pending'
+                  return (
+                    <tr key={row.id} className={`is-${tone}`}>
+                      <td className="wr-ledger__date">{row.dateLabel}</td>
+                      <td>
+                        <div className="wr-legs">
+                          {row.matches.map((leg, idx) => (
+                            <div key={leg.id || idx} className="wr-leg">
+                              <span className="wr-leg__teams">
+                                {leg.homeTeam}
+                                <i>vs</i>
+                                {leg.awayTeam}
+                              </span>
+                              <span className="wr-leg__entry">{leg.entryText}</span>
+                              {leg.results && <span className="wr-leg__score">{leg.results}</span>}
+                              {leg.isCorrect === true && <span className="wr-leg__flag is-hit">中</span>}
+                              {leg.isCorrect === false && <span className="wr-leg__flag is-miss">失</span>}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="wr-ledger__tags">
+                          {row.legs > 1 && <span className="wr-tag">{row.legs} 串</span>}
+                          {row.modes.map((mode) => (
+                            <span key={mode} className="wr-tag is-mode">{modeLabel(mode)}</span>
+                          ))}
+                          {row.leagues.map((league) => (
+                            <span key={league} className="wr-tag is-league">{league}</span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="wr-ledger__num">{toRmb(row.inputs)}</td>
+                      <td className="wr-ledger__num">{row.combinedOdds.toFixed(2)}</td>
+                      <td className="text-center">
+                        <span className={`wr-status is-${tone}`}>
+                          {row.settled ? (row.profit > 0 ? '中' : row.profit < 0 ? '失' : '平') : '待结'}
+                        </span>
+                      </td>
+                      <td className={`wr-ledger__profit is-${tone}`}>
+                        {row.settled ? toSigned(row.profit) : '—'}
+                        {row.settled && row.roi !== null && (
+                          <em>{toSignedPct(row.roi, 0)}</em>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="wr-pager">
+            <span>显示 {rangeStart}–{rangeEnd} / 共 {entries.length} 笔</span>
+            <div className="wr-pager__btns">
+              <button
+                type="button"
+                disabled={safePage === 0}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+              >
+                <ChevronLeft size={15} />
+              </button>
+              <button
+                type="button"
+                disabled={safePage >= totalPages - 1}
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              >
+                <ChevronRight size={15} />
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/* ── 页面 ─────────────────────────────────────────────────────────────── */
+
+export default function WarReportPage() {
+  const [dataVersion, setDataVersion] = useState(0)
+  const [selectedId, setSelectedId] = useState(null)
+  const [activeMetricId, setActiveMetricId] = useState(null)
+  const railRef = useRef(null)
+  const modeLabel = useModeLabelMap()
+
+  // 结算界面一落笔就派发 dugou:data-changed —— 战报据此重算，results 永远跟最新的。
+  useEffect(() => {
+    const handler = (event) => {
+      if (event?.detail?.uiOnly === true) return
+      setDataVersion((v) => v + 1)
+    }
+    window.addEventListener('dugou:data-changed', handler)
+    return () => window.removeEventListener('dugou:data-changed', handler)
+  }, [])
+
+  // dataVersion 是手动刷新触发器，故意作为依赖。
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const { periods, currentId } = useMemo(() => getCyclePeriods(), [dataVersion])
+
+  const activeId = selectedId && periods.some((p) => p.id === selectedId) ? selectedId : currentId
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const report = useMemo(() => getWarReport(activeId), [activeId, dataVersion])
+  const activeMetricDetail = useMemo(
+    () => report && activeMetricId ? buildMetricDetail(activeMetricId, report) : null,
+    [activeMetricId, report],
+  )
+
+  const handleRename = useCallback((cycleId, name) => {
+    setCycleTitle(cycleId, name)
+    setDataVersion((v) => v + 1)
+    if (!isPreviewMode()) runCloudSyncNow()
+  }, [])
+
+  const handleBaseCapitalSave = useCallback(async (nextBase) => {
+    if (!report) return { ok: false, reason: 'missing_report' }
+    const delta = Number((nextBase - report.period.baseCapital).toFixed(2))
+    if (Math.abs(delta) < 0.01) return { ok: true, unchanged: true, preview: isPreviewMode() }
+
+    const config = getSystemConfig()
+    const nextInitialCapital = Number(((Number(config.initialCapital) || 0) + delta).toFixed(2))
+    const capitalLedgerUpdatedAt = new Date().toISOString()
+
+    if (report.period.isGenesis) {
+      saveSystemConfig({ initialCapital: nextInitialCapital, capitalLedgerUpdatedAt })
+      setDataVersion((version) => version + 1)
+      if (isPreviewMode()) return { ok: true, preview: true }
+      return runCloudSyncNow()
+    }
+
+    const linkedInjectionId = report.period.openedBy?.linkedInjectionId
+    const targetInjection = report.period.injections.find((item) => item.id === linkedInjectionId)
+      || report.period.injections[0]
+    if (!targetInjection) return { ok: false, reason: 'missing_cycle_injection' }
+
+    const periodInjectionIds = new Set(report.period.injections.map((item) => item.id))
+    const adjustedAmounts = new Map(report.period.injections.map((item) => [item.id, Number(item.amount) || 0]))
+    if (delta > 0) {
+      adjustedAmounts.set(targetInjection.id, Number((adjustedAmounts.get(targetInjection.id) + delta).toFixed(2)))
+    } else {
+      let remainingReduction = Math.abs(delta)
+      const reductionOrder = [
+        targetInjection,
+        ...report.period.injections.filter((item) => item.id !== targetInjection.id).slice().reverse(),
+      ]
+      reductionOrder.forEach((item) => {
+        if (remainingReduction <= 0) return
+        const currentAmount = adjustedAmounts.get(item.id) || 0
+        const reduction = Math.min(currentAmount, remainingReduction)
+        adjustedAmounts.set(item.id, Number((currentAmount - reduction).toFixed(2)))
+        remainingReduction = Number((remainingReduction - reduction).toFixed(2))
+      })
+      if (remainingReduction > 0) return { ok: false, reason: 'invalid_cycle_injection' }
+    }
+
+    const capitalInjections = (Array.isArray(config.capitalInjections) ? config.capitalInjections : [])
+      .map((item) => periodInjectionIds.has(item.id) ? { ...item, amount: adjustedAmounts.get(item.id) } : item)
+    const nextAllocation = linkedInjectionId ? adjustedAmounts.get(linkedInjectionId) : null
+    const poolSettlements = (Array.isArray(config.poolSettlements) ? config.poolSettlements : [])
+      .map((item) => item.id === report.period.openedBy?.id
+        ? { ...item, newCapital: Number.isFinite(nextAllocation) ? nextAllocation : item.newCapital }
+        : item)
+
+    saveSystemConfig({ initialCapital: nextInitialCapital, capitalInjections, poolSettlements, capitalLedgerUpdatedAt })
+    setDataVersion((version) => version + 1)
+    if (isPreviewMode()) return { ok: true, preview: true }
+    return runCloudSyncNow()
+  }, [report])
+
+  const runKey = `${activeId}:${dataVersion}`
+
+  const scrollRail = (direction) => {
+    railRef.current?.scrollBy({ left: direction * 356, behavior: 'smooth' })
+  }
+
+  if (!report) {
+    return (
+      <div className="page-shell page-content-wide pt-5 motion-v2-scope">
+        <div className="wr-empty">尚无周期数据。</div>
+      </div>
+    )
+  }
+
+  const { kpi } = report
+
+  return (
+    <div className="page-shell page-content-wide pt-5 space-y-5 motion-v2-scope warreport-scope">
+      {/* 一整块沉浸式液态玻璃舞台：标题、主战果和周期选择不再拆成三张卡 */}
+      <section className="wr-showcase">
+        <div className="wr-liquid-field" aria-hidden="true">
+          <span className="wr-liquid-orb is-one" />
+          <span className="wr-liquid-orb is-two" />
+          <span className="wr-liquid-orb is-three" />
+          <span className="wr-liquid-glint" />
+        </div>
+
+        <div className="wr-page-head">
+          <div className="wr-page-head__copy">
+            <p className="wr-page-head__eyebrow"><span /> Performance archive</p>
+            <h1>战报</h1>
+            <p>
+              每个周期，都值得一次清晰的回看。
+              {isPreviewMode() && <span>· 演示数据</span>}
+            </p>
+          </div>
+          <div className="wr-sync-note">
+            <Cloud size={17} />
+            <div>
+              <span>Cloud archive</span>
+              <strong>周期标题与数据同步</strong>
+            </div>
+          </div>
+        </div>
+
+        <VerdictBanner report={report} runKey={runKey} onRename={handleRename}>
+          <BaseCapitalTile
+            index={0}
+            period={report.period}
+            onSave={handleBaseCapitalSave}
+            onOpen={() => setActiveMetricId('baseCapital')}
+          />
+          <KpiTile
+            index={1}
+            Icon={CheckCircle2}
+            label="命中率"
+            value={`${kpi.hitRate.toFixed(1)}%`}
+            sub={`${kpi.wins} 中 / ${kpi.losses} 失`}
+            tone={kpi.hitRate >= 50 ? 'win' : 'lose'}
+            onOpen={() => setActiveMetricId('hitRate')}
+          />
+          <KpiTile
+            index={2}
+            Icon={Layers}
+            label="投入总额"
+            value={toRmb(kpi.totalInputs)}
+            sub={kpi.pendingCount > 0 ? `另有 ${toRmb(kpi.pendingInputs)} 在途` : `均注 ${toRmb(kpi.avgStake)}`}
+            onOpen={() => setActiveMetricId('totalInputs')}
+          />
+          <KpiTile
+            index={3}
+            Icon={ReceiptText}
+            label="收入总额"
+            value={toRmb(kpi.totalRevenue)}
+            sub={`利润 ${toSigned(kpi.profit)} rmb`}
+            tone={toneOf(kpi.profit)}
+            onOpen={() => setActiveMetricId('totalRevenue')}
+          />
+          <KpiTile
+            index={4}
+            Icon={TrendingDown}
+            label="最大回撤"
+            value={toRmb(kpi.maxDrawdown)}
+            sub="期内峰谷差"
+            tone={kpi.maxDrawdown > 0 ? 'lose' : 'flat'}
+            onOpen={() => setActiveMetricId('maxDrawdown')}
+          />
+          <KpiTile
+            index={5}
+            Icon={TrendingUp}
+            label="最大升幅"
+            value={toRmb(kpi.maxRunup)}
+            sub="累计盈亏谷峰差"
+            tone={kpi.maxRunup > 0 ? 'win' : 'flat'}
+            onOpen={() => setActiveMetricId('maxRunup')}
+          />
+          <KpiTile
+            index={6}
+            Icon={TrendingUp}
+            label="最长连胜"
+            value={`${kpi.bestWinStreak} 连`}
+            sub={`最长连败 ${kpi.worstLoseStreak} 连`}
+            tone={kpi.bestWinStreak >= kpi.worstLoseStreak ? 'win' : 'lose'}
+            onOpen={() => setActiveMetricId('streak')}
+          />
+          <KpiTile
+            index={7}
+            Icon={Award}
+            label="单笔最佳"
+            value={kpi.bestEntry ? toSigned(kpi.bestEntry.profit) : '—'}
+            sub={kpi.worstEntry ? `最差 ${toSigned(kpi.worstEntry.profit)}` : '尚无已结算'}
+            tone="win"
+            onOpen={() => setActiveMetricId('bestEntry')}
+          />
+          <KpiTile
+            index={8}
+            Icon={Percent}
+            label="中位数 ROI"
+            value={toSignedPct(kpi.medianRoi)}
+            sub="全部已结算单"
+            tone={toneOf(kpi.medianRoi)}
+            onOpen={() => setActiveMetricId('medianRoi')}
+          />
+          <KpiTile
+            index={9}
+            Icon={BarChart3}
+            label="中位数盈利 ROI"
+            value={toSignedPct(kpi.medianWinningRoi)}
+            sub={`${kpi.wins} 笔盈利单`}
+            tone={kpi.wins > 0 ? 'win' : 'flat'}
+            onOpen={() => setActiveMetricId('medianWinningRoi')}
+          />
+          <KpiTile
+            index={10}
+            Icon={Percent}
+            label="平均 ROI"
+            value={toSignedPct(kpi.averageRoi)}
+            sub="单笔 ROI 算术平均"
+            tone={toneOf(kpi.averageRoi)}
+            onOpen={() => setActiveMetricId('averageRoi')}
+          />
+          <KpiTile
+            index={11}
+            Icon={Activity}
+            label="平均盈利 ROI"
+            value={toSignedPct(kpi.averageWinningRoi)}
+            sub={`${kpi.wins} 笔盈利单`}
+            tone={kpi.wins > 0 ? 'win' : 'flat'}
+            onOpen={() => setActiveMetricId('averageWinningRoi')}
+          />
+        </VerdictBanner>
+
+        <div className="wr-cycle-browser">
+          <div className="wr-cycle-browser__head">
+            <div>
+              <span>选择周期</span>
+              <strong>{periods.length} 个周期</strong>
+            </div>
+            <div className="wr-cycle-browser__nav">
+              <button type="button" onClick={() => scrollRail(-1)} aria-label="向前浏览周期">
+                <ChevronLeft size={15} />
+              </button>
+              <button type="button" onClick={() => scrollRail(1)} aria-label="向后浏览周期">
+                <ChevronRight size={15} />
+              </button>
+            </div>
+          </div>
+          <div className="wr-rail" ref={railRef} role="tablist" aria-label="选择战报周期">
+            {periods.map((period) => (
+              <PeriodCard
+                key={period.id}
+                period={period}
+                active={period.id === activeId}
+                onSelect={setSelectedId}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 战局走势 */}
+      <div className="wr-section-lead">
+        <span>周期趋势</span>
+        <h2>一次结算，不止一个数字。</h2>
+      </div>
+      <div className="wr-battle-grid">
+        <div className="wr-panel wr-curve-panel">
+          <div className="wr-panel__head">
+            <TrendingUp size={14} />
+            <div>
+              <p className="wr-panel__eyebrow">Capital trajectory</p>
+              <h3>周期净值推进</h3>
+            </div>
+            <span className="wr-panel__count">
+              结束余额 <strong>{toRmb(report.period.endBalance)}</strong>
+            </span>
+          </div>
+          <CampaignCurve curve={report.curve} />
+        </div>
+        <OutcomeDigest entries={report.entries} kpi={kpi} />
+      </div>
+
+      {/* 分项战果 */}
+      <div className="wr-section-lead">
+        <span>表现拆解</span>
+        <h2>从结果里，找到真正有效的模式。</h2>
+      </div>
+      <div className="wr-grid-3">
+        <BreakdownList
+          title="分联赛战果"
+          Icon={Flag}
+          rows={report.leagues}
+          emptyHint="本周期尚无已结算样本。"
+        />
+        <BreakdownList
+          title="分注额档 ROI"
+          Icon={Wallet}
+          rows={report.stakeBuckets}
+          emptyHint="本周期尚无已结算样本。"
+          metric="roi"
+          showEmpty
+        />
+        <BreakdownList
+          title="分策略模式"
+          Icon={Swords}
+          rows={report.modes}
+          emptyHint="本周期尚无已结算样本。"
+          renderLabel={(row) => modeLabel(row.label)}
+        />
+      </div>
+
+      {/* 分周 */}
+      <BreakdownList
+        title="分自然周盈亏"
+        Icon={CalendarDays}
+        rows={report.weeks}
+        emptyHint="本周期尚无已结算样本。"
+        className="wr-panel--weeks"
+        includeRoiInDetails
+      />
+
+      {/* 逐笔流水 */}
+      <div className="wr-section-lead is-compact">
+        <span>全部记录</span>
+        <h2>每一笔，都有据可循。</h2>
+      </div>
+      <EntryLedger entries={report.entries} modeLabel={modeLabel} />
+
+      <p className="wr-footnote">
+        <ShieldCheck size={13} />
+        <span>
+          周期分界线与「蓄水池余额 · 历史明细」中的止盈 / 止损结算完全一致。跨联赛、跨模式的串关按腿数均摊计入各分项，
+          故分项之和与总计一致。结算界面填回的比分与命中状态实时反映在逐笔战果中。
+        </span>
+      </p>
+
+      {activeMetricDetail && (
+        <MetricDetailCard detail={activeMetricDetail} onClose={() => setActiveMetricId(null)} />
+      )}
+    </div>
+  )
+}
