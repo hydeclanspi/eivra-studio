@@ -204,7 +204,7 @@ export default function ModernTopBar({ layoutMode = 'modern', designLink = null,
         <span className="mn-brand-logo-wrap">
           <C15DiamondCutV1Logo size="sm" />
         </span>
-        <span className="mn-brand-name">Eivra</span>
+        <span className="mn-brand-name">Eivra Studio</span>
       </button>
 
       {/* ── Modern / inpiration liquid morph switch ── */}

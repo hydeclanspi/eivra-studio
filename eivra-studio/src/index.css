@@ -2649,7 +2649,7 @@
 .mn-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   padding: 4px 8px 4px 4px;
   border-radius: 6px;
   transition: background-color 0.12s ease;
@@ -2708,13 +2708,15 @@
 .mn-brand-name {
   font-family: 'Avenir Next', 'SF Pro Display', 'Segoe UI', 'Helvetica Neue', 'DM Sans', system-ui, sans-serif;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 15.4px;
   letter-spacing: 0.45px;
   text-transform: none;
+  white-space: nowrap;
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
   color: #171717;
   display: inline-block;
+  transform: translateY(1px);
 }
 
 /* Compact liquid morph switch — active label blooms, inactive side is icon-only. */
