@@ -9558,17 +9558,18 @@
 /* ─────────────────────────────────────────────────────────────────────
    Global app zoom (browser-zoom equivalent)
    ---------------------------------------------------------------------
-   The whole app renders at 90% for a denser, more premium "overview"
-   feel — equivalent to opening the page at 90% browser zoom. Applies in
-   BOTH demo/preview and FULL (unlocked) modes so the live owner view
-   matches the demo presentation.
+   The whole app renders at 92% for a denser, more premium "overview"
+   feel — equivalent to opening the page at 92% browser zoom. The first
+   pass at 95% made the workspace feel oversized; 92% is the partial
+   rollback point. Applies in BOTH demo/preview and FULL (unlocked)
+   modes so the live owner view matches the demo presentation.
 
    Pure CSS (no JS class toggle) means the zoom is present from the very
-   first paint — there is never a 100%→90% flash.
+   first paint — there is never a 100%→92% flash.
 
    Caveat handled: CSS `zoom` (unlike browser zoom) does NOT resize the
-   viewport, so a `100vh` (`h-screen`) shell would render at 90vh and leave
-   a bottom gap. We compensate the app shell to `100vh / 0.9` so it renders
+   viewport, so a `100vh` (`h-screen`) shell would render at 92vh and leave
+   a bottom gap. We compensate the app shell to `100vh / 0.92` so it renders
    exactly full-height. Width fills naturally (block flow), so no horizontal
    fix is needed.
 
@@ -9577,10 +9578,10 @@
    cascade layer and would otherwise win regardless of specificity).
    ───────────────────────────────────────────────────────────────────── */
 html {
-  zoom: 0.9;
+  zoom: 0.92;
 }
 html .h-screen {
-  height: calc(100vh / 0.9);
+  height: calc(100vh / 0.92);
 }
 
 /* ─────────────────────────────────────────────────────────────────────

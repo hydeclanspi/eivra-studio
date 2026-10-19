@@ -1,14 +1,21 @@
 /* 投前研判（Pre-Match Studio）——本文件只服务投前，不动投后与其它页面。
  *
- * 版式：AI 快捷录入独占顶部通栏；比赛卡片内部右 6 / 左 4 双栏。
- * 材质：沿用液态玻璃（半透明 + 底色渐变 + backdrop blur），主队暖玫瑰 / 客队冷天蓝。
+ * 版式：AI 快捷录入独占顶部通栏；比赛区两张独立卡片（左 4 策略 / 右 6 研判），
+ *       没有 shared 底——外层只做透明容器。卡片材质直接复用产品通用的
+ *       glow-card + motion-v2-surface 通透玻璃，不自定义底色。
  */
 
 /* ── 版式：Quick Input 通栏；比赛区 4:6 两张独立卡片 ───────────────── */
+/* 2609 外壳把 New 页锁在 1120px；投前双卡需要比 1120 略宽，但也绝不能铺满——
+ * 这里取中间值 1280，配合全局 zoom 0.92。 */
+.theme-inspiration-2609
+  .inspiration-2609-body[data-lab-page='new']
+  .page-shell.lab-new-page[data-investment-view='pre'],
 .lab-new-page[data-investment-view='pre'],
 .lab-editions .lab-new-page[data-investment-view='pre'] {
   display: block;
-  max-width: 1500px;
+  width: min(100%, 1280px);
+  max-width: 1280px;
 }
 
 .lab-editions .lab-new-page[data-investment-view='pre'] > .lab-new-quick {
@@ -43,25 +50,24 @@
   min-height: 74px;
 }
 
-/* 比赛区：左 4 策略卡 / 右 6 研判卡，两张独立卡片落在浅色底板上。
- * DOM 里主栏在前，这里用显式网格把策略卡放到第 1 列，窄屏回落成单列顺序。 */
+/* 比赛区：左 4 策略卡 / 右 6 研判卡，两张独立通透卡，无共享底。
+ * DOM 里主卡在前，这里用显式网格把策略卡放到第 1 列，窄屏回落成单列顺序。 */
 .pre-match-split {
   display: grid;
   grid-template-columns: minmax(0, 4fr) minmax(0, 6fr);
-  gap: 22px;
+  gap: 24px;
   align-items: start;
 }
 
+/* 卡片材质由 glow-card + motion-v2-surface 提供；这里只管布局与内边距。 */
 .pre-match-split__main,
 .pre-match-split__side {
   min-width: 0;
-  padding: 20px;
-  border-radius: 20px;
-  border: 1px solid rgba(214, 211, 209, 0.6);
-  background: rgba(255, 255, 255, 0.88);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.84),
-    0 20px 44px -40px rgba(41, 37, 36, 0.44);
+  padding: 22px 24px;
+}
+
+.pre-match-split__main > :last-child {
+  margin-bottom: 0;
 }
 
 .pre-match-split__main {
@@ -74,9 +80,23 @@
   grid-row: 1;
 }
 
-/* 浅色底板把两张白卡从外层大卡片里托出来，避免糊成一整块。 */
-.lab-new-page[data-investment-view='pre'] .lab-new-matches {
-  background: linear-gradient(180deg, rgba(250, 250, 249, 0.8), rgba(250, 250, 249, 0.42));
+/* 左卡顶部：Portfolio Construction topic 与策略参数之间留一条浅线。 */
+.pre-topic {
+  padding: 0 0 16px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(214, 211, 209, 0.4);
+  background: transparent;
+}
+
+.pre-topic > div {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.pre-topic .flex.items-center.gap-4 {
+  flex-wrap: wrap;
+  row-gap: 10px;
 }
 
 /* 策略卡变窄后，策略类型与 Conf 改为上下排列，避免滑轨和快选挤在一行。 */

@@ -1719,6 +1719,53 @@ export default function NewInvestmentPage() {
         {/* 旧的比分网格已停用（保留文件方便回调）：投前的研究板现在长在每场比赛卡片里。 */}
       </div>
   )
+
+  const isPre = viewMode === 'pre'
+  const ticketClassName = isPre
+    ? 'lab-new-ticket pre-sheet-plain'
+    : 'motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden lab-new-ticket'
+  const matchesClassName = isPre ? 'space-y-8 lab-new-matches' : 'p-6 space-y-6 lab-new-matches'
+  const footerClassName = isPre
+    ? 'motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 px-6 py-6 mt-6 lab-new-footer'
+    : 'px-6 py-6 bg-gradient-to-r from-stone-50 to-orange-50/30 border-t border-stone-100 lab-new-footer'
+  const topicBlock = (
+    <div className={isPre ? 'lab-new-construction pre-topic' : 'px-6 py-5 border-b border-stone-100 bg-stone-50/50 lab-new-construction'}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-4 flex-nowrap min-w-0">
+          <span className="text-sm text-stone-600 whitespace-nowrap">Portfolio Construction</span>
+          <div className="flex gap-2">
+            {[1, 2, 3, 4, 5].map((size) => (
+              <button
+                key={size}
+                onClick={() => setParlaySize(size)}
+                className={`w-10 h-10 rounded-xl text-sm font-medium btn-hover transition-all ${
+                  size === parlaySize
+                    ? 'bg-gradient-to-br from-amber-400 to-orange-400 text-white shadow-lg shadow-orange-200/40'
+                    : 'bg-white border border-stone-200 text-stone-500 hover:border-amber-300 hover:text-amber-600'
+                }`}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
+          <span className="text-xs text-stone-400 ml-2 whitespace-nowrap">{parlaySize === 1 ? '(single match)' : `(${parlaySize} matches combo)`}</span>
+        </div>
+
+        {parlaySize > 1 && (
+          <div className="w-40 md:w-44 shrink-0">
+            <input
+              type="text"
+              placeholder="title name (可选)"
+              value={comboName}
+              onChange={(event) => setComboName(event.target.value)}
+              className="input-glow w-full px-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400"
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
   return (
     <div className="page-shell page-content-fluid motion-v2-scope lab-new-page" data-investment-view={viewMode}>
       <div className="mb-8 lab-page-heading flex flex-wrap items-end justify-between gap-4">
@@ -1736,44 +1783,10 @@ export default function NewInvestmentPage() {
       {quickInputCard}
 
 
-      <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden lab-new-ticket">
-        <div className="px-6 py-5 border-b border-stone-100 bg-stone-50/50 lab-new-construction">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-4 flex-nowrap min-w-0">
-              <span className="text-sm text-stone-600 whitespace-nowrap">Portfolio Construction</span>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5].map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => setParlaySize(size)}
-                    className={`w-10 h-10 rounded-xl text-sm font-medium btn-hover transition-all ${
-                      size === parlaySize
-                        ? 'bg-gradient-to-br from-amber-400 to-orange-400 text-white shadow-lg shadow-orange-200/40'
-                        : 'bg-white border border-stone-200 text-stone-500 hover:border-amber-300 hover:text-amber-600'
-                    }`}
-                  >
-                    {size}
-                  </button>
-                ))}
-              </div>
-              <span className="text-xs text-stone-400 ml-2 whitespace-nowrap">{parlaySize === 1 ? '(single match)' : `(${parlaySize} matches combo)`}</span>
-            </div>
+      <div className={ticketClassName}>
+        {viewMode !== 'pre' && topicBlock}
 
-            {parlaySize > 1 && (
-              <div className="w-40 md:w-44 shrink-0">
-                <input
-                  type="text"
-                  placeholder="title name (可选)"
-                  value={comboName}
-                  onChange={(event) => setComboName(event.target.value)}
-                  className="input-glow w-full px-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="p-6 space-y-6 lab-new-matches">
+        <div className={matchesClassName}>
           {matches.map((match, idx) => {
             const homeSuggestions =
               activeTeamInput?.matchIdx === idx && activeTeamInput?.side === 'home' ? getTeamSuggestions(match.homeTeam) : []
@@ -1809,7 +1822,7 @@ export default function NewInvestmentPage() {
             )
 
             return (
-              <div key={idx} className={`motion-v2-match-card relative lab-new-match ${idx > 0 ? 'pt-6 border-t border-stone-100' : ''}`}>
+              <div key={idx} className={`motion-v2-match-card relative lab-new-match ${idx > 0 && viewMode !== 'pre' ? 'pt-6 border-t border-stone-100' : ''}`}>
                 {appliedHistory ? (
                   <div className="absolute right-1 top-0 z-30 history-float-wrap">
                     <div className="history-float-panel history-float-enter px-2.5 py-2">
@@ -1895,10 +1908,10 @@ export default function NewInvestmentPage() {
 
                 {viewMode !== 'pre' && matchHeader}
 
-                {/* 投前双栏：右 6 栏放对阵 → Entries → 云图 → 记录，左 4 栏放策略参数。 */}
+                {/* 投前：两张独立通透卡（左 4 策略 / 右 6 研判），无共享底。 */}
                 <div className={viewMode === 'pre' ? 'pre-match-split' : undefined}>
-                {/* 主栏（右 6） */}
-                <div className={viewMode === 'pre' ? 'pre-match-split__main' : undefined}>
+                {/* 主卡（右 6）：对阵 → Entries → 云图 → 记录 */}
+                <div className={viewMode === 'pre' ? 'pre-match-split__main motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100' : undefined}>
                 {viewMode === 'pre' && matchHeader}
                 {viewMode === 'pre' ? (
                   <PreMatchHero
@@ -2128,8 +2141,9 @@ export default function NewInvestmentPage() {
                   />
                 )}
                 </div>
-                {/* 侧栏（左 4）：策略类型 → Conf → 校准参数 → 赛前备注 */}
-                <div className={viewMode === 'pre' ? 'pre-match-split__side' : undefined}>
+                {/* 左卡（左 4）：Portfolio Construction topic → 策略类型 → Conf → 校准参数 → 赛前备注 */}
+                <div className={viewMode === 'pre' ? 'pre-match-split__side motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100' : undefined}>
+                {viewMode === 'pre' && idx === 0 && topicBlock}
                 <div className="pre-strategy-grid grid grid-cols-3 gap-4 mb-4">
                   <div className="relative">
                     <label className="text-xs text-stone-400 mb-1.5 block">{labels.formLabel.mode}</label>
@@ -2373,7 +2387,7 @@ export default function NewInvestmentPage() {
           })}
         </div>
 
-        <div className="px-6 py-6 bg-gradient-to-r from-stone-50 to-orange-50/30 border-t border-stone-100 lab-new-footer">
+        <div className={footerClassName}>
           {combinedAtomicProfile.modelStatus === 'approximate' && (
             <p role="status" className="mb-3 text-xs text-amber-700">同场混合或重叠选项尚不支持精确联合建模，已停用自动仓位建议；仍可按实际投入手动入档。</p>
           )}
