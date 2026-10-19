@@ -2649,7 +2649,7 @@
 .mn-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   padding: 4px 8px 4px 4px;
   border-radius: 6px;
   transition: background-color 0.12s ease;
@@ -2715,15 +2715,6 @@
   text-rendering: geometricPrecision;
   color: #171717;
   display: inline-block;
-  transform: translateX(0);
-  transition: transform 140ms ease-out;
-}
-
-.mn-brand-measure {
-  width: 0;
-  height: 0;
-  flex: 0 0 0;
-  pointer-events: none;
 }
 
 /* Compact liquid morph switch — active label blooms, inactive side is icon-only. */

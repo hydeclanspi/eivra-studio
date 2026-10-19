@@ -1,5 +1,5 @@
 import { brandLocalStorage } from '../lib/brandStorage.js'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   PlusCircle,
@@ -140,13 +140,9 @@ function LayoutMorphSwitch({ layoutMode, onPreviewChange }) {
 export default function ModernTopBar({ layoutMode = 'modern', designLink = null, designPreview = false, onPreviewLayoutChange = null }) {
   const [openDropdown, setOpenDropdown] = useState(null)
   const [dataVersion, setDataVersion] = useState(0)
-  const [brandNameOffset, setBrandNameOffset] = useState(0)
   const [tmActive, setTmActive] = useState(isInTimeMachineMode())
   const [tmInfo, setTmInfo] = useState(getTimeMachineSessionInfo())
   const dropdownRef = useRef(null)
-  const brandLogoRef = useRef(null)
-  const brandNameRef = useRef(null)
-  const brandSepRef = useRef(null)
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -175,47 +171,6 @@ export default function ModernTopBar({ layoutMode = 'modern', designLink = null,
   useEffect(() => {
     setOpenDropdown(null)
   }, [location.pathname])
-
-  useLayoutEffect(() => {
-    const computeBrandCenter = () => {
-      if (!brandLogoRef.current || !brandNameRef.current || !brandSepRef.current) return
-
-      const logoRect = brandLogoRef.current.getBoundingClientRect()
-      const nameRect = brandNameRef.current.getBoundingClientRect()
-      const sepRect = brandSepRef.current.getBoundingClientRect()
-
-      // Visual midpoint: center of the visible gap between logo and slash.
-      const gapLeft = logoRect.right
-      const gapRight = sepRect.left
-      const visualNudgeRight = 2.5
-      const targetCenter = (gapRight > gapLeft
-        ? (gapLeft + gapRight) / 2
-        : (logoRect.left + logoRect.width / 2 + (sepRect.left + sepRect.width / 2)) / 2) + visualNudgeRight
-      const nameCenter = nameRect.left + nameRect.width / 2
-      const delta = targetCenter - nameCenter
-
-      setBrandNameOffset((prev) => (Math.abs(prev - delta) < 0.1 ? prev : delta))
-    }
-
-    computeBrandCenter()
-    const rafId = window.requestAnimationFrame(computeBrandCenter)
-    window.addEventListener('resize', computeBrandCenter)
-
-    const resizeObserver = new ResizeObserver(computeBrandCenter)
-    if (brandLogoRef.current) resizeObserver.observe(brandLogoRef.current)
-    if (brandNameRef.current) resizeObserver.observe(brandNameRef.current)
-    if (brandSepRef.current) resizeObserver.observe(brandSepRef.current)
-
-    if (document.fonts?.ready) {
-      document.fonts.ready.then(computeBrandCenter).catch(() => {})
-    }
-
-    return () => {
-      window.cancelAnimationFrame(rafId)
-      window.removeEventListener('resize', computeBrandCenter)
-      resizeObserver.disconnect()
-    }
-  }, [])
 
   const stats = useMemo(() => {
     const investments = getInvestments()
@@ -246,19 +201,11 @@ export default function ModernTopBar({ layoutMode = 'modern', designLink = null,
     <header className="mn-bar">
       {/* ── Brand ── */}
       <button className="mn-brand" onClick={() => navigate('/new')}>
-        <span ref={brandLogoRef} className="mn-brand-logo-wrap">
+        <span className="mn-brand-logo-wrap">
           <C15DiamondCutV1Logo size="sm" />
         </span>
-        <span
-          ref={brandNameRef}
-          className="mn-brand-name"
-          style={{ transform: `translateX(${brandNameOffset}px)` }}
-        >
-          Eivra
-        </span>
+        <span className="mn-brand-name">Eivra</span>
       </button>
-
-      <span ref={brandSepRef} className="mn-brand-measure" aria-hidden="true" />
 
       {/* ── Modern / inpiration liquid morph switch ── */}
       {(!designPreview || onPreviewLayoutChange) && <LayoutMorphSwitch layoutMode={layoutMode} onPreviewChange={onPreviewLayoutChange} />}
