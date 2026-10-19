@@ -2,7 +2,7 @@
 
 应用工作区（React + Vite）。产品定位、模型方法与架构总览见仓库根目录的 [`README.md`](../README.md)；本文件只覆盖开发者上手所需的部分。
 
-正式品牌为 **Eivra Studio**，标语为 **Intuition, calibrated.**。当前生产页面仍沿用 DuGou 的视觉身份；命名规则、Acuen 备选名和兼容边界见 [`docs/brand-identity.md`](docs/brand-identity.md)。
+正式品牌为 **Eivra Studio**，标语为 **Intuition, calibrated.**。当前生产页面仍沿用既有视觉身份；命名规则、Acuen 备选名和兼容边界见 [`docs/brand-identity.md`](docs/brand-identity.md)。
 
 ## 环境要求
 

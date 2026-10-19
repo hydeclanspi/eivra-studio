@@ -1,4 +1,4 @@
-// Historical read-only audit probes against baseline 49e4622, NOT current code.
+// Historical read-only audit probes against baseline 91c4a51ebc65, NOT current code.
 // Current fix regressions live in src/lib/__tests__ (run npm test).
 // No browser, storage,
 // network, real account data, or application write functions are invoked.
@@ -12,9 +12,9 @@ import assert from 'node:assert/strict'
 import { transformSync } from 'esbuild'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const baseline = '49e4622'
-// This pre-rebrand commit still stores its source at the historical directory.
-const source = (file) => execFileSync('git', ['show', `${baseline}:dugou-model-centre/${file}`], { cwd: root, encoding: 'utf8' })
+const baseline = '91c4a51ebc65'
+// History normalization preserves this baseline source under the Eivra directory.
+const source = (file) => execFileSync('git', ['show', `${baseline}:eivra-studio/${file}`], { cwd: root, encoding: 'utf8' })
 console.log(`Historical audit baseline ${baseline}; assertions intentionally reproduce pre-fix defects.`)
 function isolated(file, names, bindings = {}, before = null) {
   let code = source(file)

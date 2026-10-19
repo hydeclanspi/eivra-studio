@@ -2,200 +2,183 @@
 
 **Intuition, calibrated.**
 
-A personal quantitative research and decision workspace for probability calibration, portfolio construction, and event-driven position management.
+### A quantitative research workbench for decisions under uncertainty.
 
-**Eivra** 是一个以 *eigen*（数学中的特征概念）与 *variance*（方差）为灵感创造的品牌名。它承载的是一种轻盈、敏锐而严谨的技术气质：保留人的洞察，让判断接受统计检验，并在反馈中持续校准。**Studio** 则强调这是一处可以研究、构建、验证和复盘的工作空间。
+Eivra Studio turns a discretionary thesis into a traceable sequence of forecasts, allocations, outcomes, and revisions. It brings probability calibration, portfolio construction, and empirical validation into one interactive workspace—built for a researcher who wants to understand both the decision and the evidence behind it.
 
-**Eivra Studio** 是本项目在 GitHub、作品集与 CV 中使用的正式名称。线上产品在视觉身份更新完成前仍保留 DuGou 的页面品牌与 Logo；它与本仓库是同一个项目。品牌层级、未来命名方向与 Acuen 备选名见[品牌命名记录](eivra-studio/docs/brand-identity.md)。
+[Explore the live workspace](https://hydeclanspi.vercel.app) · [Inside the engine](#inside-the-engine) · [Run locally](#run-locally) · [Brand notes](eivra-studio/docs/brand-identity.md)
 
----
+[![CI](https://github.com/hydeclanspi/eivra-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/hydeclanspi/eivra-studio/actions/workflows/ci.yml)
 
-Eivra Studio 是一套个人长期迭代的量化决策系统。它处理一类特定的标的——结果离散、由市场报出赔付倍数的事件型头寸（数据域为足球赛事结果）——并围绕一个朴素、却不容易做到的命题构建：
+**Probability calibration · Fractional Kelly · Shared-event Monte Carlo · Walk-forward validation**
 
-> **把一笔依赖主观判断的决策，变成可计量、可校准、可复盘的过程。**
-
-它不打算与机构的全参数定价模型竞争。它解决的是另一个问题——当超额收益的来源是「人的判断」时，如何用工程与统计的纪律，约束这份判断不被情绪、近因和运气污染；并随着样本积累，让判断本身可被检验、可被修正。
-
-线上演示：**[hydeclanspi.vercel.app](https://hydeclanspi.vercel.app)**　·　个人研究与作品集项目，持续迭代。
+Independently designed, engineered, and maintained by [hydeclanspi](https://github.com/hydeclanspi). The current research domain is discrete football outcomes priced through market odds; the system studies the broader problem of allocating risk when part of the signal comes from human judgment.
 
 ---
 
-## 命题 · Thesis
+## The idea
 
-判断驱动的决策有三个反复出现的失效模式。整个系统是围绕「逐一压制它们」来设计的，而不是围绕功能清单。
+A probability is a claim. A position is a commitment. An outcome is evidence.
 
-| 失效模式 | 朴素做法的问题 | 系统的对策 |
-| --- | --- | --- |
-| **仓位** | 凭信心和情绪决定仓位大小，赢时贪、亏时躁 | 以分数凯利（fractional Kelly）把「优势」映射为「仓位」，再套一道硬性风险上限 |
-| **校准** | 不知道自己的「七成把握」到底值不值七成 | 用「预期评分 vs. 实际评分」的系统性偏差，以及随历史滚动更新的校准系数，量化并回拨这份信心 |
-| **运气** | 把运气当本事，把本事当运气 | 用一个噪声/偶然性参数把两者分离，并以预测序贯（prequential）回测拒绝任何「事后视角」 |
+Eivra Studio connects all three. A forecast records what was believed before an event. Allocation makes the consequences of that belief explicit. Settlement adds an observation to the research history. Calibration tests whether confidence deserves to survive the next decision.
 
-这套取舍背后是一个明确的立场：**模型的价值不在于替人做判断，而在于让判断者对自己诚实。** 系统因此刻意保持「人机协作」的边界——人提供方向性的、难以参数化的洞察，机器负责纪律、记账与统计检验。
+The objective is a disciplined feedback loop: **form a thesis, quantify uncertainty, size exposure, observe outcomes, revise the model.**
 
----
+The name **Eivra** is coined from the mathematical ideas of *eigen* and *variance*: structure within complexity, and uncertainty that can be measured. **Studio** describes the working environment—an integrated space to investigate, build, test, and refine. The visual identity is intentionally light; the analytical work is explicit and inspectable.
 
-## 决策闭环 · The Loop
-
-产品围绕一条决策闭环组织：每一笔头寸从录入到复盘，都会回流为下一次校准的样本。校准是否改善，需要通过样本外验证持续检验。
-
-```
-  录入 ─────▶ 配置 ─────▶ 结算 ─────▶ 复盘
-   │           │           │           │
- 自然语言    凯利分层      盈亏登记    偏差/校准
- 结构化      组合脆弱性    净值更新    回流为系数
-   ▲                                   │
-   └───────────────── 校准回流 ◀────────┘
-```
-
-| 阶段 | 页面 | 路由 | 职责 |
-| --- | --- | --- | --- |
-| 录入 | New | `/new` | 自然语言一句话 → 结构化头寸；即时给出建议仓位与预期评分并锁定快照 |
-| 配置 | Combo | `/combo` | 多事件组合的枚举与校准、凯利分层配置、组合脆弱性（依赖风险）评估 |
-| 结算 | Settle | `/settle` | 待兑现头寸的批量结算与盈亏登记 |
-| 看板 | Dashboard | `/dashboard` | 净值曲线、兑现率、ROI 等核心指标 |
-| 分析 | Analysis | `/dashboard/analysis` | 分模式 / 分维度的多维切片，定位正期望区域 |
-| 指标 | Metrics | `/dashboard/metrics` | 期望-实际偏差、校准曲线、统计显著性检验 |
-| 周期复盘 | Seasons | `/dashboard/report` | 按周期汇总表现与复盘记录 |
-| 策略研究 | Quants | `/quants` | 量化策略研究、赛果与赔率历史管理 |
-| 档案 | History | `/history` | 全量历史头寸的检索与回溯 |
-| 画像 | Teams | `/history/teams` | 按标的聚合的历史表现画像 |
-| 标定 | Params | `/params` | 参数标定、预测序贯回测、校准回归（R²） |
-
----
-
-## 模型 · Capability
-
-核心量化分析由一条纯函数式管线组织（[`src/lib/analytics.js`](eivra-studio/src/lib/analytics.js)）：输入历史头寸，输出结构化结果。管线自上而下分五段，下面描述的是**方法**与其背后的取舍——具体的特征集与已标定的常数，按设计在公开演示中遮罩（见「演示模式」）。
-
-**1 · 归一化（Normalize）**
-清洗赔付倍数、期望与模式标签，统一离散结果的语义，并以数值原语（`clamp` / `toNumber` / 区间夹逼）保证健壮性——脏数据不应该让一条统计管线给出看似正常的错误答案。
-
-**2 · 加权统计（Weighted Aggregation）**
-三类权重叠加：样本量信心权重（对数曲线，小样本自动收敛到先验）、近因时间衰减（分档加权，近期表现更重）、以及市场隐含失败率。输出兑现率、ROI、期望-实际偏差等基础聚合量。一处值得一提的取舍：多个特征的置信度以**几何平均**而非算术平均聚合——因为对一件事的理解受限于你最不了解的那一面，几何平均对短板更敏感。
-
-**3 · 凯利仓位（Kelly Staking）**
-以分数凯利给出建议仓位并套风险上限夹逼：`f* = (b·p − q) / b`，再除以一个分数因子、并以「资金 × 风险上限比例」封顶。为什么不是全凯利——全凯利在对数财富意义上是增长最优的，但它对胜率的估计误差极其敏感，且回撤难以承受。分数凯利 + 硬上限，是对「参数本身就有误差」这一事实的诚实对冲。建议仓位按风险档位分桶成矩阵，从「保本」到「高方差」各用不同的分数因子。
-
-**4 · 蒙特卡洛仿真（Monte-Carlo）**
-`buildMonteCarloSeed → createSeededRng` 是一套确定性的 mulberry32 伪随机数发生器：同一份历史数据每次得到**完全一致**的随机序列。这不是细节洁癖——它意味着「改了模型之后净值曲线的变化」一定来自模型本身，而非随机噪声，于是任何一次改动都可被回归测试和 A/B 对照。运行次数由 `resolveMonteCarloRuns` 在固定算力预算内按样本量动态决定，在精度与响应之间取平衡。
-
-**5 · 校验与校准（Validation & Calibration）**
-- **预测序贯回测（prequential）**：只用「此刻之前」的数据预测下一段，再用真实结果更新——结构上杜绝前视偏差，给出诚实的样本外表现。
-- **校准回归**：用回归把「实际评分」拟合为各特征的连续函数（`actual ≈ β₀ + Σ βᵢ·xᵢ`），系数 β 随历史滚动更新，并以 R² 报告拟合度——比粗暴分档更能捕捉连续变化。
-- **依赖风险 / 组合脆弱性**：组合的真实风险不等于各成分风险之和。系统用二项检验配合互补误差函数 `erfc`（Abramowitz–Stegun 近似）量化「多事件同时失效」的隐性尾部风险，输出一个脆弱性评分。
-
-这五段是骨架。真正把它和「一张分档表加一条凯利公式」区分开的，是其中三处刻意的算法纵深——校准、组合、与脆弱性。
-
-**校准栈（Calibration Stack）。** 把信心重映射为概率，不止一层线性回归。原始评分先过**保序回归**（isotonic / PAV）——一种不假设函数形状、只要求单调的非参数校准；再按赔付倍数分桶做 **Conf×Odds 交叉校准**，因为同一个「七成把握」在低赔与高赔区间的系统性偏差并不一样；最后叠加**标的级经验贝叶斯残差**——每个标的的历史偏差按样本量向全局先验收缩，样本越薄、越不敢偏离先验。每一层的权重都不是常数，而由它自身的可靠度（样本量 × 稳定度）决定：**一个校准层在数据不足时，应当主动让位给更钝、却更安全的那一层。** 校准质量本身也被持续审计——除 R² 外并行计算 Brier、LogLoss 与 ECE（期望校准误差），并比对训练窗与样本外窗的漂移，好在「越自信越错」时第一时间察觉。
-
-**组合构建（Portfolio Construction）。** 多标的组合的配置被当成一个真正的优化问题，而非按信心排序。以 Markowitz 均值-方差为目标——`α·μ − (1−α)·wᵀΣw` 再减一项集中度惩罚——在「非负、逐标的设上限、合计为一」的带帽单纯形上做投影梯度下降，学习率按**余弦退火**衰减以兼顾探索与收敛；协方差 `Σ` 不是凭空设定，而来自标的间的真实相关结构。求出的配置再经一道 **MMR（最大边际相关）重排**，在「单一效用」与「整体分散」之间显式权衡，刻意压低对任一场赛果的暴露——一个组合最危险的，往往不是某个标的的胜率，而是几个标的其实共享同一个风险来源。风险度量则交给一轮**共享赛果的蒙特卡洛**：同一场赛事在单次模拟里只决定一次结果，从而保留组合内的相关性，输出盈利概率、95% VaR 与最大回撤的完整分布，而非一个点估计。
-
-**组合脆弱性（Copula × Shapley）。** 沿着上面的「依赖风险」再往下，是系统里数学最重的一块。二项检验只回答「两个标的是否倾向于同时失效」的显著性；要把它变成可用的联合风险，系统以一支 **FGM Copula** 在固定边际下重构联合失效概率，并把相关项夹逼在 **Fréchet–Hoeffding 上下界**之内——边际不动，只让「共同失效」这一项说话。再往上，组合的整体脆弱性由**蒙特卡洛 Shapley 值**逐对归因：把每一对标的视作合作博弈中的参与者，在大量随机排列下估计它对「同时崩盘」的边际贡献，最终落到一张**碎裂热力图**——它回答的不是「这个组合危不危险」，而是「危险具体来自哪两个标的」。
-
-这三处的系数，没有一个是写死的。它们都随结算历史滚动重估，在「学习值」与「先验」之间按可靠度收缩；约九成的组合超参数以此自校准——样本是唯一的老师，先验只是样本不足时的临时扶手。
-
----
-
-## 工程 · Engineering
-
-模型能力之外，让这套代码站得住脚的，是几个一以贯之的工程决定。
-
-**共享的分析内核。** 核心指标集中在 `src/lib/` 中计算，页面消费分析结果，使同一指标在不同视图中保持一致。
-
-**三段式记忆化缓存。** 分析偏重 CPU（蒙特卡洛、回归、矩阵），页面间又反复请求同一结果。缓存正确性被设计成「数据版本号的纯函数」，而非靠手工失效：
-1. **修订号失效** —— 任意写操作触发 `revision++`，所有旧缓存键（以 revision 为前缀）一次性自然作废；
-2. **领域事件驱动** —— 监听 `dugou:data-changed`，解耦组件间的缓存失效；该历史事件名为兼容现有运行时而保留；
-3. **作用域分桶** —— 每个计算域各自一个 `Map`，互不污染。
-
-缓存最难的从来不是命中率，而是「该失效时一定失效」。把它绑定到一个单调递增的版本号上，等于把一类缓存 bug 在结构上消除了。
-
-**本地优先（local-first）。** 数据默认完整存于浏览器，分析全部在前端完成，**离线可用、无需后端算力**。登录后可选地与 Supabase 同步——云端是「增量」而非「依赖」。
-
-**展示层抽象。** 预览与完整模式共用同一条计算管线，遮罩只发生在视图层。所见即真实逻辑——演示展示的不是另一套简化实现，而是真实引擎的真实输出，只是把参数命名换成了占位符。
-
-**质量门禁。** Vitest 覆盖模型内核（依赖风险、语义解析、仿真引擎）；ESLint 9 flat config，规则取舍以「抓真 bug、放过纯风格」为原则；GitHub Actions 在每次推送 / PR 上执行 lint → test → build 三道门禁。
-
----
-
-## 结构 · Architecture
+## The research loop
 
 ```text
-./                                   GitHub 仓库根目录
-├── README.md                        产品定位、品牌理念与架构总览
-├── CLAUDE.md                        维护与交付约定
-├── .github/workflows/               CI 门禁 + Supabase 保活
-└── eivra-studio/                    应用目录 / Vercel Root Directory
-    ├── src/
-    │   ├── lib/                    业务与模型内核
-    │   │   ├── analytics.js        核心量化分析管线与缓存
-    │   │   ├── atomicParlay.js     多事件组合的原子拆解
-    │   │   ├── naturalInputParser.js   自然语言结构化录入
-    │   │   ├── localData.js · gitSync.js · cloudSync.js
-    │   │   └── __tests__/          模型、协议与组件回归测试
-    │   ├── pages/                  决策工作流与设计预览页面
-    │   ├── components/ · design/ · data/ · workers/
-    │   └── App.jsx                 路由与全局布局
-    ├── api/                        解锁、AI 解析与加密快照同步端点
-    ├── docs/                       品牌记录、设计说明与历史审计
-    ├── public/                     静态视觉资源
-    ├── scripts/ · output/          研究脚本与报告
-    └── package.json · vercel.json  应用与部署配置
+Thesis → Forecast → Allocation → Settlement → Attribution → Calibration
+            ↑                                                │
+            └────────────── the next decision ────────────────┘
 ```
 
-数据流向单一且无环：`localData / cloudSync`（存储）→ `analytics`（派生）→ `pages`（投影）。写操作回到存储层并 `bump` 修订号，缓存随之作废，下一次读取自然得到最新派生值。
+| Stage | Research question | In the workspace |
+| --- | --- | --- |
+| **Frame** | What do I believe, and why? | Structured event records, natural-language entry, and forecast snapshots |
+| **Allocate** | How much risk should this view carry? | Fractional Kelly sizing, exposure limits, and portfolio construction |
+| **Observe** | What actually happened? | Settlement, capital tracking, and a persistent decision history |
+| **Diagnose** | Where did the result come from? | Performance slices, event profiles, and dependency diagnostics |
+| **Recalibrate** | Does the evidence support changing the model? | Probability scoring, chronological validation, and reliability-weighted updates |
 
----
+## Inside the engine
 
-## 演示模式 · Preview
+### Probability, calibrated
 
-线上是一个**公开演示模式**，它本身是一处刻意的产品设计——既要完整展示交互与算法效果，又不泄露真实模型配置。
+The calibration pipeline combines regression, **PAV isotonic calibration**, confidence-by-odds adjustments, and empirical-Bayes shrinkage. Estimates move toward a prior when evidence is thin. Model comparisons use **Brier score** and **log loss**, alongside calibration diagnostics and chronological evaluation windows.
 
-- **参数脱敏** —— 核心特征以希腊字母占位（α / β / γ / δ，随机扰动 ε）。演示能跑通完整逻辑，但看不到真实的参数命名与语义。
-- **数据短暂（ephemeral）** —— 演示数据仅存于内存 / `sessionStorage`，关闭标签页即清空；每次打开都是一致的初始状态，便于复现。
-- **计算一致** —— 与完整模式共用同一条管线，仅在展示层遮罩，保证「所见即真实逻辑」。
-- **访问控制** —— `POST /api/unlock` 以 HS256 JWT 完成「预览 → 完整」的视图翻转，token 存于 `sessionStorage`、关闭即失效。它只把守*视觉*解锁：演示数据完全活在访客自己的浏览器里，JWT 背后没有任何所有者数据。其目的，是让专有的参数命名不出现在随手一瞥的视野里，而非保护资金数据。
+For binary outcomes, the Brier score makes the claim testable:
 
----
+$$
+\operatorname{Brier}=\frac{1}{N}\sum_{i=1}^{N}(p_i-y_i)^2
+$$
 
-## 技术栈 · Stack
+A high-confidence forecast earns its place through subsequent observations. The implementation distinguishes tuning windows from held-out evaluation and tracks the basis of outcome-availability timestamps.
 
-| 层 | 选型 |
-| --- | --- |
-| 前端 | React 18 · Vite 5 |
-| 样式 | Tailwind CSS 3 |
-| 路由 | React Router 6 |
-| 存储 | Local-first（`localStorage`）+ 可选 Supabase 云同步 |
-| 数据 | SheetJS（`xlsx`）导入导出 · `lucide-react` 图标 |
-| 边缘 | Vercel serverless function（HS256 JWT） |
-| 测试 | Vitest（v8 coverage） |
-| 规范 | ESLint 9（flat config） |
-| CI | GitHub Actions（lint · test · build） |
+→ [Calibration and validation engine](eivra-studio/src/lib/analytics.js) · [Probability-update acceptance](eivra-studio/src/lib/adaptiveValidation.js)
 
----
+### Exposure, constrained
 
-## 本地运行 · Getting Started
+**Fractional Kelly** translates an estimated edge into a proposed stake, subject to explicit capital and risk limits. Portfolio construction adds capped allocations, concentration penalties, and diversification-aware selection. Supporting a strong individual view and building a resilient collection of views are separate decisions in the interface.
+
+Multi-event positions are decomposed into atomic selections before their probabilities and payoffs are evaluated. Unsupported joint-market combinations retain an explicit unsupported state.
+
+→ [Atomic position model](eivra-studio/src/lib/atomicParlay.js) · [Portfolio workspace](eivra-studio/src/pages/ComboPage.jsx)
+
+### Outcomes, simulated
+
+**Seeded Monte Carlo simulation** makes repeated evaluations reproducible. Shared-event draws preserve the relationship between positions that depend on the same underlying match. The resulting distributions support inspection of profitability, losses, and drawdowns under the model's assumptions.
+
+A separate dependency layer explores **FGM copula relationships** and **Shapley-style allocation of a proxy interaction index**. These diagnostics are labeled as exploratory indices; they do not establish calibrated tail probabilities or causal risk contributions.
+
+→ [Simulation regression tests](eivra-studio/src/lib/__tests__/simulationEngine.test.js) · [Dependency-risk regression tests](eivra-studio/src/lib/__tests__/dependencyRisk.test.js)
+
+### Evidence, time-aware
+
+**Walk-forward and prequential evaluation** organize observations by when they could have been known. Forecast provenance, event identity, and outcome availability are explicit parts of the data contract. Recorded timestamps and derived legacy assumptions remain distinguishable.
+
+Unreliable estimates have an unavailable state. Repeated copies of the same identifiable observation are not treated as independent evidence. Research outputs retain these limitations rather than hiding them behind a precise-looking number.
+
+→ [Temporal data contract](eivra-studio/src/lib/temporalValidation.js) · [Forecast snapshots](eivra-studio/src/lib/investmentForecast.js) · [Historical audit notes](eivra-studio/docs/audits/)
+
+## Built as a system
+
+The product combines a browser-based research interface with a shared analytical core. Data enters through structured or natural-language workflows, moves through storage and model functions, and returns to the interface as inspectable results.
+
+```text
+React workspace
+      │
+      ├── Local data & forecast snapshots
+      │          │
+      │          ▼
+      │   Calibration · Allocation · Simulation · Validation
+      │          │
+      └──────────┴──► Metrics · Diagnostics · Research history
+
+Optional services: encrypted Git snapshots · Supabase sync · server-side AI parsing
+```
+
+- **Local-first computation.** Core analytics run in the browser. Optional remote services support synchronization and AI-assisted entry.
+- **Explicit data contracts.** Forecast snapshots, atomic selections, event identities, and time-availability metadata connect decisions to later evaluation.
+- **Reproducible computation.** Seeded simulations and revision-scoped caches support repeatable analysis and controlled invalidation.
+- **Worker-backed analysis.** A dedicated worker handles selected analytical jobs away from the main UI thread.
+- **Shared model functions.** Pages consume common analytical modules, with regression tests covering calculations, storage behavior, API contracts, and presentation boundaries.
+- **A considered interface.** Layered dashboards, portfolio composition, calibration views, and an interactive design workspace make a dense quantitative system navigable.
+
+**Stack:** React 18 · Vite 5 · Tailwind CSS 3 · Web Workers · Vitest · ESLint · Vercel serverless functions.
+
+## Explore the workspace
+
+| Area | Route | Purpose |
+| --- | --- | --- |
+| New | `/new` | Capture a thesis and create a structured position |
+| Portfolio | `/combo` | Inspect candidate combinations, allocation, and dependency diagnostics |
+| Settle | `/settle` | Record outcomes and close the feedback loop |
+| Dashboard | `/dashboard` | Review capital and aggregate performance |
+| Analysis & Metrics | `/dashboard/analysis` · `/dashboard/metrics` | Investigate performance slices and calibration |
+| Seasons | `/dashboard/report` | Review a research period in context |
+| Quants | `/quants` | Explore strategies, result history, and odds history |
+| History & Teams | `/history` · `/history/teams` | Revisit decisions and event-level profiles |
+| Console | `/params` | Inspect parameters, validation, and configuration |
+
+The [live workspace](https://hydeclanspi.vercel.app) provides an interactive demo. Its existing visual identity remains in place while the Eivra identity is developed. **Eivra Studio** is the official name for the repository, portfolio, and CV.
+
+## Run locally
+
+Use Node.js 20+ and npm. GitHub CI currently runs on Node.js 20.
 
 ```bash
 git clone https://github.com/hydeclanspi/eivra-studio.git
-cd eivra-studio/eivra-studio  # 仓库内的应用子目录
+cd eivra-studio/eivra-studio
 npm ci
-
-npm run dev            # 开发服务器（默认 http://localhost:3000）
-npm run lint           # 规范检查（lint:fix 自动修复）
-npm test               # 单元测试（test:watch / test:coverage）
-npm run build          # 生产构建（preview 本地预览产物）
+npm run dev
 ```
 
-云同步需配置 Supabase 环境变量；不配置时系统以纯本地模式运行，功能不受影响。演示解锁端点所需的环境变量见 [`api/README.md`](eivra-studio/api/README.md)。
+The development server runs at `http://localhost:3000`. Core local workflows do not require a backend. Cloud synchronization and AI parsing require their respective service configuration; Vite alone does not serve the serverless API routes. See the [developer guide](eivra-studio/README.md) and [API setup](eivra-studio/api/README.md).
 
-Vercel 的 **Root Directory** 设为 `eivra-studio`，构建命令为 `npm run build`，输出目录为 `dist`。GitHub Actions 从仓库根目录发现工作流，在应用目录内运行 lint、test 与 build。
+```bash
+npm run lint
+npm test
+npm run build
+```
 
----
+[GitHub Actions](https://github.com/hydeclanspi/eivra-studio/actions/workflows/ci.yml) runs **lint → test → build** on main-branch pushes and pull requests. Tests establish implementation behavior; they do not establish predictive performance or investment returns.
 
-## 现状与边界 · Status & Scope
+<details>
+<summary>Repository layout & deployment</summary>
 
-Eivra Studio 是作者用于精进量化建模与软件工程的**个人研究项目**，单人长期迭代。它的数据域恰好是足球赛事结果，但它真正在意的事情与体育无关：仓位纪律、信心校准、噪声分离、可复现的回测，以及一套能随样本成长的、对自己诚实的决策框架。
+```text
+.
+├── README.md
+├── CLAUDE.md
+├── .github/workflows/          CI and scheduled service maintenance
+└── eivra-studio/               Application / Vercel Root Directory
+    ├── src/
+    │   ├── lib/               Analytical core and data contracts
+    │   ├── lib/__tests__/     Regression suite
+    │   ├── pages/             Research and decision workflows
+    │   ├── components/        Interface components
+    │   ├── design/            Visual systems and design studies
+    │   ├── data/              Application data and demo fixtures
+    │   └── workers/           Background analytical jobs
+    ├── api/                   Authentication, parsing, and snapshot endpoints
+    ├── docs/                  Brand notes, design records, and audits
+    ├── public/                Static assets
+    ├── scripts/               Research utilities
+    ├── output/                Reports and historical artifacts
+    ├── package.json
+    └── vercel.json
+```
 
-正在推进的方向，均以「让判断可被结构化、可被检验」为轴：把主观情报沉淀为可追溯的私有数据库、用参数化碰撞融合人的判断、以 MLE / 贝叶斯更新让系数自学习。
+Vercel uses `eivra-studio` as its **Root Directory**, `npm run build` as the build command, and `dist` as the output directory. Workflow definitions live at the repository root.
 
-> 本项目所有分析输出仅供技术演示与自我研究之用，**不构成任何形式的投资建议**。
+</details>
+
+## Project status
+
+Eivra Studio is an independently developed research and portfolio project with a working application, an evolving model stack, and a maintained regression suite. Its current capabilities are described above; research proposals and historical design notes are not release commitments.
+
+The repository demonstrates quantitative reasoning, analytical engineering, and product design. It makes no claim of independently verified alpha or institutional production readiness. Analysis is provided for research and demonstration, not investment advice.
+
+**Eivra Models** and **Eivra Research** are reserved directions for a future product family. **Acuen** remains a candidate name for a future sub-feature. Neither naming direction implies a separately released product. See the [brand record](eivra-studio/docs/brand-identity.md).
