@@ -51,7 +51,7 @@ The calibration pipeline combines regression, **PAV isotonic calibration**, conf
 For binary outcomes, the Brier score makes the claim testable:
 
 $$
-\operatorname{Brier}=\frac{1}{N}\sum_{i=1}^{N}(p_i-y_i)^2
+\mathrm{Brier}=\frac{1}{N}\sum_{i=1}^{N}(p_i-y_i)^2
 $$
 
 A high-confidence forecast earns its place through subsequent observations. The implementation distinguishes tuning windows from held-out evaluation and tracks the basis of outcome-availability timestamps.
