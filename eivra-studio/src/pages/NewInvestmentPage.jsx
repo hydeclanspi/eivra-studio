@@ -1722,11 +1722,11 @@ export default function NewInvestmentPage() {
 
   const isPre = viewMode === 'pre'
   const ticketClassName = isPre
-    ? 'lab-new-ticket pre-sheet-plain'
+    ? 'pre-sheet-plain'
     : 'motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden lab-new-ticket'
   const matchesClassName = isPre ? 'space-y-8 lab-new-matches' : 'p-6 space-y-6 lab-new-matches'
   const footerClassName = isPre
-    ? 'motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 px-6 py-6 mt-6 lab-new-footer'
+    ? 'motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 px-6 py-6 mt-6 pre-footer-card'
     : 'px-6 py-6 bg-gradient-to-r from-stone-50 to-orange-50/30 border-t border-stone-100 lab-new-footer'
   const topicBlock = (
     <div className={isPre ? 'lab-new-construction pre-topic' : 'px-6 py-5 border-b border-stone-100 bg-stone-50/50 lab-new-construction'}>

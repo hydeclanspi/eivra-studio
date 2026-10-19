@@ -80,12 +80,31 @@
   grid-row: 1;
 }
 
-/* 左卡顶部：Portfolio Construction topic 与策略参数之间留一条浅线。 */
+/* 外层容器只做布局，不画任何底（投前没有 shared 底）。 */
+.pre-sheet-plain {
+  display: block;
+}
+
+/* 两张卡与 Quick Input 左右对齐：容器不再额外收内边距。 */
+.lab-new-page[data-investment-view='pre'] .lab-new-matches {
+  padding: 0;
+}
+
+/* Quick Input 与下方两张卡之间留清晰间隔。 */
+.lab-editions .lab-new-page[data-investment-view='pre'] > .lab-new-quick,
+.lab-new-page[data-investment-view='pre'] > .lab-new-quick {
+  margin-bottom: 28px;
+}
+
+/* 左卡顶部：Portfolio Construction topic 与策略参数之间留一条浅线；
+ * 压掉 lab 材质（folio 等）给 lab-new-construction 上的底色与内边距。 */
+.lab-new-page[data-investment-view='pre'] .lab-new-construction.pre-topic,
 .pre-topic {
   padding: 0 0 16px;
   margin-bottom: 20px;
   border-bottom: 1px solid rgba(214, 211, 209, 0.4);
   background: transparent;
+  border-radius: 0;
 }
 
 .pre-topic > div {
