@@ -215,8 +215,9 @@ export function PreMatchRecords({ homeTeam = '', awayTeam = '', records = { home
     total: side.groups.reduce((count, group) => count + 1 + group.rest.length, 0),
   }))
   const toggleFold = (key) => setFoldOpen((prev) => ({ ...prev, [key]: !prev[key] }))
+  const isEmpty = sides.every((side) => side.total === 0)
   return (
-    <div className="pre-dossier" data-testid="pre-match-records">
+    <div className={`pre-dossier${isEmpty ? ' is-empty' : ''}`} data-testid="pre-match-records">
       {sides.map(({ side, team, groups, total }) => (
         <div key={side} className={`pre-dossier-side pre-dossier-side--${side}`} data-testid={`pre-dossier-${side}`}>
           <div className="pre-dossier-head">

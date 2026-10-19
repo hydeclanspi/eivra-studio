@@ -1542,8 +1542,7 @@ export default function NewInvestmentPage() {
             data-testid="view-switch-pre"
             className={`pre-view-side pre-view-side--pre${viewMode === 'pre' ? ' is-active' : ''}`}
           >
-            <span>投前</span>
-            <span>研判</span>
+            <span>投前研判</span>
           </button>
           <button
             type="button"
@@ -1553,8 +1552,7 @@ export default function NewInvestmentPage() {
             data-testid="view-switch-post"
             className={`pre-view-side pre-view-side--post${viewMode === 'post' ? ' is-active' : ''}`}
           >
-            <span>投后</span>
-            <span>导入</span>
+            <span>投后导入</span>
           </button>
         </div>
   )
@@ -1732,15 +1730,10 @@ export default function NewInvestmentPage() {
               : '投后导入 · 录入比赛信息与预测参数 · Record match predictions & calibration parameters'}
           </p>
         </div>
-        {viewMode !== 'pre' && viewSwitch}
+        {viewSwitch}
       </div>
 
-      {viewMode === 'pre' ? (
-        <div className="pre-top-row">
-          {quickInputCard}
-          {viewSwitch}
-        </div>
-      ) : quickInputCard}
+      {quickInputCard}
 
 
       <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden lab-new-ticket">
@@ -1899,6 +1892,10 @@ export default function NewInvestmentPage() {
                   <span className="text-sm font-medium text-stone-700">{viewMode === 'pre' ? '对阵 · 两队 PK' : '比赛信息'}</span>
                 </div>
 
+                {/* 投前双栏：右 6 栏放对阵 → Entries → 云图 → 记录，左 4 栏放策略参数。 */}
+                <div className={viewMode === 'pre' ? 'pre-match-split' : undefined}>
+                {/* 主栏（右 6） */}
+                <div className={viewMode === 'pre' ? 'pre-match-split__main' : undefined}>
                 {viewMode === 'pre' ? (
                   <PreMatchHero
                     homeTeam={match.homeTeam}
@@ -2108,14 +2105,6 @@ export default function NewInvestmentPage() {
                 </div>
 
                 {viewMode === 'pre' && (
-                  <PreMatchRecords
-                    homeTeam={match.homeTeam}
-                    awayTeam={match.awayTeam}
-                    records={heroRecords}
-                  />
-                )}
-
-                {viewMode === 'pre' && (
                   <PreMatchBoard
                     matchIndex={idx}
                     homeTeam={match.homeTeam}
@@ -2127,7 +2116,17 @@ export default function NewInvestmentPage() {
                   />
                 )}
 
-                <div className="grid grid-cols-3 gap-4 mb-4">
+                {viewMode === 'pre' && (
+                  <PreMatchRecords
+                    homeTeam={match.homeTeam}
+                    awayTeam={match.awayTeam}
+                    records={heroRecords}
+                  />
+                )}
+                </div>
+                {/* 侧栏（左 4）：策略类型 → Conf → 校准参数 → 赛前备注 */}
+                <div className={viewMode === 'pre' ? 'pre-match-split__side' : undefined}>
+                <div className="pre-strategy-grid grid grid-cols-3 gap-4 mb-4">
                   <div className="relative">
                     <label className="text-xs text-stone-400 mb-1.5 block">{labels.formLabel.mode}</label>
                     <button
@@ -2158,7 +2157,7 @@ export default function NewInvestmentPage() {
                     )}
                   </div>
 
-                  <div className="col-span-2">
+                  <div className="pre-conf-col col-span-2">
                     <label className="text-xs text-stone-400 mb-1.5 block">{labels.formLabel.conf}</label>
                     <div className="flex items-center gap-3">
                       <input
@@ -2197,7 +2196,7 @@ export default function NewInvestmentPage() {
                     <span>{labels.formLabel.calibrationGroup}</span>
                   </summary>
                   <div className="pl-4 border-l-2 border-amber-100">
-                    <div className="grid grid-cols-4 gap-4 mb-3">
+                    <div className="pre-calib-grid grid grid-cols-4 gap-4 mb-3">
                       <div>
                         <label className="text-xs text-stone-400 mb-1.5 block">{labels.formLabel.tysHome}</label>
                         <div className="flex gap-1">
@@ -2254,7 +2253,7 @@ export default function NewInvestmentPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="pre-calib-fse grid grid-cols-2 gap-4">
                       <div>
                         <div className="mb-1.5 flex items-center justify-between gap-2">
                           <label className="text-xs text-stone-400 block">{labels.formLabel.fseHome}</label>
@@ -2362,6 +2361,8 @@ export default function NewInvestmentPage() {
                     className="input-glow w-full px-4 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400 resize-y min-h-16"
                   />
                   <p className="mt-1 text-[10px] text-stone-400">快捷键：Cmd/Ctrl+B 粗体 · Cmd/Ctrl+I 斜体 · Cmd/Ctrl+Shift+R 红色 · Cmd/Ctrl+Shift+B 蓝色</p>
+                </div>
+                </div>
                 </div>
               </div>
             )

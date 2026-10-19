@@ -1,60 +1,141 @@
 /* 投前研判（Pre-Match Studio）——本文件只服务投前，不动投后与其它页面。
  *
- * 版式：AI 快捷录入独占顶部通栏，下面整张卡片单列（覆盖各 lab edition 的双列栅格）。
+ * 版式：AI 快捷录入独占顶部通栏；比赛卡片内部右 6 / 左 4 双栏。
  * 材质：沿用液态玻璃（半透明 + 底色渐变 + backdrop blur），主队暖玫瑰 / 客队冷天蓝。
  */
 
-/* ── 版式：投前单列；Quick Input 与切换钮同一行 ───────────────────── */
+/* ── 版式：投前宽度放开；Quick Input 通栏；比赛卡片 4:6 双栏 ───────── */
+/* 2609 外壳把 New 页锁在 1120px；投前双栏需要更大的横向空间，这里显式抬到 1500。 */
+.theme-inspiration-2609
+  .inspiration-2609-body[data-lab-page='new']
+  .page-shell.lab-new-page[data-investment-view='pre'],
 .lab-new-page[data-investment-view='pre'],
 .lab-editions .lab-new-page[data-investment-view='pre'] {
   display: block;
+  width: min(100%, 1500px);
   max-width: 1500px;
 }
 
-.pre-top-row {
-  display: flex;
-  align-items: stretch;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.pre-top-row > .lab-new-quick {
-  flex: 1 1 auto;
-  max-width: none;
-  width: auto;
-  min-width: 0;
-  margin-bottom: 0;
-}
-
-.lab-editions .pre-top-row > .lab-new-quick {
+.lab-editions .lab-new-page[data-investment-view='pre'] > .lab-new-quick {
   position: static;
   top: auto;
   grid-column: auto;
   grid-row: auto;
+  max-width: none;
 }
 
-.lab-editions .pre-top-row > .lab-new-quick textarea {
+.lab-editions .lab-new-page[data-investment-view='pre'] > .lab-new-quick textarea {
   min-height: 0;
   height: auto;
 }
 
-.lab-editions .pre-top-row > .lab-new-quick .settle-ai-trigger {
+.lab-editions .lab-new-page[data-investment-view='pre'] > .lab-new-quick .settle-ai-trigger {
   flex-wrap: wrap;
   row-gap: 6px;
   padding: 14px 18px 10px;
 }
 
-.lab-editions .pre-top-row > .lab-new-quick .settle-ai-subtitle {
+.lab-editions .lab-new-page[data-investment-view='pre'] > .lab-new-quick .settle-ai-subtitle {
   flex-basis: auto;
   margin-left: 4px;
 }
 
-.lab-editions .pre-top-row > .lab-new-quick .settle-ai-body {
+.lab-editions .lab-new-page[data-investment-view='pre'] > .lab-new-quick .settle-ai-body {
   padding: 10px 18px 16px;
 }
 
-.lab-editions .pre-top-row > .lab-new-quick .settle-ai-textarea {
+.lab-editions .lab-new-page[data-investment-view='pre'] > .lab-new-quick .settle-ai-textarea {
   min-height: 74px;
+}
+
+/* 比赛卡片主体：主栏（对阵 / Entries / 记录 / 云图）在右，策略侧栏在左。
+ * DOM 里主栏在前，这里用显式网格把侧栏放到第 1 列，窄屏回落成原单列顺序。 */
+.pre-match-split {
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 6fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.pre-match-split__main {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.pre-match-split__side {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(214, 211, 209, 0.55);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(250, 250, 249, 0.36));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.76);
+}
+
+/* 侧栏变窄后，策略类型与 Conf 改为上下排列，避免滑轨和快选挤在一行。 */
+.pre-match-split__side .pre-strategy-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.pre-match-split__side .pre-conf-col {
+  grid-column: auto;
+}
+
+/* 校准区同步收窄：β / γ 两列，FID 占满一行，FSE 主客上下排。 */
+.pre-match-split__side .pre-calib-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pre-match-split__side .pre-calib-fse {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Entries 在右栏里并排两条腿；栏宽不足时自动换行。 */
+.pre-match-split__main .pre-entry-pair {
+  flex: 1 1 300px;
+  max-width: 420px;
+}
+
+.pre-match-split__main .pre-entry-name {
+  width: min(58%, 208px);
+}
+
+.pre-match-split__main .pre-entry-odds {
+  width: min(40%, 136px);
+}
+
+/* 云图与读数在右栏并排；栏宽不足时 readout 自动落到云图下方。 */
+.pre-match-split__main .pre-board-visual {
+  gap: 16px;
+}
+
+.pre-match-split__main .pre-board-readout {
+  flex-basis: 220px;
+  min-width: 200px;
+}
+
+/* 右栏（云图 / 市场）通常比左栏长：让策略面板在桌面端吸顶，滚动时仍可改参数。 */
+@media (min-width: 1101px) {
+  .pre-match-split__side {
+    position: sticky;
+    top: 84px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .pre-match-split {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .pre-match-split__main,
+  .pre-match-split__side {
+    grid-column: 1;
+    grid-row: auto;
+  }
 }
 
 /* ── Hero PK：主队 / 客队两块面板 ─────────────────────────────────── */
@@ -263,6 +344,11 @@
   max-height: 460px;
   overflow-y: auto;
   padding-right: 10px;
+}
+
+/* 两队都没有历史样本时，不保留整块研究区的高度。 */
+.pre-dossier.is-empty .pre-dossier-scroll {
+  min-height: 120px;
 }
 
 /* 左半的滚动条走左侧边缘（滚动容器 rtl、里面的内容全部拉回 ltr）。 */
@@ -944,68 +1030,59 @@
   color: rgba(120, 113, 108, 0.78);
 }
 
-/* 视图切换：一块很淡的液态玻璃，颜色自己斜着过渡（清透薄荷绿 → 淡粉）——
- * 不画线、不加点；大字四个，一边两个字两行。 */
+/* 视图切换：单行文字按钮，安放在页面标题行右侧，不再占内容行。 */
 .pre-view-switch {
-  position: relative;
-  flex: 0 0 auto;
-  width: 196px;
-  min-height: 118px;
-  max-height: 168px;
-  align-self: flex-start;
-  border-radius: 24px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  background: linear-gradient(
-    135deg,
-    rgba(196, 252, 228, 0.5) 0%,
-    rgba(228, 254, 244, 0.32) 34%,
-    rgba(255, 240, 247, 0.3) 66%,
-    rgba(255, 219, 236, 0.5) 100%
-  );
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  align-self: flex-end;
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid rgba(214, 211, 209, 0.65);
+  background: rgba(255, 255, 255, 0.55);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.85),
-    inset 0 -18px 30px -24px rgba(255, 255, 255, 0.7),
-    0 18px 40px -32px rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(22px) saturate(180%);
-  -webkit-backdrop-filter: blur(22px) saturate(180%);
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 8px 20px -18px rgba(41, 37, 36, 0.45);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
 }
 
 .pre-view-side {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 15px 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 11px;
   border: 0;
+  border-radius: 7px;
   background: transparent;
-  font-size: 16px;
+  font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  line-height: 1.25;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
   cursor: pointer;
-  transition: opacity 220ms ease;
+  transition: color 180ms ease, background 180ms ease, box-shadow 180ms ease;
 }
 
 .pre-view-side--pre {
-  clip-path: polygon(0 0, 100% 0, 0 100%);
-  align-items: flex-start;
-  justify-content: flex-start;
-  text-align: left;
-  color: #0d9488;
+  color: #0f766e;
 }
 
 .pre-view-side--post {
-  clip-path: polygon(0 100%, 100% 0, 100% 100%);
-  align-items: flex-end;
-  justify-content: flex-end;
-  text-align: right;
-  color: #db2777;
+  color: #be185d;
 }
 
 .pre-view-side:not(.is-active) {
-  opacity: 0.4;
+  opacity: 0.55;
+}
+
+.pre-view-side.is-active {
+  opacity: 1;
+  background: rgba(255, 255, 252, 0.95);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.9),
+    0 2px 6px -4px rgba(41, 37, 36, 0.4);
 }
 
 /* Entries：一条腿一个「值 + odds（可空）」的组合 */
