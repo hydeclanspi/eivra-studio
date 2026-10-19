@@ -66,7 +66,14 @@
   padding: 22px 24px;
 }
 
-.pre-match-split__main > :last-child {
+/* 多场：左右卡各自向下延伸，场与场之间用细分隔线，而不是再生成一对新卡。 */
+.pre-match-section + .pre-match-section {
+  margin-top: 28px;
+  padding-top: 26px;
+  border-top: 1px solid rgba(214, 211, 209, 0.42);
+}
+
+.pre-match-section > :last-child {
   margin-bottom: 0;
 }
 
@@ -95,14 +102,9 @@
   }
 }
 
-/* 外层容器只做布局，不画任何底（投前没有 shared 底）。 */
+/* 外层容器只做布局，不画任何底（没有 shared 底）。 */
 .pre-sheet-plain {
   display: block;
-}
-
-/* 两张卡与 Quick Input 左右对齐：容器不再额外收内边距。 */
-.lab-new-page[data-investment-view] .lab-new-matches {
-  padding: 0;
 }
 
 /* Quick Input 与下方两张卡之间留清晰间隔。 */

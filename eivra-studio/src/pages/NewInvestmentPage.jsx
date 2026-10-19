@@ -1780,7 +1780,8 @@ export default function NewInvestmentPage() {
 
 
       <div className="pre-sheet-plain">
-        <div className="space-y-8 lab-new-matches">
+        <div className="pre-match-split">
+          <div className="pre-match-split__main motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100">
           {matches.map((match, idx) => {
             const homeSuggestions =
               activeTeamInput?.matchIdx === idx && activeTeamInput?.side === 'home' ? getTeamSuggestions(match.homeTeam) : []
@@ -1790,10 +1791,6 @@ export default function NewInvestmentPage() {
             const historySuggestions = matchupKey ? (historySuggestionsByMatchup.get(matchupKey) || []).slice(0, 3) : []
             const appliedHistory = historyPrefillApplied[idx] || null
             const isHistorySuggestionDismissed = Boolean(historyFloatDismissed[idx])
-            const homeTeamKey = normalizeTeamKey(match.homeTeam)
-            const awayTeamKey = normalizeTeamKey(match.awayTeam)
-            const homeFseHistorySuggestion = homeTeamKey ? (latestTeamFseMap.get(homeTeamKey) ?? null) : null
-            const awayFseHistorySuggestion = awayTeamKey ? (latestTeamFseMap.get(awayTeamKey) ?? null) : null
             const excludedEntries = excludedEntriesByMatch[idx] || []
             // 投后导入只看有内容的行（投前默认留了两条腿的位置）。
             const displayEntries = viewMode === 'pre' ? match.entries : trimTrailingEmptyEntries(match.entries)
@@ -1816,7 +1813,7 @@ export default function NewInvestmentPage() {
             )
 
             return (
-              <div key={idx} className="motion-v2-match-card relative lab-new-match">
+              <section key={idx} className="pre-match-section pre-match-section--main relative">
                 {appliedHistory ? (
                   <div className="absolute right-1 top-0 z-30 history-float-wrap">
                     <div className="history-float-panel history-float-enter px-2.5 py-2">
@@ -1900,10 +1897,6 @@ export default function NewInvestmentPage() {
                   )
                 )}
 
-                {/* 投前/投后同一版式：两张独立通透卡（左 4 策略 / 右 6 内容），无共享底。 */}
-                <div className="pre-match-split">
-                {/* 主卡（右 6）：对阵 → Entries → 云图 → 记录（云图与记录仅投前渲染） */}
-                <div className="pre-match-split__main motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100">
                 {matchHeader}
                 {viewMode === 'pre' ? (
                   <PreMatchHero
@@ -2132,10 +2125,28 @@ export default function NewInvestmentPage() {
                     records={heroRecords}
                   />
                 )}
-                </div>
-                {/* 左卡（左 4）：Portfolio Construction topic → 策略类型 → Conf → 校准参数 → 赛前备注 */}
-                <div className="pre-match-split__side motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100">
-                {idx === 0 && topicBlock}
+                </section>
+              )
+            })}
+          </div>
+          {/* 左卡（左 4）：Portfolio Construction topic → 策略类型 → Conf → 校准参数 → 赛前备注 */}
+          <div className="pre-match-split__side motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100">
+          {topicBlock}
+          {matches.map((match, idx) => {
+            const homeTeamKey = normalizeTeamKey(match.homeTeam)
+            const awayTeamKey = normalizeTeamKey(match.awayTeam)
+            const homeFseHistorySuggestion = homeTeamKey ? (latestTeamFseMap.get(homeTeamKey) ?? null) : null
+            const awayFseHistorySuggestion = awayTeamKey ? (latestTeamFseMap.get(awayTeamKey) ?? null) : null
+            return (
+              <section key={idx} className="pre-match-section pre-match-section--side">
+                {matches.length > 1 && (
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center">
+                      <span className="text-amber-600 text-xs font-bold">{idx + 1}</span>
+                    </div>
+                    <span className="text-sm font-medium text-stone-700">策略与校准</span>
+                  </div>
+                )}
                 <div className="pre-strategy-grid grid grid-cols-3 gap-4 mb-4">
                   <div className="relative">
                     <label className="text-xs text-stone-400 mb-1.5 block">{labels.formLabel.mode}</label>
@@ -2372,11 +2383,10 @@ export default function NewInvestmentPage() {
                   />
                   <p className="mt-1 text-[10px] text-stone-400">快捷键：Cmd/Ctrl+B 粗体 · Cmd/Ctrl+I 斜体 · Cmd/Ctrl+Shift+R 红色 · Cmd/Ctrl+Shift+B 蓝色</p>
                 </div>
-                </div>
-                </div>
-              </div>
+              </section>
             )
           })}
+          </div>
         </div>
 
         <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 px-6 py-6 mt-6 pre-footer-card">
