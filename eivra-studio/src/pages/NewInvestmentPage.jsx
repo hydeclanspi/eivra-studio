@@ -1799,6 +1799,14 @@ export default function NewInvestmentPage() {
                   away: findTeamHistory(teamHistoryMap, match.awayTeam),
                 }
               : { home: [], away: [] }
+            const matchHeader = (
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center">
+                  <span className="text-amber-600 text-xs font-bold">{idx + 1}</span>
+                </div>
+                <span className="text-sm font-medium text-stone-700">{viewMode === 'pre' ? '对阵 · 两队 PK' : '比赛信息'}</span>
+              </div>
+            )
 
             return (
               <div key={idx} className={`motion-v2-match-card relative lab-new-match ${idx > 0 ? 'pt-6 border-t border-stone-100' : ''}`}>
@@ -1885,17 +1893,13 @@ export default function NewInvestmentPage() {
                   )
                 )}
 
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center">
-                    <span className="text-amber-600 text-xs font-bold">{idx + 1}</span>
-                  </div>
-                  <span className="text-sm font-medium text-stone-700">{viewMode === 'pre' ? '对阵 · 两队 PK' : '比赛信息'}</span>
-                </div>
+                {viewMode !== 'pre' && matchHeader}
 
                 {/* 投前双栏：右 6 栏放对阵 → Entries → 云图 → 记录，左 4 栏放策略参数。 */}
                 <div className={viewMode === 'pre' ? 'pre-match-split' : undefined}>
                 {/* 主栏（右 6） */}
                 <div className={viewMode === 'pre' ? 'pre-match-split__main' : undefined}>
+                {viewMode === 'pre' && matchHeader}
                 {viewMode === 'pre' ? (
                   <PreMatchHero
                     homeTeam={match.homeTeam}
@@ -2026,7 +2030,7 @@ export default function NewInvestmentPage() {
                           <input
                             type="text"
                             inputMode="decimal"
-                            placeholder="odds（可空）"
+                            placeholder="odds"
                             value={entry.odds}
                             onChange={(event) => updateEntry(idx, entryIdx, 'odds', event.target.value)}
                             aria-label={`第 ${entryIdx + 1} 条 Entry 的赔率`}

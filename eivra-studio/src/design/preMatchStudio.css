@@ -4,15 +4,10 @@
  * 材质：沿用液态玻璃（半透明 + 底色渐变 + backdrop blur），主队暖玫瑰 / 客队冷天蓝。
  */
 
-/* ── 版式：投前宽度放开；Quick Input 通栏；比赛卡片 4:6 双栏 ───────── */
-/* 2609 外壳把 New 页锁在 1120px；投前双栏需要更大的横向空间，这里显式抬到 1500。 */
-.theme-inspiration-2609
-  .inspiration-2609-body[data-lab-page='new']
-  .page-shell.lab-new-page[data-investment-view='pre'],
+/* ── 版式：Quick Input 通栏；比赛区 4:6 两张独立卡片 ───────────────── */
 .lab-new-page[data-investment-view='pre'],
 .lab-editions .lab-new-page[data-investment-view='pre'] {
   display: block;
-  width: min(100%, 1500px);
   max-width: 1500px;
 }
 
@@ -48,8 +43,8 @@
   min-height: 74px;
 }
 
-/* 比赛卡片主体：主栏（对阵 / Entries / 记录 / 云图）在右，策略侧栏在左。
- * DOM 里主栏在前，这里用显式网格把侧栏放到第 1 列，窄屏回落成原单列顺序。 */
+/* 比赛区：左 4 策略卡 / 右 6 研判卡，两张独立卡片落在浅色底板上。
+ * DOM 里主栏在前，这里用显式网格把策略卡放到第 1 列，窄屏回落成单列顺序。 */
 .pre-match-split {
   display: grid;
   grid-template-columns: minmax(0, 4fr) minmax(0, 6fr);
@@ -57,24 +52,34 @@
   align-items: start;
 }
 
+.pre-match-split__main,
+.pre-match-split__side {
+  min-width: 0;
+  padding: 20px;
+  border-radius: 20px;
+  border: 1px solid rgba(214, 211, 209, 0.6);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    0 20px 44px -40px rgba(41, 37, 36, 0.44);
+}
+
 .pre-match-split__main {
   grid-column: 2;
   grid-row: 1;
-  min-width: 0;
 }
 
 .pre-match-split__side {
   grid-column: 1;
   grid-row: 1;
-  min-width: 0;
-  padding: 16px;
-  border-radius: 18px;
-  border: 1px solid rgba(214, 211, 209, 0.55);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(250, 250, 249, 0.36));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.76);
 }
 
-/* 侧栏变窄后，策略类型与 Conf 改为上下排列，避免滑轨和快选挤在一行。 */
+/* 浅色底板把两张白卡从外层大卡片里托出来，避免糊成一整块。 */
+.lab-new-page[data-investment-view='pre'] .lab-new-matches {
+  background: linear-gradient(180deg, rgba(250, 250, 249, 0.8), rgba(250, 250, 249, 0.42));
+}
+
+/* 策略卡变窄后，策略类型与 Conf 改为上下排列，避免滑轨和快选挤在一行。 */
 .pre-match-split__side .pre-strategy-grid {
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
@@ -93,36 +98,31 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
-/* Entries 在右栏里并排两条腿；栏宽不足时自动换行。 */
+/* Entries 在研判卡里并排两条腿；卡宽不足时自动换行。 */
 .pre-match-split__main .pre-entry-pair {
-  flex: 1 1 300px;
+  flex: 1 1 220px;
   max-width: 420px;
 }
 
 .pre-match-split__main .pre-entry-name {
-  width: min(58%, 208px);
+  width: min(52%, 190px);
+  min-width: 0;
 }
 
 .pre-match-split__main .pre-entry-odds {
-  width: min(40%, 136px);
+  width: min(36%, 118px);
+  min-width: 0;
 }
 
-/* 云图与读数在右栏并排；栏宽不足时 readout 自动落到云图下方。 */
+/* 云图与读数在研判卡里并排；卡宽不足时 readout 自动落到云图下方。 */
 .pre-match-split__main .pre-board-visual {
   gap: 16px;
+  justify-content: center;
 }
 
-.pre-match-split__main .pre-board-readout {
-  flex-basis: 220px;
-  min-width: 200px;
-}
-
-/* 右栏（云图 / 市场）通常比左栏长：让策略面板在桌面端吸顶，滚动时仍可改参数。 */
-@media (min-width: 1101px) {
-  .pre-match-split__side {
-    position: sticky;
-    top: 84px;
-  }
+/* 研判卡变窄后，历史记录改成主客上下两块，避免每行挤成碎字。 */
+.pre-match-split__main .pre-dossier {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 @media (max-width: 1100px) {
