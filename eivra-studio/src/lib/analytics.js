@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- *  analytics.js — DuGou 量化分析引擎（Quantitative Analytics Engine）
+ *  analytics.js — Eivra 量化分析引擎（Quantitative Analytics Engine）
  * ============================================================================
  *
  * 本模块是整套系统的"大脑"：把每一笔历史投注（matches / combos）转换成
@@ -39,7 +39,7 @@
  *  为此采用三段式缓存：
  *    (a) 修订号失效：任何写操作触发 bumpAnalyticsRevision()，revision++ 即
  *        让所有旧缓存键自然作废（缓存键以 revision 为前缀）。
- *    (b) 领域事件驱动：监听 window 上的 'dugou:data-changed' 事件，数据一旦
+ *    (b) 领域事件驱动：监听 window 上的 'eivra:data-changed' 事件，数据一旦
  *        变化即清空缓存——跨标签页 / 跨组件解耦。
  *    (c) 作用域分桶：每个计算域（dashboard / analysis / kellyMatrix …）各自
  *        一个 Map，键由 getRevisionCacheKey(scope, suffix) 生成，互不污染。
@@ -112,8 +112,8 @@ const WINDOW_TIME_BASIS = Object.freeze({
   derivedAvailability: 'contains_derived_availability',
   recordedOnly: 'recorded_only',
 })
-const ANALYTICS_CACHE_EVENT = 'dugou:data-changed'
-const ANALYTICS_CACHE_HANDLER_KEY = '__dugouAnalyticsCacheInvalidator__'
+const ANALYTICS_CACHE_EVENT = 'eivra:data-changed'
+const ANALYTICS_CACHE_HANDLER_KEY = '__eivraAnalyticsCacheInvalidator__'
 
 /**
  * 全局记忆化缓存。每个字段是一个独立的"计算域"Map，缓存键统一由
@@ -121,7 +121,7 @@ const ANALYTICS_CACHE_HANDLER_KEY = '__dugouAnalyticsCacheInvalidator__'
  *
  * 失效策略见文件顶部 Banner：
  *   - revision++（bumpAnalyticsRevision）让所有旧键一次性作废；
- *   - 'dugou:data-changed' 事件触发清空（clearAnalyticsMemo）。
+ *   - 'eivra:data-changed' 事件触发清空（clearAnalyticsMemo）。
  *
  * @type {{ revision: number } & Record<string, Map<string, unknown>>}
  */

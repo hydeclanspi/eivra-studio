@@ -81,8 +81,8 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
       if (event?.detail?.uiOnly === true) return
       setDataRevision((revision) => revision + 1)
     }
-    window.addEventListener('dugou:data-changed', refresh)
-    return () => window.removeEventListener('dugou:data-changed', refresh)
+    window.addEventListener('eivra:data-changed', refresh)
+    return () => window.removeEventListener('eivra:data-changed', refresh)
   }, [])
 
   // 历史数据缓存

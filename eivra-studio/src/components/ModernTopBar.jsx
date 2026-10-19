@@ -1,3 +1,4 @@
+import { brandLocalStorage } from '../lib/brandStorage.js'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
@@ -101,8 +102,8 @@ function LayoutMorphSwitch({ layoutMode, onPreviewChange }) {
       if (onPreviewChange) {
         onPreviewChange(nextMode)
       } else {
-        window.localStorage.setItem('dugou:layout-mode', nextMode)
-        window.dispatchEvent(new CustomEvent('dugou:layout-changed', { detail: { mode: nextMode } }))
+        brandLocalStorage.setItem('eivra:layout-mode', nextMode)
+        window.dispatchEvent(new CustomEvent('eivra:layout-changed', { detail: { mode: nextMode } }))
       }
       switchTimerRef.current = null
     }, LAYOUT_SWITCH_DELAY_MS)
@@ -155,11 +156,11 @@ export default function ModernTopBar({ layoutMode = 'modern', designLink = null,
       setTmActive(isInTimeMachineMode())
       setTmInfo(getTimeMachineSessionInfo())
     }
-    window.addEventListener('dugou:data-changed', onDataChanged)
-    window.addEventListener('dugou:time-machine-changed', onTmChanged)
+    window.addEventListener('eivra:data-changed', onDataChanged)
+    window.addEventListener('eivra:time-machine-changed', onTmChanged)
     return () => {
-      window.removeEventListener('dugou:data-changed', onDataChanged)
-      window.removeEventListener('dugou:time-machine-changed', onTmChanged)
+      window.removeEventListener('eivra:data-changed', onDataChanged)
+      window.removeEventListener('eivra:time-machine-changed', onTmChanged)
     }
   }, [])
 
@@ -253,7 +254,7 @@ export default function ModernTopBar({ layoutMode = 'modern', designLink = null,
           className="mn-brand-name"
           style={{ transform: `translateX(${brandNameOffset}px)` }}
         >
-          dugou
+          Eivra
         </span>
       </button>
 

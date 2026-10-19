@@ -1,3 +1,4 @@
+import { brandLocalStorage } from './brandStorage.js'
 import { getStoredToken, isFullMode, isOwnerRoute } from './displayMode'
 import { isDesignPreview } from '../design/labEditions'
 
@@ -19,7 +20,7 @@ import { isDesignPreview } from '../design/labEditions'
 
 const COMMIT_ENDPOINT = '/api/commit-bundle'
 const PULL_ENDPOINT = '/api/bundle'
-const STATE_KEY = 'dugou.git_sync_state.v1'
+const STATE_KEY = 'eivra.git_sync_state.v1'
 
 const DEBOUNCE_MS = 30_000 // coalesce a burst of edits into one commit
 const COMMIT_THRESHOLD = 8 // …but flush immediately at this many pending changes
@@ -47,7 +48,7 @@ const readState = () => {
   if (isDesignPreview()) return { ...designPreviewState }
   if (!isBrowser) return { ...DEFAULT_STATE }
   try {
-    const raw = window.localStorage.getItem(STATE_KEY)
+    const raw = brandLocalStorage.getItem(STATE_KEY)
     return raw ? { ...DEFAULT_STATE, ...JSON.parse(raw) } : { ...DEFAULT_STATE }
   } catch {
     return { ...DEFAULT_STATE }
@@ -61,7 +62,7 @@ const writeState = (next) => {
   }
   if (!isBrowser) return
   try {
-    window.localStorage.setItem(STATE_KEY, JSON.stringify(next))
+    brandLocalStorage.setItem(STATE_KEY, JSON.stringify(next))
   } catch {
     /* storage full / unavailable — non-fatal */
   }
@@ -85,7 +86,7 @@ export const setGitSyncEnabled = (enabled) => saveGitSyncState({ enabled: Boolea
 const authHeaders = () => {
   // The hidden `/arsenal` mount deliberately bypasses password/JWT auth. Its
   // route marker is forwarded to the server so pull + save remain fully live.
-  if (isOwnerRoute()) return { 'X-Dugou-Arsenal': '1' }
+  if (isOwnerRoute()) return { 'X-Eivra-Arsenal': '1' }
   const token = getStoredToken()
   return token ? { Authorization: `Bearer ${token}` } : null
 }

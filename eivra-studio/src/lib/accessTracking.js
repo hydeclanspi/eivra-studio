@@ -1,14 +1,15 @@
+import { brandSessionStorage } from './brandStorage.js'
 import { appendAccessLog } from './localData'
 
-const ACCESS_LOG_SESSION_KEY = 'dugou.access_log.session.v1'
+const ACCESS_LOG_SESSION_KEY = 'eivra.access_log.session.v1'
 
 const getAccessSessionId = () => {
   if (typeof window === 'undefined') return 'server-session'
   try {
-    const cached = window.sessionStorage.getItem(ACCESS_LOG_SESSION_KEY)
+    const cached = brandSessionStorage.getItem(ACCESS_LOG_SESSION_KEY)
     if (cached) return cached
     const next = `sess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
-    window.sessionStorage.setItem(ACCESS_LOG_SESSION_KEY, next)
+    brandSessionStorage.setItem(ACCESS_LOG_SESSION_KEY, next)
     return next
   } catch {
     return `sess_${Date.now().toString(36)}`

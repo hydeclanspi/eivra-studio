@@ -17,7 +17,7 @@ let getDashboardSnapshot
 let getCyclePeriods
 const host = new EventTarget()
 const announce = (detail) => {
-  const event = new Event('dugou:data-changed')
+  const event = new Event('eivra:data-changed')
   event.detail = detail
   host.dispatchEvent(event)
 }
@@ -35,16 +35,16 @@ describe('appearance changes preserve expensive model caches', () => {
     const periods = getCyclePeriods()
     for (const style of ['spectra', 'xuanji', 'starward', 'moon']) {
       state.config = { ...state.config, liquidGlassStyle: style, liquidGlassQuality: 'smooth', liquidGlassMaterialQuality: style === 'spectra' ? 'smooth' : 'full' }
-      announce({ key: 'dugou.system_config.v1', uiOnly: true })
+      announce({ key: 'eivra.system_config.v1', uiOnly: true })
       expect(getDashboardSnapshot()).toBe(dashboard)
       expect(getCyclePeriods()).toBe(periods)
     }
   })
 
   it.each([
-    { key: 'dugou.system_config.v1' },
-    { key: 'dugou.investments.v1' },
-    { key: 'dugou.system_config.v1', preview: true },
+    { key: 'eivra.system_config.v1' },
+    { key: 'eivra.investments.v1' },
+    { key: 'eivra.system_config.v1', preview: true },
     undefined,
   ])('still invalidates both caches for real model/data changes: %j', (detail) => {
     const dashboard = getDashboardSnapshot()

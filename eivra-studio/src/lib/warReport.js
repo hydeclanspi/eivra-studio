@@ -28,7 +28,7 @@
  *   entries       周期内每一笔下注的完整流水（供翻页）
  *
  * 全部为纯函数：读 localData → 算 → 返回结构化结果，无副作用（缓存除外）。
- * 缓存以模块内 revision 为前缀，'dugou:data-changed' 触发自增 —— 与 analytics
+ * 缓存以模块内 revision 为前缀，'eivra:data-changed' 触发自增 —— 与 analytics
  * 的三段式缓存同构，所以结算界面一旦落笔，战报下一次读取自然拿到最新 results。
  *
  * @module warReport
@@ -75,8 +75,8 @@ const median = (values) => {
 
 /* ── 缓存（revision 前缀，与 analytics 同构） ──────────────────────────── */
 
-const CACHE_EVENT = 'dugou:data-changed'
-const CACHE_HANDLER_KEY = '__dugouWarReportCacheInvalidator__'
+const CACHE_EVENT = 'eivra:data-changed'
+const CACHE_HANDLER_KEY = '__eivraWarReportCacheInvalidator__'
 
 const memo = { revision: 0, periods: new Map(), reports: new Map() }
 

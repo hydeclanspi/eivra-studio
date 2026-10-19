@@ -1,3 +1,4 @@
+import { brandLocalStorage, brandSessionStorage } from '../lib/brandStorage.js'
 import { predictMatchProbability } from "../lib/matchPrediction"
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -33,11 +34,11 @@ const MODE_OPTIONS = ['常规', '常规-稳', '常规-杠杆', '常规-激进', 
 const DEFAULT_FSE_PERCENT = 10
 const QI_AUTO_UNFURL_DELAY_MS = 4300
 const QI_AUTO_UNFURL_GLOW_MS = 1250
-const QI_AUTO_UNFURL_SESSION_KEY = 'dugou.quick_input_intro_seen.v2'
+const QI_AUTO_UNFURL_SESSION_KEY = 'eivra.quick_input_intro_seen.v2'
 
 const markQuickInputIntroSeen = () => {
   try {
-    window.sessionStorage.setItem(QI_AUTO_UNFURL_SESSION_KEY, '1')
+    brandSessionStorage.setItem(QI_AUTO_UNFURL_SESSION_KEY, '1')
   } catch {
     // Storage can be unavailable in hardened/private contexts; animation still works.
   }
@@ -154,7 +155,7 @@ const createResettableMatchFields = () => ({
 // ── 录入草稿持久化 ──
 // 进行中的表单只存在内存里，刷新 / 手机后台回收标签页都会清空，导致「输一半全没了」。
 // 这里把录入中的表单实时写进 localStorage，下次进入自动恢复；提交成功后清除。
-const DRAFT_KEY = 'dugou.new_investment_draft.v1'
+const DRAFT_KEY = 'eivra.new_investment_draft.v1'
 const DRAFT_MAX_AGE_MS = 1000 * 60 * 60 * 24 // 超过 24h 的草稿不再恢复，避免旧表单意外复活
 
 const draftMatchHasContent = (match) => {
@@ -191,7 +192,7 @@ const normalizeDraftMatch = (raw) => {
 const readInvestmentDraft = () => {
   if (typeof window === 'undefined') return null
   try {
-    const raw = window.localStorage.getItem(DRAFT_KEY)
+    const raw = brandLocalStorage.getItem(DRAFT_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw)
     if (!parsed || typeof parsed !== 'object') return null
@@ -210,7 +211,7 @@ const readInvestmentDraft = () => {
 const writeInvestmentDraft = (draft) => {
   if (typeof window === 'undefined') return
   try {
-    window.localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...draft, savedAt: Date.now() }))
+    brandLocalStorage.setItem(DRAFT_KEY, JSON.stringify({ ...draft, savedAt: Date.now() }))
   } catch {
     /* localStorage 不可用——放弃草稿持久化，不影响正常录入 */
   }
@@ -219,7 +220,7 @@ const writeInvestmentDraft = (draft) => {
 const clearInvestmentDraft = () => {
   if (typeof window === 'undefined') return
   try {
-    window.localStorage.removeItem(DRAFT_KEY)
+    brandLocalStorage.removeItem(DRAFT_KEY)
   } catch {
     /* 忽略 */
   }
@@ -363,7 +364,7 @@ export default function NewInvestmentPage() {
   useEffect(() => {
     let shouldPlayIntro = true
     try {
-      shouldPlayIntro = window.sessionStorage.getItem(QI_AUTO_UNFURL_SESSION_KEY) !== '1'
+      shouldPlayIntro = brandSessionStorage.getItem(QI_AUTO_UNFURL_SESSION_KEY) !== '1'
     } catch {
       // Storage unavailable: preserve the first-mount animation as a safe fallback.
     }
@@ -546,8 +547,8 @@ export default function NewInvestmentPage() {
       if (event?.detail?.uiOnly === true) return
       setDataVersion((prev) => prev + 1)
     }
-    window.addEventListener('dugou:data-changed', onDataChanged)
-    return () => window.removeEventListener('dugou:data-changed', onDataChanged)
+    window.addEventListener('eivra:data-changed', onDataChanged)
+    return () => window.removeEventListener('eivra:data-changed', onDataChanged)
   }, [])
 
   useEffect(() => {
@@ -1399,7 +1400,7 @@ export default function NewInvestmentPage() {
     } catch (err) {
       // 落库失败（容量超限 / 存储不可用等）——保留草稿与表单供重试，
       // 绝不静默清空确认过的录入。
-      console.error('[DuGou] 投资落库失败，已保留草稿待恢复：', err)
+      console.error('[Eivra] 投资落库失败，已保留草稿待恢复：', err)
       return null
     }
     if (!saved) return null
@@ -1420,7 +1421,7 @@ export default function NewInvestmentPage() {
     try {
       saved = saveInvestments(payloads.map((payload) => payload.newInvestment))
     } catch (err) {
-      console.error('[DuGou] 批量投资落库失败，已保留全部草稿待恢复：', err)
+      console.error('[Eivra] 批量投资落库失败，已保留全部草稿待恢复：', err)
       return []
     }
     if (saved.length !== payloads.length) return []

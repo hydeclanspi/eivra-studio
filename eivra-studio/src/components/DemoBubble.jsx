@@ -1,3 +1,4 @@
+import { brandSessionStorage } from '../lib/brandStorage.js'
 import { useEffect, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
 import UnlockModal from './UnlockModal'
@@ -17,13 +18,13 @@ import UnlockModal from './UnlockModal'
  *
  * Product rules:
  *   - Preview/home-only mounting is decided by the parent (App).
- *   - Shows once per browser session (sessionStorage) so navigating in and
+ *   - Shows once per browser session (brandSessionStorage) so navigating in and
  *     out of the homepage doesn't re-nag.
  *   - Auto-fades 7.75s after settling; hovering pauses (and resets) the timer.
  *   - prefers-reduced-motion degrades to a plain cross-fade.
  */
 
-const SESSION_SHOWN_KEY = 'dugou.demo_bubble_shown.v1'
+const SESSION_SHOWN_KEY = 'eivra.demo_bubble_shown.v1'
 // Sequenced AFTER the homepage Quick Input「展卷·收锋」peek so the two demo
 // flourishes never play over each other. That peek starts at 2770ms and runs
 // ~2390ms (hold 2050 + retract 340), finishing ≈5160ms; we then wait 0.7s.
@@ -35,7 +36,7 @@ const LEAVE_MS = 400 // ~demoBubbleOut (380ms) + small buffer
 
 const alreadyShownThisSession = () => {
   try {
-    return window.sessionStorage.getItem(SESSION_SHOWN_KEY) === '1'
+    return brandSessionStorage.getItem(SESSION_SHOWN_KEY) === '1'
   } catch {
     return false
   }
@@ -43,7 +44,7 @@ const alreadyShownThisSession = () => {
 
 const markShownThisSession = () => {
   try {
-    window.sessionStorage.setItem(SESSION_SHOWN_KEY, '1')
+    brandSessionStorage.setItem(SESSION_SHOWN_KEY, '1')
   } catch {
     /* sessionStorage unavailable — fail silent */
   }

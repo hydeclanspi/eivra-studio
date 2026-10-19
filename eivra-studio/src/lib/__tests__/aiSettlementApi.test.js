@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import handler from '../../../api/parse-settlement.js'
 
 const originalKey = process.env.DEEPSEEK_API_KEY
-const ownerRequest = (body) => ({ method: 'POST', headers: { 'x-dugou-arsenal': '1' }, body })
+const ownerRequest = (body) => ({ method: 'POST', headers: { 'x-eivra-arsenal': '1' }, body })
 const makeResponse = () => ({
   statusCode: 200, body: null, headers: {},
   setHeader(name, value) { this.headers[name] = value },

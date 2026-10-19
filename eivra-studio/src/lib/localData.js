@@ -1,3 +1,4 @@
+import { brandLocalStorage } from './brandStorage.js'
 import {
   getTimeMachineSession,
   startTimeMachineSession,
@@ -27,14 +28,14 @@ import { previewRead, previewWrite, resetPreviewStore } from './previewStore'
 import { DEFAULT_LIQUID_GLASS_STYLE, DEFAULT_LIQUID_GLASS_QUALITY, DEFAULT_LIQUID_GLASS_MATERIAL_QUALITY, isDarkGlassStyle, isLiquidGlassStyle, normalizeLiquidGlassStyle, normalizeLiquidGlassQuality, normalizeLiquidGlassMaterialQuality } from '../design/liquidGlassThemes'
 
 const STORAGE_KEYS = {
-  investments: 'dugou.investments.v1',
-  teamProfiles: 'dugou.team_profiles.v1',
-  systemConfig: 'dugou.system_config.v1',
-  accessLogs: 'dugou.access_logs.v1',
+  investments: 'eivra.investments.v1',
+  teamProfiles: 'eivra.team_profiles.v1',
+  systemConfig: 'eivra.system_config.v1',
+  accessLogs: 'eivra.access_logs.v1',
 }
-const GENESIS_APPLIED_KEY = 'dugou.genesis_applied.v1'
-const DATA_PATCH_V20260205_KEY = 'dugou.data_patch.v20260205'
-const DATA_PATCH_V20260206_KEY = 'dugou.data_patch.v20260206'
+const GENESIS_APPLIED_KEY = 'eivra.genesis_applied.v1'
+const DATA_PATCH_V20260205_KEY = 'eivra.data_patch.v20260205'
+const DATA_PATCH_V20260206_KEY = 'eivra.data_patch.v20260206'
 const ACCESS_LOG_MAX_ROWS = 600
 let cloudBootstrapInProgress = false
 
@@ -291,7 +292,7 @@ const normalize = (value) => String(value || '').trim().toLowerCase()
 
 const markGenesisApplied = () => {
   if (!isBrowser) return
-  window.localStorage.setItem(GENESIS_APPLIED_KEY, '1')
+  brandLocalStorage.setItem(GENESIS_APPLIED_KEY, '1')
 }
 
 const mergeAliases = (...groups) => {
@@ -361,7 +362,7 @@ const readJSON = (key, fallback) => {
   if (!isBrowser) return fallback
   if (isPreviewMode()) return previewRead(key, fallback)
   try {
-    const raw = window.localStorage.getItem(key)
+    const raw = brandLocalStorage.getItem(key)
     return raw ? JSON.parse(raw) : fallback
   } catch {
     return fallback
@@ -375,11 +376,11 @@ const writeJSON = (key, value, options = {}) => {
   // syncs to the cloud snapshot bucket.
   if (isPreviewMode()) {
     previewWrite(key, value)
-    window.dispatchEvent(new CustomEvent('dugou:data-changed', { detail: { key, ...options, preview: true } }))
+    window.dispatchEvent(new CustomEvent('eivra:data-changed', { detail: { key, ...options, preview: true } }))
     return
   }
-  window.localStorage.setItem(key, JSON.stringify(value))
-  window.dispatchEvent(new CustomEvent('dugou:data-changed', { detail: { key, ...options } }))
+  brandLocalStorage.setItem(key, JSON.stringify(value))
+  window.dispatchEvent(new CustomEvent('eivra:data-changed', { detail: { key, ...options } }))
   if (
     !cloudBootstrapInProgress &&
     (
@@ -399,14 +400,14 @@ const writeJSON = (key, value, options = {}) => {
 // every analytics memo / UI subscriber re-fetches against the new
 // effective data source.
 if (typeof window !== 'undefined') {
-  const DISPLAY_MODE_HANDLER_KEY = '__dugouDisplayModeHandler__'
+  const DISPLAY_MODE_HANDLER_KEY = '__eivraDisplayModeHandler__'
   if (typeof window[DISPLAY_MODE_HANDLER_KEY] === 'function') {
     window.removeEventListener(DISPLAY_MODE_CHANGE_EVENT, window[DISPLAY_MODE_HANDLER_KEY])
   }
   const handler = (event) => {
     resetPreviewStore()
     window.dispatchEvent(
-      new CustomEvent('dugou:data-changed', { detail: { key: '__display_mode__' } }),
+      new CustomEvent('eivra:data-changed', { detail: { key: '__display_mode__' } }),
     )
     // On unlock (→ full) adopt the latest git-synced snapshot so a fresh
     // device shows the owner's real data right after entering the password.
@@ -1032,11 +1033,11 @@ const buildSplitInvestmentsFromLegacy11 = (legacyItem) => {
 
 const applyManualDataPatchV20260205 = () => {
   if (!isBrowser) return
-  if (window.localStorage.getItem(DATA_PATCH_V20260205_KEY) === '1') return
+  if (brandLocalStorage.getItem(DATA_PATCH_V20260205_KEY) === '1') return
 
   const rawInvestments = readJSON(STORAGE_KEYS.investments, null)
   if (!Array.isArray(rawInvestments)) {
-    window.localStorage.setItem(DATA_PATCH_V20260205_KEY, '1')
+    brandLocalStorage.setItem(DATA_PATCH_V20260205_KEY, '1')
     return
   }
 
@@ -1089,7 +1090,7 @@ const applyManualDataPatchV20260205 = () => {
     writeJSON(STORAGE_KEYS.investments, nextInvestments)
   }
 
-  window.localStorage.setItem(DATA_PATCH_V20260205_KEY, '1')
+  brandLocalStorage.setItem(DATA_PATCH_V20260205_KEY, '1')
 }
 
 const normalizeLegacyTeamName = (value) => {
@@ -1100,7 +1101,7 @@ const normalizeLegacyTeamName = (value) => {
 
 const applyManualDataPatchV20260206 = () => {
   if (!isBrowser) return
-  if (window.localStorage.getItem(DATA_PATCH_V20260206_KEY) === '1') return
+  if (brandLocalStorage.getItem(DATA_PATCH_V20260206_KEY) === '1') return
 
   const rawTeamProfiles = readJSON(STORAGE_KEYS.teamProfiles, null)
   const rawInvestments = readJSON(STORAGE_KEYS.investments, null)
@@ -1203,7 +1204,7 @@ const applyManualDataPatchV20260206 = () => {
     }
   }
 
-  window.localStorage.setItem(DATA_PATCH_V20260206_KEY, '1')
+  brandLocalStorage.setItem(DATA_PATCH_V20260206_KEY, '1')
 }
 
 const toArray = (value) => (Array.isArray(value) ? value : [])
@@ -1321,10 +1322,10 @@ const ensureGenesisApplied = () => {
   // derived from them) showed up empty on the first view and correct on every
   // reload after. Genesis has no business running in preview at all.
   if (isPreviewMode()) return
-  if (window.localStorage.getItem(GENESIS_APPLIED_KEY) === '1') return
+  if (brandLocalStorage.getItem(GENESIS_APPLIED_KEY) === '1') return
   const ok = applyDataBundle(genesisBundle, 'replace')
   if (ok) {
-    window.localStorage.setItem(GENESIS_APPLIED_KEY, '1')
+    brandLocalStorage.setItem(GENESIS_APPLIED_KEY, '1')
   }
 }
 
@@ -1387,7 +1388,7 @@ export const appendAccessLog = (record, options = {}) => {
 
 const checkReadOnlyMode = (operationName = 'Operation') => {
   if (isInTimeMachineMode()) {
-    console.warn(`[DuGou] 时光穿越中：${operationName}已禁用，仅浏览历史快照。`)
+    console.warn(`[Eivra] 时光穿越中：${operationName}已禁用，仅浏览历史快照。`)
     return false
   }
   return true
@@ -1491,7 +1492,7 @@ export const restoreGenesisData = () => {
   if (isPreviewMode()) return false
   const ok = applyDataBundle(genesisBundle, 'replace')
   if (ok && isBrowser) {
-    window.localStorage.setItem(GENESIS_APPLIED_KEY, '1')
+    brandLocalStorage.setItem(GENESIS_APPLIED_KEY, '1')
   }
   return ok
 }
@@ -1576,7 +1577,7 @@ const syncFromGitOnUnlock = async () => {
     cloudBootstrapInProgress = false
   }
   if (isBrowser) {
-    window.dispatchEvent(new CustomEvent('dugou:data-changed', { detail: { key: 'all' } }))
+    window.dispatchEvent(new CustomEvent('eivra:data-changed', { detail: { key: 'all' } }))
   }
   if (result?.localExtras > 0) {
     commitBundleNow(exportDataBundle())
@@ -1616,11 +1617,11 @@ export const pullCloudSnapshotNow = async (mode = 'merge') => {
       ? applyDataBundle(pulled.bundle, 'replace')
       : mergeGitBundleIntoLocal(pulled.bundle).applied
   if (!applied) {
-    const state = saveGitSyncState({ lastError: '云端快照结构不符合 DUGOU 模板，未应用。' })
+    const state = saveGitSyncState({ lastError: '云端快照结构不符合 Eivra 模板，未应用。' })
     return { ok: false, reason: 'invalid_snapshot', state, applied: false }
   }
   if (isBrowser) {
-    window.dispatchEvent(new CustomEvent('dugou:data-changed', { detail: { key: 'all' } }))
+    window.dispatchEvent(new CustomEvent('eivra:data-changed', { detail: { key: 'all' } }))
   }
   return { ok: true, applied: true, mode: normalizedMode, updatedAt: pulled.updatedAt }
 }
@@ -1640,7 +1641,7 @@ export const beginTimeMachineSession = async (snapshotId) => {
   })
 
   if (sessionResult.ok) {
-    window.dispatchEvent(new CustomEvent('dugou:data-changed', { detail: { key: 'all' } }))
+    window.dispatchEvent(new CustomEvent('eivra:data-changed', { detail: { key: 'all' } }))
   }
 
   return sessionResult
@@ -1649,7 +1650,7 @@ export const beginTimeMachineSession = async (snapshotId) => {
 export const endTimeMachineSession = () => {
   const result = exitTimeMachineSession()
   if (result.ok) {
-    window.dispatchEvent(new CustomEvent('dugou:data-changed', { detail: { key: 'all' } }))
+    window.dispatchEvent(new CustomEvent('eivra:data-changed', { detail: { key: 'all' } }))
   }
   return result
 }

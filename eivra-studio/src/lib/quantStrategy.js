@@ -1,3 +1,4 @@
+import { brandLocalStorage } from './brandStorage.js'
 /**
  * ============================================================================
  *  quantStrategy.js — Quants · 量化策略实验室（策略对象 + 推演引擎）
@@ -36,7 +37,7 @@ import { normalizeMatchDate, resolveTeamIdentity, teamKeyForName } from './match
 import { marketMatchKey } from './oddsHistory'
 import { probabilityFromRatings } from './teamRatings'
 
-const STRATEGIES_KEY = 'dugou.strategies.v1'
+const STRATEGIES_KEY = 'eivra.strategies.v1'
 const isBrowser = typeof window !== 'undefined'
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
@@ -623,7 +624,7 @@ const readJSON = (key, fallback) => {
   if (!isBrowser) return fallback
   if (isPreviewMode()) return previewRead(key, fallback)
   try {
-    const raw = window.localStorage.getItem(key)
+    const raw = brandLocalStorage.getItem(key)
     return raw ? JSON.parse(raw) : fallback
   } catch {
     return fallback
@@ -634,11 +635,11 @@ const writeJSON = (key, value) => {
   if (!isBrowser) return
   if (isPreviewMode()) {
     previewWrite(key, value)
-    window.dispatchEvent(new CustomEvent('dugou:data-changed', { detail: { key, preview: true } }))
+    window.dispatchEvent(new CustomEvent('eivra:data-changed', { detail: { key, preview: true } }))
     return
   }
-  window.localStorage.setItem(key, JSON.stringify(value))
-  window.dispatchEvent(new CustomEvent('dugou:data-changed', { detail: { key } }))
+  brandLocalStorage.setItem(key, JSON.stringify(value))
+  window.dispatchEvent(new CustomEvent('eivra:data-changed', { detail: { key } }))
 }
 
 export const getStrategies = () => {

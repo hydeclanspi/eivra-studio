@@ -1,3 +1,4 @@
+import { brandSessionStorage } from './brandStorage.js'
 import { useEffect, useState } from 'react'
 import { isDesignPreview } from '../design/labEditions'
 
@@ -9,7 +10,7 @@ import { isDesignPreview } from '../design/labEditions'
  *      shows hand-crafted demo bundle. What recruiters/visitors see.
  *   - 'full': unlocked state. Identical to the pre-existing product.
  *
- * Unlock token lives in sessionStorage, so closing the browser snaps
+ * Unlock token lives in brandSessionStorage, so closing the browser snaps
  * back to preview. localStorage is intentionally avoided to prevent
  * residual access across browser restarts.
  *
@@ -17,14 +18,14 @@ import { isDesignPreview } from '../design/labEditions'
  * (wired in Step 6). Until then a mock token is accepted.
  */
 
-const TOKEN_KEY = 'dugou.preview_unlock_token.v1'
+const TOKEN_KEY = 'eivra.preview_unlock_token.v1'
 // Once a tab unlocks with a valid token we latch FULL mode for the tab's
 // lifetime. The token's exp still gates the *initial* unlock, but a later
 // expiry must never silently downgrade an active session — that previously
 // rerouted confirmed writes into the in-memory demo store, so anything
 // entered after the token quietly expired vanished on the next refresh.
-const UNLOCK_LATCH_KEY = 'dugou.full_session_latch.v1'
-const DISPLAY_MODE_EVENT = 'dugou:display-mode-changed'
+const UNLOCK_LATCH_KEY = 'eivra.full_session_latch.v1'
+const DISPLAY_MODE_EVENT = 'eivra:display-mode-changed'
 
 const MOCK_TOKEN_PREFIX = 'dev.mock.'
 
@@ -49,7 +50,7 @@ export const isOwnerRoute = () =>
 const safeGetSession = (key) => {
   if (typeof window === 'undefined') return null
   try {
-    return window.sessionStorage.getItem(key)
+    return brandSessionStorage.getItem(key)
   } catch (err) {
     return null
   }
@@ -58,8 +59,8 @@ const safeGetSession = (key) => {
 const safeSetSession = (key, value) => {
   if (typeof window === 'undefined') return
   try {
-    if (value == null) window.sessionStorage.removeItem(key)
-    else window.sessionStorage.setItem(key, value)
+    if (value == null) brandSessionStorage.removeItem(key)
+    else brandSessionStorage.setItem(key, value)
   } catch (err) {
     /* sessionStorage unavailable — fail silent */
   }

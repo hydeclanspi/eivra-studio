@@ -1,3 +1,4 @@
+import { brandSessionStorage } from '../lib/brandStorage.js'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import {
   Activity,
@@ -23,19 +24,19 @@ import { isPreviewMode } from '../lib/displayMode'
  *     diagram scrolls into view — earned by the scroll, not gratuitous.
  *     After it resolves the diagram rests static.
  *   - The one-time coachmark is preview/demo only (so power users in FULL
- *     mode are never hand-held) and shows once per session (sessionStorage),
+ *     mode are never hand-held) and shows once per session (brandSessionStorage),
  *     spending the last of the demo's auto-popup budget.
  *   - prefers-reduced-motion: no sheen, no coach entrance animation — the
  *     diagram and (if applicable) the coach appear at their resting state.
  */
 
-const SESSION_COACH_KEY = 'dugou.adaptive_loop_coach.v1'
+const SESSION_COACH_KEY = 'eivra.adaptive_loop_coach.v1'
 const COACH_VISIBLE_MS = 5850
 const TRACE_MS = 1500 // matches the sheen animation; drop the class after
 
 const alreadyCoachedThisSession = () => {
   try {
-    return window.sessionStorage.getItem(SESSION_COACH_KEY) === '1'
+    return brandSessionStorage.getItem(SESSION_COACH_KEY) === '1'
   } catch {
     return false
   }
@@ -43,7 +44,7 @@ const alreadyCoachedThisSession = () => {
 
 const markCoachedThisSession = () => {
   try {
-    window.sessionStorage.setItem(SESSION_COACH_KEY, '1')
+    brandSessionStorage.setItem(SESSION_COACH_KEY, '1')
   } catch {
     /* sessionStorage unavailable — fail silent */
   }

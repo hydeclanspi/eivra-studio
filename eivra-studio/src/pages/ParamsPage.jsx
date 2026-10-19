@@ -1,3 +1,4 @@
+import { brandLocalStorage } from '../lib/brandStorage.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
@@ -2923,11 +2924,11 @@ export default function ParamsPage({ openModal, previewLayoutMode }) {
       setTmIsInMode(isInTimeMachineMode())
       setTmSessionInfo(getTimeMachineSessionInfo())
     }
-    window.addEventListener('dugou:data-changed', refresh)
-    window.addEventListener('dugou:time-machine-changed', refresh)
+    window.addEventListener('eivra:data-changed', refresh)
+    window.addEventListener('eivra:time-machine-changed', refresh)
     return () => {
-      window.removeEventListener('dugou:data-changed', refresh)
-      window.removeEventListener('dugou:time-machine-changed', refresh)
+      window.removeEventListener('eivra:data-changed', refresh)
+      window.removeEventListener('eivra:time-machine-changed', refresh)
     }
   }, [])
 
@@ -4013,7 +4014,7 @@ export default function ParamsPage({ openModal, previewLayoutMode }) {
   const getCurrentLayoutMode = () => {
     if (isDesignPreview() && previewLayoutMode) return previewLayoutMode
     if (isDesignPreview()) return config.layoutMode || 'inpiration'
-    return getPreferredLayoutMode(config.layoutMode, typeof window === 'undefined' ? null : window.localStorage)
+    return getPreferredLayoutMode(config.layoutMode, typeof window === 'undefined' ? null : brandLocalStorage)
   }
 
   const openThemeSettingsModal = () => {
@@ -4091,7 +4092,7 @@ export default function ParamsPage({ openModal, previewLayoutMode }) {
   const handleExportExcel = () => {
     const bundle = exportDataBundle()
     const workbook = buildDataWorkbook(bundle)
-    downloadWorkbook(workbook, 'dugou-data')
+    downloadWorkbook(workbook, 'eivra-data')
     markBackupExported()
     setExcelStatus('已导出并记录备份时间')
     setTimeout(() => setExcelStatus(''), 1600)
@@ -4112,7 +4113,7 @@ export default function ParamsPage({ openModal, previewLayoutMode }) {
         ...parsed,
       })
     } catch {
-      setExcelError('导入失败：无法解析 Excel 备份，请确认选择的是 DUGOU 导出的备份文件。')
+      setExcelError('导入失败：无法解析 Excel 备份，请确认选择的是 Eivra 导出的备份文件。')
     } finally {
       event.target.value = ''
     }
@@ -4122,7 +4123,7 @@ export default function ParamsPage({ openModal, previewLayoutMode }) {
     if (!excelPreview?.bundle) return
     const ok = importDataBundle(excelPreview.bundle, mode)
     if (!ok) {
-      setExcelError('导入失败：文件结构不符合 DUGOU 模板。')
+      setExcelError('导入失败：文件结构不符合 Eivra 模板。')
       return
     }
     setExcelPreview(null)
@@ -4138,7 +4139,7 @@ export default function ParamsPage({ openModal, previewLayoutMode }) {
     const href = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = href
-    a.download = `dugou-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `eivra-backup-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(href)
     setJsonStatus('已导出 JSON')
@@ -4308,13 +4309,13 @@ export default function ParamsPage({ openModal, previewLayoutMode }) {
     if (!LAYOUT_MODE_OPTIONS.includes(layoutMode)) return
     saveSystemConfig({ layoutMode })
     if (!isDesignPreview()) {
-      localStorage.setItem('dugou:layout-mode', layoutMode)
+      brandLocalStorage.setItem('eivra:layout-mode', layoutMode)
     }
-    window.dispatchEvent(new CustomEvent('dugou:layout-changed', { detail: { mode: layoutMode, preview: isDesignPreview() } }))
+    window.dispatchEvent(new CustomEvent('eivra:layout-changed', { detail: { mode: layoutMode, preview: isDesignPreview() } }))
     setConfig((prev) => ({ ...prev, layoutMode }))
   }
 
-  // 液态玻璃背景开关（UI 偏好，时光穿越中也可写）；writeJSON 会 dispatch dugou:data-changed，App 自动刷新
+  // 液态玻璃背景开关（UI 偏好，时光穿越中也可写）；writeJSON 会 dispatch eivra:data-changed，App 自动刷新
   const liquidGlassEnabled = config.liquidGlassEnabled !== false
   const toggleLiquidGlass = () => {
     const next = !liquidGlassEnabled

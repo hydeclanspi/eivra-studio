@@ -12,7 +12,7 @@ vi.mock('../displayMode', () => ({
   DISPLAY_MODE_CHANGE_EVENT: 'test:display-mode',
 }))
 
-const key = 'dugou.system_config.v1'
+const key = 'eivra.system_config.v1'
 let storage
 let dispatchEvent
 let getSystemConfig
@@ -44,9 +44,9 @@ beforeEach(() => {
   session.historical = null
   session.preview = false
   storage = new Map([
-    ['dugou.genesis_applied.v1', '1'],
-    ['dugou.data_patch.v20260205', '1'],
-    ['dugou.data_patch.v20260206', '1'],
+    ['eivra.genesis_applied.v1', '1'],
+    ['eivra.data_patch.v20260205', '1'],
+    ['eivra.data_patch.v20260206', '1'],
     [key, JSON.stringify({ liquidGlassStyle: 'vivid', liquidGlassEnabled: true, initialCapital: 12345 })],
   ])
   dispatchEvent.mockClear()
@@ -175,7 +175,7 @@ describe('liquid glass UI preferences', () => {
     for (const patch of [{ liquidGlassQuality: 'full' }, { liquidGlassMaterialQuality: 'smooth' }, { liquidGlassStyle: 'sand', liquidGlassStylePinned: true }, { liquidGlassEnabled: false }]) {
       saveSystemConfig(patch)
       const event = dispatchEvent.mock.calls.at(-1)[0]
-      expect(event.type).toBe('dugou:data-changed')
+      expect(event.type).toBe('eivra:data-changed')
       expect(event.detail).toMatchObject({ key, uiOnly: true })
       if (preview) expect(event.detail.preview).toBe(true)
     }

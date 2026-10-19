@@ -58,7 +58,7 @@ describe('AI Quick Input browser client', () => {
     expect(result.combos[0].matches[0].arbitrary).toBeUndefined()
     expect(fetchMock).toHaveBeenCalledWith('/api/parse-investment', expect.objectContaining({
       method: 'POST',
-      headers: expect.objectContaining({ 'X-Dugou-Arsenal': '1' }),
+      headers: expect.objectContaining({ 'X-Eivra-Arsenal': '1' }),
     }))
   })
 

@@ -19,7 +19,7 @@ const stubFullModeWindow = () => {
   vi.stubGlobal('window', {
     location: { pathname: '/' },
     sessionStorage: {
-      getItem: (key) => (key === 'dugou.full_session_latch.v1' ? '1' : null),
+      getItem: (key) => (key === 'eivra.full_session_latch.v1' ? '1' : null),
       setItem: () => {},
       removeItem: () => {},
     },

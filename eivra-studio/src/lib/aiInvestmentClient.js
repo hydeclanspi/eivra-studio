@@ -17,7 +17,7 @@ export class AiInvestmentParseError extends Error {
 }
 
 const getOwnerHeaders = () => {
-  if (isOwnerRoute()) return { 'X-Dugou-Arsenal': '1' }
+  if (isOwnerRoute()) return { 'X-Eivra-Arsenal': '1' }
   const token = getStoredToken()
   return token ? { Authorization: `Bearer ${token}` } : null
 }

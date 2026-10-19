@@ -1,7 +1,7 @@
-export const LAYOUT_KEY = 'dugou:layout-mode'
+export const LAYOUT_KEY = 'eivra:layout-mode'
 export const LAYOUT_MODES = ['modern', 'inpiration', 'sidebar']
 export const DEFAULT_LAYOUT = 'inpiration'
-const DEFAULT_REVISION_KEY = 'dugou:layout-default-inpiration.v1'
+const DEFAULT_REVISION_KEY = 'eivra:layout-default-inpiration.v1'
 
 export const normalizeLayoutMode = (mode) =>
   ['temp_title', 'inspration', 'inspiration'].includes(mode)

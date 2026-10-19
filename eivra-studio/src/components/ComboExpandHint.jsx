@@ -1,3 +1,4 @@
+import { brandSessionStorage } from '../lib/brandStorage.js'
 import { useEffect, useState } from 'react'
 import { ChevronsLeft, ChevronsRight } from 'lucide-react'
 
@@ -15,7 +16,7 @@ import { ChevronsLeft, ChevronsRight } from 'lucide-react'
  *      (rings), then a directional chevron nudge ("open this way");
  *   3. float a one-time coachmark bubble naming what's inside.
  *
- * Shows once per browser session (sessionStorage). Only fires when the
+ * Shows once per browser session (brandSessionStorage). Only fires when the
  * panel is collapsed on mount (so a manual collapse in FULL mode, where
  * the panel starts expanded, never triggers it). prefers-reduced-motion
  * degrades to the static pill + coachmark, no rings/nudge.
@@ -23,7 +24,7 @@ import { ChevronsLeft, ChevronsRight } from 'lucide-react'
  * Lifecycle: idle → sonar → nudge → done.
  */
 
-const SESSION_HINT_KEY = 'dugou.combo_expand_hint.v1'
+const SESSION_HINT_KEY = 'eivra.combo_expand_hint.v1'
 const START_DELAY_MS = 650 // let the page settle before nudging
 const SONAR_MS = 2500 // sonar phase (3 rings staggered)
 const NUDGE_MS = 1300 // directional chevron nudge phase
@@ -31,7 +32,7 @@ const COACH_VISIBLE_MS = 6900 // coachmark on-screen lifetime
 
 const alreadyHintedThisSession = () => {
   try {
-    return window.sessionStorage.getItem(SESSION_HINT_KEY) === '1'
+    return brandSessionStorage.getItem(SESSION_HINT_KEY) === '1'
   } catch {
     return false
   }
@@ -39,7 +40,7 @@ const alreadyHintedThisSession = () => {
 
 const markHintedThisSession = () => {
   try {
-    window.sessionStorage.setItem(SESSION_HINT_KEY, '1')
+    brandSessionStorage.setItem(SESSION_HINT_KEY, '1')
   } catch {
     /* sessionStorage unavailable — fail silent */
   }

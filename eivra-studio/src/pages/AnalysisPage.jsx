@@ -1,3 +1,4 @@
+import { brandLocalStorage } from '../lib/brandStorage.js'
 import { useEffect, useMemo, useState } from 'react'
 import { splitInvestmentToMatches } from '../lib/matchAttribution'
 import { useNavigate } from 'react-router-dom'
@@ -80,7 +81,7 @@ const MODE_ORDER = ['常规', '常规-稳', '常规-杠杆', '半彩票半保险
 const COMBO_SIZE_BUCKETS = ['2串', '3串', '4串', '5+串']
 const ADVANTAGE_CONF_BUCKETS = ['0.8+', '0.7-0.8', '0.6-0.7', '0.5-0.6', '0.4-0.5', '<0.4']
 const ADVANTAGE_ODDS_BUCKETS = ['1.0-1.5', '1.5-2.0', '2.0-2.5', '2.5-3.0', '3.0-3.5', '3.5-4.0', '4.0+']
-const COMBO_ANALYSIS_FILTER_KEY = 'dugou.combo.analysis_filter.v1'
+const COMBO_ANALYSIS_FILTER_KEY = 'eivra.combo.analysis_filter.v1'
 
 const CONF_RANGE_ORDER = ['0.8+', '0.7-0.8', '0.6-0.7', '0.5-0.6', '0.4-0.5', '<0.4']
 
@@ -213,7 +214,7 @@ const getAJRColor = (value) => {
 const writeComboAnalysisFilter = (payload) => {
   if (typeof window === 'undefined') return
   try {
-    window.localStorage.setItem(COMBO_ANALYSIS_FILTER_KEY, JSON.stringify(payload))
+    brandLocalStorage.setItem(COMBO_ANALYSIS_FILTER_KEY, JSON.stringify(payload))
   } catch {
     // ignore
   }

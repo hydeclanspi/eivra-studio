@@ -572,12 +572,12 @@ export default function QuantsPage() {
 
   useEffect(() => {
     const onDataChanged = (event) => {
-      if (event?.detail?.key === 'dugou.strategies.v1') setStrategies(getStrategies())
-      if (event?.detail?.key === 'dugou.results_cache.v1') setResultsStatus(resultsCacheStatus())
-      if (event?.detail?.key === 'dugou.odds_history.v1') setOddsStatus(oddsHistoryStatus())
+      if (event?.detail?.key === 'eivra.strategies.v1') setStrategies(getStrategies())
+      if (event?.detail?.key === 'eivra.results_cache.v1') setResultsStatus(resultsCacheStatus())
+      if (event?.detail?.key === 'eivra.odds_history.v1') setOddsStatus(oddsHistoryStatus())
     }
-    window.addEventListener('dugou:data-changed', onDataChanged)
-    return () => window.removeEventListener('dugou:data-changed', onDataChanged)
+    window.addEventListener('eivra:data-changed', onDataChanged)
+    return () => window.removeEventListener('eivra:data-changed', onDataChanged)
   }, [])
 
   // 挂载时静默自动同步：同步赛程 → 记录报价 → 刷新收盘 → 自动结算/作废/退役。

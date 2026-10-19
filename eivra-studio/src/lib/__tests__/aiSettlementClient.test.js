@@ -30,7 +30,7 @@ describe('AI settlement browser client', () => {
     expect(result).toMatchObject({ ok: true, source: 'deepseek' })
     expect(result.settlements[0]).toMatchObject({ pendingId: 'inv_1', revenues: 50 })
     expect(fetchMock).toHaveBeenCalledWith('/api/parse-settlement', expect.objectContaining({
-      headers: expect.objectContaining({ 'X-Dugou-Arsenal': '1' }),
+      headers: expect.objectContaining({ 'X-Eivra-Arsenal': '1' }),
     }))
     const requestBody = JSON.parse(fetchMock.mock.calls[0][1].body)
     expect(requestBody.scope).toBe('match')

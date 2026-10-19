@@ -35,24 +35,10 @@ Acuen 的命名灵感来自 **acumen**，强调敏锐的判断力。它可作为
 
 项目链接：<https://github.com/hydeclanspi/eivra-studio>。演示入口：<https://hydeclanspi.vercel.app>。
 
-## 2026-10-18 · 仓库命名迁移
+## 迁移记录
 
-- GitHub 仓库与 npm 包名统一为 `eivra-studio`；应用目录由 `dugou-model-centre/` 更名为 `eivra-studio/`。
-- README、当前文档中的品牌称呼、报告生成器的标题和带旧品牌的文件名使用 Eivra / Eivra Studio；CI 路径与 Vercel Root Directory 同步改为 `eivra-studio`。
-- 头像文件更名为 `public/eivra-avatar.jpg`，图片内容不变。Vercel 保留 `/dugou-avatar.jpg` 到新资源的内部重写，以兼容已有 URL。
-- `output/pdf/eivra-app-summary-1page-zh.pdf` 是更名前制作的历史摘要，仅更改归档文件名，正文仍记录当时的名称与产品状态；不应作为新版品牌介绍使用。
-- 2026-10-19 按确认的品牌整理范围统一所有活动分支的历史文件路径与提交信息。880 个原有提交逐一保留作者、时间、父子关系及文件内容；提交 SHA 随之改变。完整 Git bundle 备份与新旧 SHA 映射保存在本地 Git 元数据目录中，不发布到仓库。
-- 历史审计的日期与验证结论保持原样。当前复现脚本对应的新基线为 `91c4a51ebc65:eivra-studio/...`，与迁移前的审计源文件逐字节一致。
+2026-10-18 完成仓库命名与部署目录迁移；2026-10-19 整理活动分支历史并补充双语 README。此前的完整说明与原始 PDF 已随旧代码一起封存在 `../../archive/dugou-legacy/`，归档内容不再修改。
 
-## 生产端边界
+当前阶段已将生产页面文字、HTML 标题与描述、导出命名、样式标识、事件、API 新请求及新快照标识统一到 Eivra。图形 Logo 与头像原件保持不变。正式应用目录仍为 `eivra-studio/`，部署地址与项目 ID 不变。
 
-当前生产页面仍使用既有 DuGou 品牌与 Logo，HTML 标题与元数据保持原样。新的视觉身份另行设计；此次仓库命名迁移不修改 `src/` 中的产品行为或界面文案。
-
-以下历史标识属于运行时或数据兼容契约，继续保留：
-
-- `dugou.*` / `dugou:*` 本地存储、会话存储与事件名称。
-- 同步数据库表、加密快照 schema、备份格式、JWT subject 与 API 请求头。
-- 原始数据来源名称、应用导出文件名与内部 CSS 标识。历史审计引用随 Git 历史映射更新，不改变被审计的源文件。
-- `data` 分支及其加密快照路径、现有生产域名和 Vercel 项目 ID。
-
-将来推进生产端品牌迁移时，需要单独设计兼容与数据迁移方案，不能全仓库搜索替换这些标识。
+存储迁移、旧文件读取、现有云表及回退边界详见 [product-brand-migration.md](product-brand-migration.md)。

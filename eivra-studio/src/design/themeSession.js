@@ -2,7 +2,7 @@
 // （不写 localStorage、不进云同步）。待评审期结束再恢复偏好记忆。
 import { isLiquidGlassStyle, normalizeLiquidGlassStyle } from './liquidGlassThemes'
 
-export const SESSION_THEME_EVENT = 'dugou:session-theme'
+export const SESSION_THEME_EVENT = 'eivra:session-theme'
 
 // 每页默认（最长路径前缀优先：/dashboard/analysis 命中 '/dashboard'）
 // 根路径 '/' 渲染的也是 New 页（App 路由 path="/" → NewInvestmentPage），

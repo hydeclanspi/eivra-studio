@@ -1124,14 +1124,14 @@ export default function WarReportPage() {
   const railRef = useRef(null)
   const modeLabel = useModeLabelMap()
 
-  // 结算界面一落笔就派发 dugou:data-changed —— 战报据此重算，results 永远跟最新的。
+  // 结算界面一落笔就派发 eivra:data-changed —— 战报据此重算，results 永远跟最新的。
   useEffect(() => {
     const handler = (event) => {
       if (event?.detail?.uiOnly === true) return
       setDataVersion((v) => v + 1)
     }
-    window.addEventListener('dugou:data-changed', handler)
-    return () => window.removeEventListener('dugou:data-changed', handler)
+    window.addEventListener('eivra:data-changed', handler)
+    return () => window.removeEventListener('eivra:data-changed', handler)
   }, [])
 
   // dataVersion 是手动刷新触发器，故意作为依赖。

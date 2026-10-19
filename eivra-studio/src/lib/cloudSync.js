@@ -1,8 +1,12 @@
+import { brandLocalStorage, brandSessionStorage } from './brandStorage.js'
 import { createClient } from '@supabase/supabase-js'
+import { LEGACY_BRAND, isTimeSnapshotSchema } from '../../shared/brandCompatibility.js'
 
-const SYNC_STATE_KEY = 'dugou.cloud_sync_state.v1'
+const SYNC_STATE_KEY = 'eivra.cloud_sync_state.v1'
 const TIME_MACHINE_PREFIX = 'timemachine:'
-const TIME_MACHINE_SCHEMA = 'dugou_time_snapshot_v1'
+const TIME_MACHINE_SCHEMA = 'eivra_time_snapshot_v1'
+// Keep the deployed table until an explicit database migration is performed.
+const SNAPSHOT_TABLE = String(import.meta.env.VITE_EIVRA_SNAPSHOT_TABLE || '').trim() || LEGACY_BRAND.cloudSnapshotTable
 const TIME_MACHINE_DEFAULT_PAGE_SIZE = 6
 
 const DEFAULT_SYNC_STATE = {
@@ -18,7 +22,7 @@ let syncInFlight = false
 const readJSON = (key, fallback) => {
   if (!isBrowser) return fallback
   try {
-    const raw = window.localStorage.getItem(key)
+    const raw = brandLocalStorage.getItem(key)
     return raw ? JSON.parse(raw) : fallback
   } catch {
     return fallback
@@ -27,8 +31,8 @@ const readJSON = (key, fallback) => {
 
 const writeJSON = (key, value) => {
   if (!isBrowser) return
-  window.localStorage.setItem(key, JSON.stringify(value))
-  window.dispatchEvent(new CustomEvent('dugou:data-changed', { detail: { key } }))
+  brandLocalStorage.setItem(key, JSON.stringify(value))
+  window.dispatchEvent(new CustomEvent('eivra:data-changed', { detail: { key } }))
 }
 
 const getSupabaseEnv = () => {
@@ -94,7 +98,7 @@ const parseTimeMachineRow = (row) => {
   if (!row || typeof row !== 'object') return null
   const payload = row.payload && typeof row.payload === 'object' ? row.payload : null
 
-  if (payload?.schema === TIME_MACHINE_SCHEMA && payload.bundle) {
+  if (isTimeSnapshotSchema(payload?.schema) && payload.bundle) {
     const bundle = normalizeTimeMachineBundle(payload.bundle)
     if (!bundle) return null
     const meta = normalizeTimeMachineMeta(payload.meta || {}, {
@@ -180,7 +184,7 @@ const doSyncSnapshot = async (snapshot) => {
     updated_at: new Date().toISOString(),
   }
 
-  const { error } = await client.from('dugou_sync_snapshots').upsert(payload)
+  const { error } = await client.from(SNAPSHOT_TABLE).upsert(payload)
   if (error) {
     const next = saveCloudSyncState({ lastError: error.message || 'Supabase 同步失败。' })
     return { ok: false, reason: 'sync_failed', state: next }
@@ -213,7 +217,7 @@ export const fetchLatestSnapshot = async () => {
   }
 
   const { data, error } = await client
-    .from('dugou_sync_snapshots')
+    .from(SNAPSHOT_TABLE)
     .select('payload, updated_at')
     .eq('id', 'latest')
     .maybeSingle()
@@ -272,7 +276,7 @@ export const saveTimeMachineSnapshot = async ({ snapshot, title = '', mode = 'ma
   }
 
   try {
-    const { error, data } = await client.from('dugou_sync_snapshots').upsert({
+    const { error, data } = await client.from(SNAPSHOT_TABLE).upsert({
       id: snapshotId,
       payload,
       updated_at: snapshotAt,
@@ -313,7 +317,7 @@ export const deleteTimeMachineSnapshotById = async (snapshotId) => {
   }
 
   try {
-    const { error, data } = await client.from('dugou_sync_snapshots').delete().eq('id', snapshotId)
+    const { error, data } = await client.from(SNAPSHOT_TABLE).delete().eq('id', snapshotId)
 
     if (error) {
       console.error('[deleteTimeMachineSnapshotById] Supabase error:', {
@@ -346,7 +350,7 @@ export const ensureMonthlyTimeMachineSnapshot = async ({ snapshot, now = Date.no
   const snapshotId = buildMonthlySnapshotId(monthKey)
 
   const { data: existing, error: checkError } = await client
-    .from('dugou_sync_snapshots')
+    .from(SNAPSHOT_TABLE)
     .select('id, updated_at')
     .eq('id', snapshotId)
     .maybeSingle()
@@ -390,7 +394,7 @@ export const listTimeMachineSnapshots = async ({ page = 1, pageSize = TIME_MACHI
   const to = from + safePageSize - 1
 
   const { data, error, count } = await client
-    .from('dugou_sync_snapshots')
+    .from(SNAPSHOT_TABLE)
     .select('id, payload, updated_at', { count: 'exact' })
     .like('id', `${TIME_MACHINE_PREFIX}%`)
     .order('updated_at', { ascending: false })
@@ -429,7 +433,7 @@ export const fetchTimeMachineSnapshotById = async (snapshotId) => {
   if (!id) return { ok: false, reason: 'invalid_id' }
 
   const { data, error } = await client
-    .from('dugou_sync_snapshots')
+    .from(SNAPSHOT_TABLE)
     .select('id, payload, updated_at')
     .eq('id', id)
     .maybeSingle()
@@ -474,12 +478,12 @@ export const scheduleSnapshotSync = (snapshotFactory) => {
 }
 
 // ── Time Machine Session Management ──
-const TIME_MACHINE_SESSION_KEY = 'dugou.time_machine_session.v1'
+const TIME_MACHINE_SESSION_KEY = 'eivra.time_machine_session.v1'
 
 export const getTimeMachineSession = () => {
   if (!isBrowser) return null
   try {
-    const raw = window.sessionStorage.getItem(TIME_MACHINE_SESSION_KEY)
+    const raw = brandSessionStorage.getItem(TIME_MACHINE_SESSION_KEY)
     return raw ? JSON.parse(raw) : null
   } catch {
     return null
@@ -502,8 +506,8 @@ export const startTimeMachineSession = (snapshotData) => {
   }
 
   try {
-    window.sessionStorage.setItem(TIME_MACHINE_SESSION_KEY, JSON.stringify(session))
-    window.dispatchEvent(new CustomEvent('dugou:time-machine-changed', { detail: { active: true, session } }))
+    brandSessionStorage.setItem(TIME_MACHINE_SESSION_KEY, JSON.stringify(session))
+    window.dispatchEvent(new CustomEvent('eivra:time-machine-changed', { detail: { active: true, session } }))
     return { ok: true, session }
   } catch {
     return { ok: false, reason: 'session_storage_error' }
@@ -513,8 +517,8 @@ export const startTimeMachineSession = (snapshotData) => {
 export const exitTimeMachineSession = () => {
   if (!isBrowser) return { ok: false, reason: 'browser_only' }
   try {
-    window.sessionStorage.removeItem(TIME_MACHINE_SESSION_KEY)
-    window.dispatchEvent(new CustomEvent('dugou:time-machine-changed', { detail: { active: false, session: null } }))
+    brandSessionStorage.removeItem(TIME_MACHINE_SESSION_KEY)
+    window.dispatchEvent(new CustomEvent('eivra:time-machine-changed', { detail: { active: false, session: null } }))
     return { ok: true }
   } catch {
     return { ok: false, reason: 'session_storage_error' }

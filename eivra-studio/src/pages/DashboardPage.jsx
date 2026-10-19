@@ -1,3 +1,4 @@
+import { brandLocalStorage } from '../lib/brandStorage.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
@@ -247,13 +248,13 @@ const calcPearson = (xs, ys) => {
   return numerator / denominator
 }
 
-const DASHBOARD_BRIEF_VIEW_KEY = 'dugou:dashboard-evidence-brief-view-count'
+const DASHBOARD_BRIEF_VIEW_KEY = 'eivra:dashboard-evidence-brief-view-count'
 
 const shouldShowEvidenceBriefThisVisit = () => {
   try {
-    const previous = Number(window.localStorage.getItem(DASHBOARD_BRIEF_VIEW_KEY) || 0)
+    const previous = Number(brandLocalStorage.getItem(DASHBOARD_BRIEF_VIEW_KEY) || 0)
     const next = previous + 1
-    window.localStorage.setItem(DASHBOARD_BRIEF_VIEW_KEY, String(next))
+    brandLocalStorage.setItem(DASHBOARD_BRIEF_VIEW_KEY, String(next))
     return next % 3 === 0
   } catch {
     return false

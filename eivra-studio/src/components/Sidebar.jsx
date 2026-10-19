@@ -24,8 +24,8 @@ export default function Sidebar({ collapsed, onToggleCollapse }) {
 
   useEffect(() => {
     const onDataChanged = () => setDataVersion((prev) => prev + 1)
-    window.addEventListener('dugou:data-changed', onDataChanged)
-    return () => window.removeEventListener('dugou:data-changed', onDataChanged)
+    window.addEventListener('eivra:data-changed', onDataChanged)
+    return () => window.removeEventListener('eivra:data-changed', onDataChanged)
   }, [])
 
   const stats = useMemo(() => {
@@ -88,13 +88,13 @@ export default function Sidebar({ collapsed, onToggleCollapse }) {
     const anchor = document.createElement('a')
     const dateKey = new Date().toISOString().slice(0, 10)
     anchor.href = href
-    anchor.download = `dugou-backup-${dateKey}.json`
+    anchor.download = `eivra-backup-${dateKey}.json`
     anchor.click()
     URL.revokeObjectURL(href)
   }
 
   const handleExportExcel = () => {
-    exportDataBundleAsExcel('dugou-data')
+    exportDataBundleAsExcel('eivra-data')
   }
 
   const handleImportFile = async (event) => {
@@ -112,7 +112,7 @@ export default function Sidebar({ collapsed, onToggleCollapse }) {
       window.alert(mode === 'merge' ? '导入成功（合并模式）' : '导入成功（覆盖模式）')
       setDataVersion((prev) => prev + 1)
     } catch {
-      window.alert('导入失败：请确认选择的是 DUGOU 导出的 JSON / Excel 备份文件。')
+      window.alert('导入失败：请确认选择的是 Eivra 导出的 JSON / Excel 备份文件。')
     } finally {
       event.target.value = ''
     }

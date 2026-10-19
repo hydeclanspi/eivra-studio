@@ -48,7 +48,7 @@ describe('hidden owner route', () => {
   })
 
   it('accepts the route marker without a password token', () => {
-    expect(requireOwner({ headers: { 'x-dugou-arsenal': '1' } })).toEqual({
+    expect(requireOwner({ headers: { 'x-eivra-arsenal': '1' } })).toEqual({
       ok: true,
       claims: { scope: 'full', sub: 'arsenal-route' },
     })

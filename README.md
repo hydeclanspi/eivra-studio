@@ -123,7 +123,7 @@ React 工作台
 | History & Teams | `/history` · `/history/teams` | 回溯决策与事件画像 |
 | Console | `/params` | 检查参数、验证与配置 |
 
-[在线工作台](https://hydeclanspi.vercel.app) 提供交互演示。在 Eivra 视觉身份开发期间，线上产品继续沿用现有视觉。**Eivra Studio** 是仓库、作品集与 CV 使用的正式名称。
+[在线工作台](https://hydeclanspi.vercel.app) 提供交互演示。页面品牌已统一为 Eivra，图形 Logo 保留原件。**Eivra Studio** 是仓库、作品集与 CV 使用的正式名称。
 
 ### 本地运行
 
@@ -175,6 +175,8 @@ npm run build
 Vercel 的 **Root Directory** 为 `eivra-studio`，构建命令为 `npm run build`，输出目录为 `dist`。工作流定义位于仓库根目录。
 
 </details>
+
+历史版本封存于 [`archive/dugou-legacy/`](archive/dugou-legacy/)，正式应用仍位于 `eivra-studio/`。迁移与兼容说明见[品牌迁移记录](eivra-studio/docs/product-brand-migration.md)。
 
 ### 项目状态
 
@@ -314,7 +316,7 @@ Optional services: encrypted Git snapshots · Supabase sync · server-side AI pa
 | History & Teams | `/history` · `/history/teams` | Revisit decisions and event-level profiles |
 | Console | `/params` | Inspect parameters, validation, and configuration |
 
-The [live workspace](https://hydeclanspi.vercel.app) provides an interactive demo. Its existing visual identity remains in place while the Eivra identity is developed. **Eivra Studio** is the official name for the repository, portfolio, and CV.
+The [live workspace](https://hydeclanspi.vercel.app) provides an interactive demo. The application now uses the Eivra name while retaining its existing graphical logo. **Eivra Studio** is the official name for the repository, portfolio, and CV.
 
 ### Run locally
 
@@ -366,6 +368,8 @@ npm run build
 Vercel uses `eivra-studio` as its **Root Directory**, `npm run build` as the build command, and `dist` as the output directory. Workflow definitions live at the repository root.
 
 </details>
+
+The frozen historical version is preserved in [`archive/dugou-legacy/`](archive/dugou-legacy/); the active application remains in `eivra-studio/`. See the [migration record](eivra-studio/docs/product-brand-migration.md) for compatibility details.
 
 ### Project status
 

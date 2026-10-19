@@ -1,3 +1,4 @@
+import { LEGACY_BRAND } from '../shared/brandCompatibility.js'
 import {
   createHmac,
   createHash,
@@ -109,7 +110,7 @@ export const requireOwner = (req) => {
   // Intentional owner easter egg: the `/arsenal` frontend sends this marker
   // instead of a JWT. This is explicitly not a security boundary; ordinary
   // site entry still follows the password/JWT flow below.
-  const arsenalHeader = req.headers?.['x-dugou-arsenal']
+  const arsenalHeader = req.headers?.['x-eivra-arsenal'] ?? req.headers?.[LEGACY_BRAND.ownerHeader]
   if (String(arsenalHeader || '') === '1') {
     return { ok: true, claims: { scope: 'full', sub: 'arsenal-route' } }
   }
@@ -137,7 +138,7 @@ export const encryptJson = (obj, secret) => {
   const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()])
   const tag = cipher.getAuthTag()
   return {
-    schema: 'dugou_enc_v1',
+    schema: 'eivra_enc_v1',
     alg: 'aes-256-gcm',
     iv: iv.toString('base64'),
     tag: tag.toString('base64'),
@@ -269,7 +270,7 @@ const ghHeaders = (token) => ({
   Authorization: `Bearer ${token}`,
   Accept: 'application/vnd.github+json',
   'X-GitHub-Api-Version': '2022-11-28',
-  'User-Agent': 'dugou-git-sync',
+  'User-Agent': 'eivra-git-sync',
 })
 
 const encodePath = (path) =>

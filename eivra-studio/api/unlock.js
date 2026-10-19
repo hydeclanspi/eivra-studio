@@ -113,7 +113,7 @@ export default async function handler(req, res) {
   const expSeconds = Math.floor(nowSeconds + ttlHours * 3600)
 
   const token = signHs256Jwt(
-    { scope: 'full', sub: 'dugou-unlock', iat: nowSeconds, exp: expSeconds },
+    { scope: 'full', sub: 'eivra-unlock', iat: nowSeconds, exp: expSeconds },
     jwtSecret,
   )
 

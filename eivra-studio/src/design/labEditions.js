@@ -49,7 +49,7 @@ export const normalizeLabEdition = (value) =>
 export const getLabReturnPath = (pathname = '') =>
   String(pathname).startsWith('/arsenal/') ? '/arsenal/new' : '/new'
 
-export const LAB_EDITION_KEY = 'dugou:lab-edition.v2'
+export const LAB_EDITION_KEY = 'eivra:lab-edition.v2'
 
 export const readLabEdition = (search, storage) => {
   const requested = new URLSearchParams(search).get('edition')

@@ -1,3 +1,4 @@
+import { brandLocalStorage } from './brandStorage.js'
 /**
  * ============================================================================
  *  oddsHistory.js — 市场赔率时间序列（收盘价 / 漂移 / 联赛效率）
@@ -17,7 +18,7 @@ import { isPreviewMode } from './displayMode'
 import { previewRead, previewWrite } from './previewStore'
 import { normalizeMatchDate, normalizeTeamName } from './matchResults'
 
-const ODDS_HISTORY_KEY = 'dugou.odds_history.v1'
+const ODDS_HISTORY_KEY = 'eivra.odds_history.v1'
 const isBrowser = () => typeof window !== 'undefined'
 const QUOTE_INTERVAL_MS = 30 * 60 * 1000
 const MAX_MATCHES = 500
@@ -45,7 +46,7 @@ const readJSON = (key, fallback) => {
   if (!isBrowser()) return fallback
   if (isPreviewMode()) return previewRead(key, fallback)
   try {
-    const raw = window.localStorage.getItem(key)
+    const raw = brandLocalStorage.getItem(key)
     return raw ? JSON.parse(raw) : fallback
   } catch {
     return fallback
@@ -56,11 +57,11 @@ const writeJSON = (key, value) => {
   if (!isBrowser()) return
   if (isPreviewMode()) {
     previewWrite(key, value)
-    window.dispatchEvent(new CustomEvent('dugou:data-changed', { detail: { key, preview: true } }))
+    window.dispatchEvent(new CustomEvent('eivra:data-changed', { detail: { key, preview: true } }))
     return
   }
-  window.localStorage.setItem(key, JSON.stringify(value))
-  window.dispatchEvent(new CustomEvent('dugou:data-changed', { detail: { key } }))
+  brandLocalStorage.setItem(key, JSON.stringify(value))
+  window.dispatchEvent(new CustomEvent('eivra:data-changed', { detail: { key } }))
 }
 
 const readCache = () => {

@@ -1334,7 +1334,7 @@ export default function DesignStudioPage() {
           返回应用
         </Link>
         <span>
-          dugou <b>Design Editions</b>
+          Eivra <b>Design Editions</b>
         </span>
         <span className="ds-preview-label">交互提案 · 全部为示例数据</span>
       </header>
@@ -1369,7 +1369,7 @@ export default function DesignStudioPage() {
         <header className="ds-app-header">
           <Link to="/design/inpiration" className="ds-brand">
             <Mark />
-            <b>dugou</b>
+            <b>Eivra</b>
             <span>{concept.id === 'folio' ? 'THE JOURNAL' : 'inpiration'}</span>
           </Link>
           <div className="ds-app-context">
@@ -1436,7 +1436,7 @@ export default function DesignStudioPage() {
               </div>
               <span className="ds-page-index">
                 {page.chapter}
-                <small>dugou / 2026</small>
+                <small>Eivra / 2026</small>
               </span>
             </div>
             <div key={page.id} className="ds-page-content">

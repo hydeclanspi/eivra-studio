@@ -16,7 +16,7 @@ export default class PageErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     this.setState({ info })
-    console.error('[DuGou] page render failed:', error, info)
+    console.error('[Eivra] page render failed:', error, info)
   }
 
   render() {

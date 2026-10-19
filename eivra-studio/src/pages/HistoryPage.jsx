@@ -332,7 +332,7 @@ const HitBadge = () => {
   // 象限完全对称的「闪耀」星形。星芒是绝对主体，土星环带做得纤细扁平、只从外侧贴身环绕。
   const starPath = 'M12 3 Q12 12 21 12 Q12 12 12 21 Q12 12 3 12 Q12 12 12 3 Z'
   return (
-    <span className="dugou-hit-badge ml-1.5 shrink-0" title="整体命中" aria-label="整体命中">
+    <span className="eivra-hit-badge ml-1.5 shrink-0" title="整体命中" aria-label="整体命中">
       <svg width="17.14" height="17.14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <defs>
           <radialGradient id={idGlow} cx="50%" cy="50%" r="50%">

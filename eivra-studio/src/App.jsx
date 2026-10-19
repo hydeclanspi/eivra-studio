@@ -1,3 +1,4 @@
+import { brandLocalStorage, brandSessionStorage } from './lib/brandStorage.js'
 import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
@@ -38,7 +39,7 @@ import { useDisplayMode, PREVIEW_MODE } from './lib/displayMode'
 
 import { initializeLayoutMode, LAYOUT_KEY, normalizeLayoutMode } from './lib/layoutMode'
 
-const SYSTEM_CONFIG_KEY = 'dugou.system_config.v1'
+const SYSTEM_CONFIG_KEY = 'eivra.system_config.v1'
 const PAGE_AMBIENT_ROUTE_MAP = {
   '/': 'new',
   '/new': 'new',
@@ -60,13 +61,13 @@ function App() {
   const designPreview = isDesignPreview()
   const navigate = useNavigate()
   const [labEdition, setLabEdition] = useState(() => {
-    try { return readLabEdition(window.location.search, window.sessionStorage) }
+    try { return readLabEdition(window.location.search, brandSessionStorage) }
     catch { return readLabEdition(window.location.search, null) }
   })
   const inspiration2609Preview = designPreview && labEdition === INSPIRATION_2609_EDITION
   const [layoutMode, setLayoutMode] = useState(() => {
     if (designPreview) return 'inpiration'
-    return initializeLayoutMode(getSystemConfig().layoutMode, localStorage)
+    return initializeLayoutMode(getSystemConfig().layoutMode, brandLocalStorage)
   })
   // Both themes share a stable component tree so switching never clears drafts.
   const inspiration2609Active = inspiration2609Preview || (!designPreview && ['inpiration', 'modern'].includes(layoutMode))
@@ -127,11 +128,11 @@ function App() {
       }
       if (normalizedMode) {
         setLayoutMode(normalizedMode)
-        localStorage.setItem(LAYOUT_KEY, normalizedMode)
+        brandLocalStorage.setItem(LAYOUT_KEY, normalizedMode)
       }
     }
-    window.addEventListener('dugou:layout-changed', onLayoutChange)
-    return () => window.removeEventListener('dugou:layout-changed', onLayoutChange)
+    window.addEventListener('eivra:layout-changed', onLayoutChange)
+    return () => window.removeEventListener('eivra:layout-changed', onLayoutChange)
   }, [designPreview, inspiration2609Preview])
 
   // Theme changes do not remount any business page: unsaved form state stays put.
@@ -142,7 +143,7 @@ function App() {
     if (requested) {
       const next = normalizeLabEdition(requested)
       setLabEdition(next)
-      try { window.sessionStorage.setItem(LAB_EDITION_KEY, next) } catch { /* optional preference */ }
+      try { brandSessionStorage.setItem(LAB_EDITION_KEY, next) } catch { /* optional preference */ }
       if (requested === next) return
       params.set('edition', next)
     } else params.set('edition', labEdition)
@@ -166,11 +167,11 @@ function App() {
       const isActive = event?.detail?.active
       setReadOnlyWarning(isActive ? '时光穿越中，仅浏览历史快照' : '')
     }
-    window.addEventListener('dugou:data-changed', onDataChanged)
-    window.addEventListener('dugou:time-machine-changed', onTmChanged)
+    window.addEventListener('eivra:data-changed', onDataChanged)
+    window.addEventListener('eivra:time-machine-changed', onTmChanged)
     return () => {
-      window.removeEventListener('dugou:data-changed', onDataChanged)
-      window.removeEventListener('dugou:time-machine-changed', onTmChanged)
+      window.removeEventListener('eivra:data-changed', onDataChanged)
+      window.removeEventListener('eivra:time-machine-changed', onTmChanged)
     }
   }, [])
 

@@ -18,7 +18,7 @@
  */
 
 const STORAGE_KEYS = {
-  systemConfig: 'dugou.system_config.v1',
+  systemConfig: 'eivra.system_config.v1',
 }
 
 // ── Real-world team roster ─────────────────────────────────────────

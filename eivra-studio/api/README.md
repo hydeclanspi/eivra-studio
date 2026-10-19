@@ -1,8 +1,7 @@
 # Vercel Serverless API · `/api/unlock`
 
 This folder contains the password-verification endpoint that gates the
-**Preview → Full** display-mode flip in the Eivra Studio application. The production UI retains its legacy
-DuGou branding during the repository-only naming transition. Vercel
+**Preview → Full** display-mode flip in the Eivra Studio application. Legacy browser sessions and requests remain readable through the compatibility layer. Vercel
 automatically picks up any file under `api/` at the project root and
 deploys it as a serverless function — no extra config required.
 
@@ -27,7 +26,7 @@ Content-Type: application/json
 ```
 
 The frontend stores `token` in `sessionStorage` (key:
-`dugou.preview_unlock_token.v1`) and uses it to flag the session as
+`eivra.preview_unlock_token.v1`) and uses it to flag the session as
 `FULL_MODE`. When the visitor closes the tab the token is lost and the
 site reverts to preview on the next visit.
 
@@ -205,3 +204,7 @@ owner edits (any device, FULL mode)
   returns `decrypt_failed` and the next commit re-seeds from local data.
 - `vite dev` doesn't run these functions; `gitSync` detects the 404 and
   silently disables for the session (local data still works).
+
+## Product naming compatibility
+
+New clients send `X-Eivra-Arsenal`; the existing route-marker behavior is unchanged and legacy clients remain accepted. New envelopes and browser keys use the `eivra` namespace. Old encrypted envelopes remain readable with the existing encryption key. See `../docs/product-brand-migration.md` for the migration and database-table boundary.

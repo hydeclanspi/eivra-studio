@@ -1,3 +1,4 @@
+import { brandLocalStorage } from '../lib/brandStorage.js'
 import { predictMatchProbability } from "../lib/matchPrediction"
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -1297,9 +1298,9 @@ const applyCoverageDynamicBoost = (scoredCombos, selectedMatches, baseDecay = 0.
   })
 }
 
-const CANDIDATE_DISMISSED_KEY = 'dugou.combo.dismissed_candidates.v1'
-const COMBO_PLAN_HISTORY_KEY = 'dugou.combo.plan_history.v1'
-const COMBO_ANALYSIS_FILTER_KEY = 'dugou.combo.analysis_filter.v1'
+const CANDIDATE_DISMISSED_KEY = 'eivra.combo.dismissed_candidates.v1'
+const COMBO_PLAN_HISTORY_KEY = 'eivra.combo.plan_history.v1'
+const COMBO_ANALYSIS_FILTER_KEY = 'eivra.combo.analysis_filter.v1'
 const PLAN_HISTORY_RETENTION_LIMIT = 7
 const COMBO_STRATEGY_OPTIONS = [
   {
@@ -1379,7 +1380,7 @@ const getOddsBucketByHalf = (odds) => {
 const readAnalysisFilter = () => {
   if (typeof window === 'undefined') return null
   try {
-    const raw = window.localStorage.getItem(COMBO_ANALYSIS_FILTER_KEY)
+    const raw = brandLocalStorage.getItem(COMBO_ANALYSIS_FILTER_KEY)
     return raw ? JSON.parse(raw) : null
   } catch {
     return null
@@ -1389,7 +1390,7 @@ const readAnalysisFilter = () => {
 const clearAnalysisFilter = () => {
   if (typeof window === 'undefined') return
   try {
-    window.localStorage.removeItem(COMBO_ANALYSIS_FILTER_KEY)
+    brandLocalStorage.removeItem(COMBO_ANALYSIS_FILTER_KEY)
   } catch {
     // ignore
   }
@@ -1477,7 +1478,7 @@ const formatDateKey = (iso) => {
 const readDismissedCandidateKeys = () => {
   if (typeof window === 'undefined') return new Set()
   try {
-    const raw = window.localStorage.getItem(CANDIDATE_DISMISSED_KEY)
+    const raw = brandLocalStorage.getItem(CANDIDATE_DISMISSED_KEY)
     if (!raw) return new Set()
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return new Set()
@@ -1489,13 +1490,13 @@ const readDismissedCandidateKeys = () => {
 
 const writeDismissedCandidateKeys = (keysSet) => {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(CANDIDATE_DISMISSED_KEY, JSON.stringify([...keysSet]))
+  brandLocalStorage.setItem(CANDIDATE_DISMISSED_KEY, JSON.stringify([...keysSet]))
 }
 
 const readComboPlanHistory = () => {
   if (typeof window === 'undefined') return []
   try {
-    const raw = window.localStorage.getItem(COMBO_PLAN_HISTORY_KEY)
+    const raw = brandLocalStorage.getItem(COMBO_PLAN_HISTORY_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
@@ -1511,7 +1512,7 @@ const writeComboPlanHistory = (history) => {
   let next = normalized
   while (next.length >= 0) {
     try {
-      window.localStorage.setItem(COMBO_PLAN_HISTORY_KEY, JSON.stringify(next))
+      brandLocalStorage.setItem(COMBO_PLAN_HISTORY_KEY, JSON.stringify(next))
       return next
     } catch {
       if (next.length === 0) break
@@ -4237,8 +4238,8 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
       if (event?.detail?.uiOnly === true) return
       setDataVersion((prev) => prev + 1)
     }
-    window.addEventListener('dugou:data-changed', onDataChanged)
-    return () => window.removeEventListener('dugou:data-changed', onDataChanged)
+    window.addEventListener('eivra:data-changed', onDataChanged)
+    return () => window.removeEventListener('eivra:data-changed', onDataChanged)
   }, [])
 
   useEffect(() => {
@@ -5413,7 +5414,7 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
           <p><strong>64. Sigmoid 映射增强</strong>：原始脆弱性评分经 Sigmoid 函数 <code>score = 89 / (1 + e^(-k(x - anchor)))</code> 重映射至 [0, 89] 区间。锚点取当前矩阵中位数，斜率 k = 2/IQR 自适应——IQR 越大曲线越平缓，IQR 越小区分度越高。消除线性归一化导致的两极堆积。</p>
           <p><strong>65. 三维结果分解</strong>：每对配对的历史结果拆解为 Full Hit（双腿命中）、Partial Miss（一对一错）、Bust（双腿失败）三个加权计数，共享同一套核权重与时间衰减体系，提供结构化的结果分布视图。</p>
 
-          <p className="text-[11px] text-stone-400 mt-3 pt-2 border-t border-stone-100">DuGou Portfolio Optimization Engine v4.9 · Composite Calibration · PAV Isotonic · Learned Context Factors · Walk-Forward Feedback · Entry Correlation (Diagnostic Only) · Conf-Surplus · Anchor Diversification · Portfolio Allocation (Cosine Annealing) · Shared-Draw Monte Carlo · Full-Spectrum WF Hyperparameter Calibration · Adaptive Weight Auto-Apply · Combo Retrospective Learning · Dependency Risk Matrix (Kernel Regression · FGM Copula · Shapley MSI · Sigmoid Mapping)</p>
+          <p className="text-[11px] text-stone-400 mt-3 pt-2 border-t border-stone-100">Eivra Portfolio Optimization Engine v4.9 · Composite Calibration · PAV Isotonic · Learned Context Factors · Walk-Forward Feedback · Entry Correlation (Diagnostic Only) · Conf-Surplus · Anchor Diversification · Portfolio Allocation (Cosine Annealing) · Shared-Draw Monte Carlo · Full-Spectrum WF Hyperparameter Calibration · Adaptive Weight Auto-Apply · Combo Retrospective Learning · Dependency Risk Matrix (Kernel Regression · FGM Copula · Shapley MSI · Sigmoid Mapping)</p>
         </div>
       ), maskText),
     })

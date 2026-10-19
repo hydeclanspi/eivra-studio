@@ -28,6 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
       # Tiny jitter only. The previous version slept up to 90 min while the
       # job timeout was 10 min, so ~89% of runs were KILLED before reaching
       # the ping step — that's why the project drifted into a pause. Keep
@@ -42,6 +43,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          EIVRA_SNAPSHOT_TABLE: ${{ vars.EIVRA_SNAPSHOT_TABLE }}
         run: |
           if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_ANON_KEY}" ]; then
             echo "::error::SUPABASE_URL / SUPABASE_ANON_KEY secrets are not set."
@@ -50,8 +52,13 @@ jobs:
 
           echo "Sending keepalive query at $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
 
+          SNAPSHOT_TABLE="${EIVRA_SNAPSHOT_TABLE}"
+          if [ -z "${SNAPSHOT_TABLE}" ]; then
+            SNAPSHOT_TABLE=$(node --input-type=module -e "import { LEGACY_BRAND } from './eivra-studio/shared/brandCompatibility.js'; process.stdout.write(LEGACY_BRAND.cloudSnapshotTable)")
+          fi
+
           HTTP_STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
-            "${SUPABASE_URL}/rest/v1/dugou_sync_snapshots?select=id&limit=1" \
+            "${SUPABASE_URL}/rest/v1/${SNAPSHOT_TABLE}?select=id&limit=1" \
             -H "apikey: ${SUPABASE_ANON_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
 

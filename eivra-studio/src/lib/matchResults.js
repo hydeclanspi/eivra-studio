@@ -1,9 +1,10 @@
+import { brandLocalStorage } from './brandStorage.js'
 /**
  * ============================================================================
  *  matchResults.js — 历史赛果层（回测 / 自动结算 / 策略发现的事实底座）
  * ============================================================================
  *
- * 多来源赛果合并进同一个 localStorage 索引（dugou.results_cache.v1）：
+ * 多来源赛果合并进同一个 localStorage 索引（eivra.results_cache.v1）：
  *   1. sporttery 官方接口 getMatchResultV1.qry —— fetchMatchResults()
  *      与 marketOdds.js 同一个 uniform 网关：浏览器可直连（CORS 开放），
  *      但 WAF（TencentEdgeOne）会拦非浏览器客户端——任何失败都只返回
@@ -35,7 +36,7 @@ import { parseFinalScore } from './readQuality'
 import { isPreviewMode } from './displayMode'
 import { previewRead, previewWrite } from './previewStore'
 
-const RESULTS_KEY = 'dugou.results_cache.v1'
+const RESULTS_KEY = 'eivra.results_cache.v1'
 // 注意：不能用模块级常量固化 typeof window —— 测试里 window 是 import 之后才
 // stub 出来的；每次读写都动态判断。
 const isBrowser = () => typeof window !== 'undefined'
@@ -338,7 +339,7 @@ const readJSON = (key, fallback) => {
   if (!isBrowser()) return fallback
   if (isPreviewMode()) return previewRead(key, fallback)
   try {
-    const raw = window.localStorage.getItem(key)
+    const raw = brandLocalStorage.getItem(key)
     return raw ? JSON.parse(raw) : fallback
   } catch {
     return fallback
@@ -349,11 +350,11 @@ const writeJSON = (key, value) => {
   if (!isBrowser()) return
   if (isPreviewMode()) {
     previewWrite(key, value)
-    window.dispatchEvent(new CustomEvent('dugou:data-changed', { detail: { key, preview: true } }))
+    window.dispatchEvent(new CustomEvent('eivra:data-changed', { detail: { key, preview: true } }))
     return
   }
-  window.localStorage.setItem(key, JSON.stringify(value))
-  window.dispatchEvent(new CustomEvent('dugou:data-changed', { detail: { key } }))
+  brandLocalStorage.setItem(key, JSON.stringify(value))
+  window.dispatchEvent(new CustomEvent('eivra:data-changed', { detail: { key } }))
 }
 
 const readCache = () => {

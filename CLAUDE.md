@@ -23,7 +23,9 @@
 - 正式品牌拼写为 **Eivra**，本项目在 GitHub、作品集与 CV 中使用 **Eivra Studio**。
 - 标语为 **Intuition, calibrated.**；命名记录见 `eivra-studio/docs/brand-identity.md`。
 - **Acuen** 仅为未来子功能的候选品牌，目前没有绑定或发布任何功能。
-- 此阶段生产页面、Logo、HTML 元数据以及 `dugou:*` 存储键、事件名、数据库表与同步格式继续保留，不能因为仓库改名而批量替换。
+- 正式页面、HTML 元数据、导出和内部事件均使用 Eivra；图形 Logo 保持原件。
+- `archive/dugou-legacy/` 是冻结快照，禁止日常修改或作为部署根目录；以归档清单校验文件字节。
+- 浏览器存储统一经 `src/lib/brandStorage.js` 读取、迁移和清除；历史协议标识集中在 `shared/brandCompatibility.js`。不得移除旧备份/旧会话读取兼容性或仅在代码中改名现有数据库表。
 
 ## 常用命令
 
@@ -60,7 +62,7 @@ npm run build    # 生产构建
 ## 改动时注意
 
 - **指标只在一处定义。** 新指标加进 `lib/`，不要在页面里就地算一份。
-- **缓存靠 revision 失效**，不要手写失效逻辑；写操作派发 `dugou:data-changed`。
+- **缓存靠 revision 失效**，不要手写失效逻辑；写操作派发 `eivra:data-changed`。
 - **preview 模式**（公开演示）走 `previewStore` 内存态 + 参数遮罩（α/β/γ/δ/ε）。
   遮罩只应发生在视图层；往 `lib/` 里塞 `isPreviewMode()` 分支要三思。
 - **云同步是 union-merge**，按 id 并入、永不丢记录。存在 `system_config` 里的

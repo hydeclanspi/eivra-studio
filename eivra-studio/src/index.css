@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* ========================================
-   DUGOU · Model Centre — Global Styles
+   Eivra · Model Centre — Global Styles
    Premium Visual System v2.0
    ======================================== */
 
@@ -575,23 +575,23 @@
 }
 
 /* 整体命中标识（History · 星芒+土星环）：一次性入场微动效 */
-.dugou-hit-badge {
+.eivra-hit-badge {
   display: inline-flex;
   align-items: center;
   vertical-align: middle;
   line-height: 0;
   transform-origin: center;
-  animation: dugouHitPop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: eivraHitPop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
-@keyframes dugouHitPop {
+@keyframes eivraHitPop {
   0% { opacity: 0; transform: scale(0.45); }
   62% { opacity: 1; transform: scale(1.12); }
   100% { opacity: 1; transform: scale(1); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dugou-hit-badge { animation: none; }
+  .eivra-hit-badge { animation: none; }
 }
 
 .ft-conflict-backdrop-enter {
@@ -2285,7 +2285,7 @@
   font-size: 13px;
   letter-spacing: 2.5px;
   color: #292524;
-  text-transform: uppercase;
+  text-transform: none;
   line-height: 1.2;
 }
 
@@ -2710,7 +2710,7 @@
   font-weight: 600;
   font-size: 14px;
   letter-spacing: 0.45px;
-  text-transform: lowercase;
+  text-transform: none;
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
   color: #171717;

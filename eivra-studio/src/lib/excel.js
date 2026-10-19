@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx'
 import { exportDataBundle } from './localData'
 
-const WORKBOOK_FORMAT = 'dugou_excel_backup'
+const WORKBOOK_FORMAT = 'eivra_excel_backup'
 const WORKBOOK_SCHEMA_VERSION = 2
 
 const SHEETS = {
@@ -555,7 +555,7 @@ export const readDataBundleFromImportFile = async (file) => {
   }
 }
 
-export const downloadWorkbook = (workbook, filenamePrefix = 'dugou-data') => {
+export const downloadWorkbook = (workbook, filenamePrefix = 'eivra-data') => {
   const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
   const blob = new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -569,7 +569,7 @@ export const downloadWorkbook = (workbook, filenamePrefix = 'dugou-data') => {
   URL.revokeObjectURL(href)
 }
 
-export const exportDataBundleAsExcel = (filenamePrefix = 'dugou-data') => {
+export const exportDataBundleAsExcel = (filenamePrefix = 'eivra-data') => {
   const bundle = exportDataBundle()
   const workbook = buildDataWorkbook(bundle)
   downloadWorkbook(workbook, filenamePrefix)

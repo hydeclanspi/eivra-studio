@@ -22,10 +22,10 @@ import {
 } from './demoData'
 
 const STORAGE_KEYS = {
-  investments: 'dugou.investments.v1',
-  teamProfiles: 'dugou.team_profiles.v1',
-  systemConfig: 'dugou.system_config.v1',
-  accessLogs: 'dugou.access_logs.v1',
+  investments: 'eivra.investments.v1',
+  teamProfiles: 'eivra.team_profiles.v1',
+  systemConfig: 'eivra.system_config.v1',
+  accessLogs: 'eivra.access_logs.v1',
 }
 
 let memoryStore = null

@@ -17,7 +17,7 @@ vi.mock('../displayMode', () => ({
   DISPLAY_MODE_CHANGE_EVENT: 'test:display-mode',
 }))
 
-const configKey = 'dugou.system_config.v1'
+const configKey = 'eivra.system_config.v1'
 let storage
 let getSystemConfig
 let bootstrapCloudSnapshotOnLoad
@@ -41,12 +41,12 @@ beforeAll(async () => {
 
 beforeEach(() => {
   storage = new Map([
-    ['dugou.genesis_applied.v1', '1'],
-    ['dugou.data_patch.v20260205', '1'],
-    ['dugou.data_patch.v20260206', '1'],
-    ['dugou.investments.v1', '[]'],
-    ['dugou.team_profiles.v1', '[]'],
-    ['dugou.access_logs.v1', '[]'],
+    ['eivra.genesis_applied.v1', '1'],
+    ['eivra.data_patch.v20260205', '1'],
+    ['eivra.data_patch.v20260206', '1'],
+    ['eivra.investments.v1', '[]'],
+    ['eivra.team_profiles.v1', '[]'],
+    ['eivra.access_logs.v1', '[]'],
   ])
   vi.clearAllMocks()
 })

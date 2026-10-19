@@ -20,7 +20,7 @@ const restoreEnv = () => {
 
 const ownerRequest = (body) => ({
   method: 'POST',
-  headers: { 'x-dugou-arsenal': '1' },
+  headers: { 'x-eivra-arsenal': '1' },
   body,
 })
 
