@@ -1,24 +1,24 @@
-/* 投前研判（Pre-Match Studio）——本文件只服务投前，不动投后与其它页面。
+/* New 页（投前研判 / 投后导入共用）——只服务本页两个视图，不动其它页面。
  *
- * 版式：AI 快捷录入独占顶部通栏；比赛区两张独立卡片（左 4 策略 / 右 6 研判），
+ * 版式：AI 快捷录入独占顶部通栏；比赛区两张独立卡片（左 4 策略 / 右 6 内容），
  *       没有 shared 底——外层只做透明容器。卡片材质直接复用产品通用的
  *       glow-card + motion-v2-surface 通透玻璃，不自定义底色。
  */
 
 /* ── 版式：Quick Input 通栏；比赛区 4:6 两张独立卡片 ───────────────── */
-/* 2609 外壳把 New 页锁在 1120px；投前双卡需要比 1120 略宽，但也绝不能铺满——
- * 这里取中间值 1280，配合全局 zoom 0.92。 */
+/* 2609 外壳把 New 页锁在 1120px；双卡需要比 1120 略宽，但也绝不能铺满——
+ * 这里取中间值 1280，配合全局 zoom 0.9。 */
 .theme-inspiration-2609
   .inspiration-2609-body[data-lab-page='new']
-  .page-shell.lab-new-page[data-investment-view='pre'],
-.lab-new-page[data-investment-view='pre'],
-.lab-editions .lab-new-page[data-investment-view='pre'] {
+  .page-shell.lab-new-page[data-investment-view],
+.lab-new-page[data-investment-view],
+.lab-editions .lab-new-page[data-investment-view] {
   display: block;
   width: min(100%, 1280px);
   max-width: 1280px;
 }
 
-.lab-editions .lab-new-page[data-investment-view='pre'] > .lab-new-quick {
+.lab-editions .lab-new-page[data-investment-view] > .lab-new-quick {
   position: static;
   top: auto;
   grid-column: auto;
@@ -26,27 +26,27 @@
   max-width: none;
 }
 
-.lab-editions .lab-new-page[data-investment-view='pre'] > .lab-new-quick textarea {
+.lab-editions .lab-new-page[data-investment-view] > .lab-new-quick textarea {
   min-height: 0;
   height: auto;
 }
 
-.lab-editions .lab-new-page[data-investment-view='pre'] > .lab-new-quick .settle-ai-trigger {
+.lab-editions .lab-new-page[data-investment-view] > .lab-new-quick .settle-ai-trigger {
   flex-wrap: wrap;
   row-gap: 6px;
   padding: 14px 18px 10px;
 }
 
-.lab-editions .lab-new-page[data-investment-view='pre'] > .lab-new-quick .settle-ai-subtitle {
+.lab-editions .lab-new-page[data-investment-view] > .lab-new-quick .settle-ai-subtitle {
   flex-basis: auto;
   margin-left: 4px;
 }
 
-.lab-editions .lab-new-page[data-investment-view='pre'] > .lab-new-quick .settle-ai-body {
+.lab-editions .lab-new-page[data-investment-view] > .lab-new-quick .settle-ai-body {
   padding: 10px 18px 16px;
 }
 
-.lab-editions .lab-new-page[data-investment-view='pre'] > .lab-new-quick .settle-ai-textarea {
+.lab-editions .lab-new-page[data-investment-view] > .lab-new-quick .settle-ai-textarea {
   min-height: 74px;
 }
 
@@ -86,19 +86,19 @@
 }
 
 /* 两张卡与 Quick Input 左右对齐：容器不再额外收内边距。 */
-.lab-new-page[data-investment-view='pre'] .lab-new-matches {
+.lab-new-page[data-investment-view] .lab-new-matches {
   padding: 0;
 }
 
 /* Quick Input 与下方两张卡之间留清晰间隔。 */
-.lab-editions .lab-new-page[data-investment-view='pre'] > .lab-new-quick,
-.lab-new-page[data-investment-view='pre'] > .lab-new-quick {
+.lab-editions .lab-new-page[data-investment-view] > .lab-new-quick,
+.lab-new-page[data-investment-view] > .lab-new-quick {
   margin-bottom: 28px;
 }
 
 /* 左卡顶部：Portfolio Construction topic 与策略参数之间留一条浅线；
  * 压掉 lab 材质（folio 等）给 lab-new-construction 上的底色与内边距。 */
-.lab-new-page[data-investment-view='pre'] .lab-new-construction.pre-topic,
+.lab-new-page[data-investment-view] .lab-new-construction.pre-topic,
 .pre-topic {
   padding: 0 0 16px;
   margin-bottom: 20px;

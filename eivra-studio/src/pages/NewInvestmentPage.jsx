@@ -1720,16 +1720,8 @@ export default function NewInvestmentPage() {
       </div>
   )
 
-  const isPre = viewMode === 'pre'
-  const ticketClassName = isPre
-    ? 'pre-sheet-plain'
-    : 'motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden lab-new-ticket'
-  const matchesClassName = isPre ? 'space-y-8 lab-new-matches' : 'p-6 space-y-6 lab-new-matches'
-  const footerClassName = isPre
-    ? 'motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 px-6 py-6 mt-6 pre-footer-card'
-    : 'px-6 py-6 bg-gradient-to-r from-stone-50 to-orange-50/30 border-t border-stone-100 lab-new-footer'
   const topicBlock = (
-    <div className={isPre ? 'lab-new-construction pre-topic' : 'px-6 py-5 border-b border-stone-100 bg-stone-50/50 lab-new-construction'}>
+    <div className="lab-new-construction pre-topic">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-4 flex-nowrap min-w-0">
           <span className="text-sm text-stone-600 whitespace-nowrap">Portfolio Construction</span>
@@ -1783,10 +1775,8 @@ export default function NewInvestmentPage() {
       {quickInputCard}
 
 
-      <div className={ticketClassName}>
-        {viewMode !== 'pre' && topicBlock}
-
-        <div className={matchesClassName}>
+      <div className="pre-sheet-plain">
+        <div className="space-y-8 lab-new-matches">
           {matches.map((match, idx) => {
             const homeSuggestions =
               activeTeamInput?.matchIdx === idx && activeTeamInput?.side === 'home' ? getTeamSuggestions(match.homeTeam) : []
@@ -1822,7 +1812,7 @@ export default function NewInvestmentPage() {
             )
 
             return (
-              <div key={idx} className={`motion-v2-match-card relative lab-new-match ${idx > 0 && viewMode !== 'pre' ? 'pt-6 border-t border-stone-100' : ''}`}>
+              <div key={idx} className="motion-v2-match-card relative lab-new-match">
                 {appliedHistory ? (
                   <div className="absolute right-1 top-0 z-30 history-float-wrap">
                     <div className="history-float-panel history-float-enter px-2.5 py-2">
@@ -1906,13 +1896,11 @@ export default function NewInvestmentPage() {
                   )
                 )}
 
-                {viewMode !== 'pre' && matchHeader}
-
-                {/* 投前：两张独立通透卡（左 4 策略 / 右 6 研判），无共享底。 */}
-                <div className={viewMode === 'pre' ? 'pre-match-split' : undefined}>
-                {/* 主卡（右 6）：对阵 → Entries → 云图 → 记录 */}
-                <div className={viewMode === 'pre' ? 'pre-match-split__main motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100' : undefined}>
-                {viewMode === 'pre' && matchHeader}
+                {/* 投前/投后同一版式：两张独立通透卡（左 4 策略 / 右 6 内容），无共享底。 */}
+                <div className="pre-match-split">
+                {/* 主卡（右 6）：对阵 → Entries → 云图 → 记录（云图与记录仅投前渲染） */}
+                <div className="pre-match-split__main motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100">
+                {matchHeader}
                 {viewMode === 'pre' ? (
                   <PreMatchHero
                     homeTeam={match.homeTeam}
@@ -2142,8 +2130,8 @@ export default function NewInvestmentPage() {
                 )}
                 </div>
                 {/* 左卡（左 4）：Portfolio Construction topic → 策略类型 → Conf → 校准参数 → 赛前备注 */}
-                <div className={viewMode === 'pre' ? 'pre-match-split__side motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100' : undefined}>
-                {viewMode === 'pre' && idx === 0 && topicBlock}
+                <div className="pre-match-split__side motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100">
+                {idx === 0 && topicBlock}
                 <div className="pre-strategy-grid grid grid-cols-3 gap-4 mb-4">
                   <div className="relative">
                     <label className="text-xs text-stone-400 mb-1.5 block">{labels.formLabel.mode}</label>
@@ -2387,7 +2375,7 @@ export default function NewInvestmentPage() {
           })}
         </div>
 
-        <div className={footerClassName}>
+        <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 px-6 py-6 mt-6 pre-footer-card">
           {combinedAtomicProfile.modelStatus === 'approximate' && (
             <p role="status" className="mb-3 text-xs text-amber-700">同场混合或重叠选项尚不支持精确联合建模，已停用自动仓位建议；仍可按实际投入手动入档。</p>
           )}
