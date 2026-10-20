@@ -1,6 +1,6 @@
 # Eivra Studio
 
-[简体中文](#简体中文) · [English](#english)
+[简体中文](#简体中文) · [English](#english)   [![CI](https://github.com/hydeclanspi/eivra-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/hydeclanspi/eivra-studio/actions/workflows/ci.yml)
 
 ## 简体中文
 
