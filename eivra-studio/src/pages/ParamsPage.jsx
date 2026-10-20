@@ -5021,7 +5021,7 @@ export default function ParamsPage({ openModal, previewLayoutMode }) {
           <div className="grid gap-4 sm:grid-cols-2 mt-3">
             <div className="min-w-0 rounded-xl border border-stone-200 p-3">
               <span id="glass-material-quality-label" className="text-sm font-medium text-stone-700">液态玻璃</span>
-              <p id="glass-material-quality-description" className="text-xs leading-relaxed text-stone-500 mt-1">三档共享清透外观，默认满帧。流畅不做实时采样；平衡保留轻模糊与静态边光；满帧增加局部交互高光。</p>
+              <p id="glass-material-quality-description" className="text-[11px] leading-relaxed text-stone-500 mt-1 min-[1100px]:whitespace-nowrap">三档共享清透外观，默认满帧。流畅不做实时采样；平衡保留轻模糊与静态边光；满帧增加局部交互高光。</p>
               <div role="group" aria-labelledby="glass-material-quality-label" aria-describedby="glass-material-quality-description" className="grid grid-cols-3 gap-2 mt-3">
                 {[{ key: 'smooth', label: '流畅' }, { key: 'balanced', label: '平衡' }, { key: 'full', label: '满帧' }].map((quality) => (
                   <button
