@@ -172,7 +172,7 @@ describe('liquid glass UI preferences', () => {
 
   it.each([false, true])('marks only appearance changes as UI-only (preview=%s)', (preview) => {
     session.preview = preview
-    for (const patch of [{ liquidGlassQuality: 'full' }, { liquidGlassMaterialQuality: 'smooth' }, { liquidGlassStyle: 'sand', liquidGlassStylePinned: true }, { liquidGlassEnabled: false }]) {
+    for (const patch of [{ liquidGlassQuality: 'full' }, { liquidGlassMaterialQuality: 'smooth' }, { liquidGlassMaterialQuality: 'balanced' }, { liquidGlassMaterialQuality: 'full' }, { liquidGlassStyle: 'sand', liquidGlassStylePinned: true }, { liquidGlassEnabled: false }]) {
       saveSystemConfig(patch)
       const event = dispatchEvent.mock.calls.at(-1)[0]
       expect(event.type).toBe('eivra:data-changed')
@@ -185,6 +185,11 @@ describe('liquid glass UI preferences', () => {
   })
 })
 
+
+const materialQualities = ['smooth', 'balanced', 'full']
+const materialBackgroundCases = materialQualities.flatMap((material) => (
+  ['smooth', 'full'].map((background) => [material, background])
+))
 
 describe('independent glass material and background budgets', () => {
   it('defaults new and legacy settings to full material without coupling to background', () => {
@@ -200,7 +205,7 @@ describe('independent glass material and background budgets', () => {
     expect(saveSystemConfig({ liquidGlassMaterialQuality: 'unknown' }).liquidGlassMaterialQuality).toBe('full')
   })
 
-  it.each([['smooth', 'smooth'], ['smooth', 'full'], ['full', 'smooth'], ['full', 'full']])(
+  it.each(materialBackgroundCases)(
     'independently persists material %s and background %s for every theme', (material, background) => {
       for (const { key: style } of LIQUID_GLASS_THEMES) {
         saveSystemConfig({ liquidGlassStyle: style, liquidGlassQuality: background })
@@ -215,33 +220,40 @@ describe('independent glass material and background budgets', () => {
     },
   )
 
-  it('keeps both preview choices isolated from owner storage', () => {
+  it.each(materialBackgroundCases)('keeps preview material %s and background %s isolated from owner storage', (material, background) => {
     const before = storage.get(key)
     session.preview = true
-    saveSystemConfig({ liquidGlassMaterialQuality: 'smooth', liquidGlassQuality: 'full' })
-    expect(getSystemConfig()).toMatchObject({ liquidGlassMaterialQuality: 'smooth', liquidGlassQuality: 'full' })
+    saveSystemConfig({ liquidGlassMaterialQuality: material, liquidGlassQuality: background })
+    expect(getSystemConfig()).toMatchObject({ liquidGlassMaterialQuality: material, liquidGlassQuality: background })
     expect(storage.get(key)).toBe(before)
     session.preview = false
     expect(getSystemConfig()).toMatchObject({ liquidGlassMaterialQuality: 'full', liquidGlassQuality: 'smooth' })
   })
 
-  it('keeps device material during history reads and writes, without overwriting live parameters', () => {
-    const snapshot = { initialCapital: 500, liquidGlassMaterialQuality: 'smooth', liquidGlassQuality: 'full' }
+  it.each(materialBackgroundCases)('keeps local material %s and background %s during history reads and writes', (material, background) => {
+    saveSystemConfig({ liquidGlassMaterialQuality: material, liquidGlassQuality: background })
+    const nextMaterial = materialQualities[(materialQualities.indexOf(material) + 1) % materialQualities.length]
+    const snapshot = { initialCapital: 500, liquidGlassMaterialQuality: nextMaterial, liquidGlassQuality: background === 'full' ? 'smooth' : 'full' }
+    const beforeSnapshot = { ...snapshot }
     session.historical = { bundle: { system_config: snapshot } }
-    expect(getSystemConfig()).toMatchObject({ initialCapital: 500, liquidGlassMaterialQuality: 'full', liquidGlassQuality: 'smooth' })
-    saveSystemConfig({ liquidGlassMaterialQuality: 'smooth' })
-    expect(getSystemConfig()).toMatchObject({ initialCapital: 500, liquidGlassMaterialQuality: 'smooth', liquidGlassQuality: 'smooth' })
-    expect(JSON.parse(storage.get(key))).toMatchObject({ initialCapital: 12345, liquidGlassMaterialQuality: 'smooth', liquidGlassQuality: 'smooth' })
-    expect(snapshot).toEqual({ initialCapital: 500, liquidGlassMaterialQuality: 'smooth', liquidGlassQuality: 'full' })
+    expect(getSystemConfig()).toMatchObject({ initialCapital: 500, liquidGlassMaterialQuality: material, liquidGlassQuality: background })
+    saveSystemConfig({ liquidGlassMaterialQuality: nextMaterial })
+    expect(getSystemConfig()).toMatchObject({ initialCapital: 500, liquidGlassMaterialQuality: nextMaterial, liquidGlassQuality: background })
+    expect(JSON.parse(storage.get(key))).toMatchObject({ initialCapital: 12345, liquidGlassMaterialQuality: nextMaterial, liquidGlassQuality: background })
+    expect(snapshot).toEqual(beforeSnapshot)
+    session.historical = null
+    expect(getSystemConfig()).toMatchObject({ initialCapital: 12345, liquidGlassMaterialQuality: nextMaterial, liquidGlassQuality: background })
   })
 
   it.each(['merge', 'replace'])('retains both local budgets through %s imports', (mode) => {
-    for (const material of [undefined, 'smooth', 'full']) {
-      storage.set(key, JSON.stringify({ liquidGlassMaterialQuality: material, liquidGlassQuality: 'smooth' }))
-      expect(importDataBundle({ system_config: {
-        initialCapital: 900, liquidGlassMaterialQuality: material === 'smooth' ? 'full' : 'smooth', liquidGlassQuality: 'full',
-      } }, mode)).toBe(true)
-      expect(getSystemConfig()).toMatchObject({ initialCapital: 900, liquidGlassMaterialQuality: material || 'full', liquidGlassQuality: 'smooth' })
+    for (const material of [undefined, ...materialQualities]) {
+      for (const incomingMaterial of materialQualities) {
+        storage.set(key, JSON.stringify({ liquidGlassMaterialQuality: material, liquidGlassQuality: 'smooth' }))
+        expect(importDataBundle({ system_config: {
+          initialCapital: 900, liquidGlassMaterialQuality: incomingMaterial, liquidGlassQuality: 'full',
+        } }, mode)).toBe(true)
+        expect(getSystemConfig()).toMatchObject({ initialCapital: 900, liquidGlassMaterialQuality: material || 'full', liquidGlassQuality: 'smooth' })
+      }
     }
   })
 })

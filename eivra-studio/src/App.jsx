@@ -35,6 +35,7 @@ import QuantsPage from './pages/QuantsPage'
 
 import { getSystemConfig, PAGE_AMBIENT_THEME_DEFAULTS, isInTimeMachineMode } from './lib/localData'
 import { trackRouteAccess } from './lib/accessTracking'
+import { attachGlassMaterialMotion } from './lib/glassMaterialMotion'
 import { useDisplayMode, PREVIEW_MODE } from './lib/displayMode'
 
 import { initializeLayoutMode, LAYOUT_KEY, normalizeLayoutMode } from './lib/layoutMode'
@@ -175,37 +176,11 @@ function App() {
     }
   }, [])
 
-  // Glow card mouse tracking effect
+  // Only full material tracks the currently hovered outer card.
   useEffect(() => {
-    // Smooth mode keeps the static edge highlight without scanning every card
-    // and reading layout on each pointer event.
-    if (!liquidGlassEnabled || glassMaterialQuality === 'smooth') return undefined
-    let frame = 0
-    let pointer = null
-    const update = () => {
-      frame = 0
-      if (!pointer) return
-      const cards = document.querySelectorAll('.glow-card')
-      // Batch layout reads before style writes to avoid read/write thrashing.
-      const visible = Array.from(cards, (card) => ({ card, rect: card.getBoundingClientRect() }))
-        .filter(({ rect }) => rect.bottom > 0 && rect.top < window.innerHeight && rect.width > 0 && rect.height > 0)
-      visible.forEach(({ card, rect }) => {
-        const x = ((pointer.x - rect.left) / rect.width) * 100
-        const y = ((pointer.y - rect.top) / rect.height) * 100
-        card.style.setProperty('--mouse-x', `${x}%`)
-        card.style.setProperty('--mouse-y', `${y}%`)
-      })
-    }
-    const handleMouseMove = (event) => {
-      pointer = { x: event.clientX, y: event.clientY }
-      if (!frame) frame = window.requestAnimationFrame(update)
-    }
-    window.addEventListener('mousemove', handleMouseMove, { passive: true })
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove)
-      if (frame) window.cancelAnimationFrame(frame)
-    }
-  }, [liquidGlassEnabled, glassMaterialQuality])
+    if (!liquidGlassEnabled || glassMaterialQuality !== 'full') return undefined
+    return attachGlassMaterialMotion()
+  }, [liquidGlassEnabled, glassMaterialQuality, location.pathname, layoutMode])
 
   // Scroll to top on route change
   useEffect(() => {
@@ -226,6 +201,7 @@ function App() {
     root.classList.toggle('liquid-glass-composed', liquidGlassEnabled && isComposedGlassStyle(liquidGlassStyle))
     root.classList.toggle('liquid-glass-dark', liquidGlassEnabled && isDarkGlassStyle(liquidGlassStyle))
     root.classList.toggle('liquid-glass-smooth', glassMaterialQuality === 'smooth')
+    root.classList.toggle('liquid-glass-balanced', glassMaterialQuality === 'balanced')
     root.classList.toggle('liquid-background-smooth', liquidGlassQuality === 'smooth')
     root.dataset.liquidGlassQuality = liquidGlassQuality
     root.dataset.liquidGlassMaterialQuality = glassMaterialQuality
@@ -236,7 +212,7 @@ function App() {
     const darkBar = { xuanji: '#060d0a', spectra: '#04070f', starward: '#040b1c' }[liquidGlassStyle]
     if (meta) meta.setAttribute('content', liquidGlassEnabled && darkBar ? darkBar : '#fbbf24')
     return () => {
-      root.classList.remove('liquid-glass-on', 'liquid-glass-composed', 'liquid-glass-dark', 'liquid-glass-smooth', 'liquid-background-smooth')
+      root.classList.remove('liquid-glass-on', 'liquid-glass-composed', 'liquid-glass-dark', 'liquid-glass-smooth', 'liquid-glass-balanced', 'liquid-background-smooth')
       delete root.dataset.liquidGlassStyle
       delete root.dataset.liquidGlassQuality
       delete root.dataset.liquidGlassMaterialQuality

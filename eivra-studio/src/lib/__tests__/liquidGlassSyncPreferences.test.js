@@ -55,8 +55,17 @@ afterAll(() => vi.unstubAllGlobals())
 
 const cases = [
   { label: 'missing', local: undefined, incoming: 'full', expected: 'smooth', material: undefined, incomingMaterial: 'smooth', expectedMaterial: 'full' },
-  { label: 'smooth', local: 'smooth', incoming: 'full', expected: 'smooth', material: 'smooth', incomingMaterial: 'full', expectedMaterial: 'smooth' },
-  { label: 'full', local: 'full', incoming: 'smooth', expected: 'full', material: 'full', incomingMaterial: 'smooth', expectedMaterial: 'full' },
+  ...['smooth', 'balanced', 'full'].flatMap((material) => (
+    ['smooth', 'full'].map((background) => ({
+      label: `${material} material / ${background} background`,
+      local: background,
+      incoming: background === 'full' ? 'smooth' : 'full',
+      expected: background,
+      material,
+      incomingMaterial: material === 'balanced' ? (background === 'full' ? 'smooth' : 'full') : 'balanced',
+      expectedMaterial: material,
+    }))
+  )),
 ]
 
 const preparePull = ({ local, incoming, material, incomingMaterial }) => {

@@ -5019,17 +5019,17 @@ export default function ParamsPage({ openModal, previewLayoutMode }) {
           <span className="text-sm text-stone-700">画质模式</span>
           <p className="text-xs text-stone-500 mt-1">玻璃材质与背景独立设置，适用于全部主题。</p>
           <div className="grid gap-4 sm:grid-cols-2 mt-3">
-            <div className="rounded-xl border border-stone-200 p-3">
+            <div className="min-w-0 rounded-xl border border-stone-200 p-3">
               <span id="glass-material-quality-label" className="text-sm font-medium text-stone-700">液态玻璃</span>
-              <p id="glass-material-quality-description" className="text-xs text-stone-500 mt-1">默认满帧，保留实时模糊与鼠标追光；流畅减少材质采样。</p>
-              <div role="group" aria-labelledby="glass-material-quality-label" aria-describedby="glass-material-quality-description" className="flex flex-wrap gap-2 mt-3">
-                {[{ key: 'smooth', label: '流畅' }, { key: 'full', label: '满帧' }].map((quality) => (
+              <p id="glass-material-quality-description" className="text-xs leading-relaxed text-stone-500 mt-1">三档共享清透外观，默认满帧。流畅不做实时采样；平衡保留轻模糊与静态边光；满帧增加局部交互高光。</p>
+              <div role="group" aria-labelledby="glass-material-quality-label" aria-describedby="glass-material-quality-description" className="grid grid-cols-3 gap-2 mt-3">
+                {[{ key: 'smooth', label: '流畅' }, { key: 'balanced', label: '平衡' }, { key: 'full', label: '满帧' }].map((quality) => (
                   <button
                     key={quality.key}
                     type="button"
                     onClick={() => selectGlassMaterialQuality(quality.key)}
                     aria-pressed={glassMaterialQuality === quality.key}
-                    className={`rounded-lg border px-4 py-2 text-sm transition-colors ${glassMaterialQuality === quality.key ? 'border-sky-200 bg-sky-100 text-sky-700' : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'}`}
+                    className={`min-w-0 rounded-lg border px-2 py-2 text-sm transition-colors ${glassMaterialQuality === quality.key ? 'border-sky-200 bg-sky-100 text-sky-700' : 'border-stone-200 bg-white text-stone-600 hover:bg-stone-50'}`}
                   >
                     {quality.label}
                   </button>

@@ -1,0 +1,213 @@
+/* Approved Material Study 01: a thin centre, a defined rim and local reading
+ * support. All three budgets share this material; full adds a bounded sheen.
+ * Keep this after the page styles: replacing only background-color leaves old
+ * opaque background-images in place. No SVG displacement or optical refraction. */
+html.liquid-glass-on {
+  --clear-glass-fill: rgba(255, 255, 255, 0.1);
+  --clear-glass-reading: rgba(247, 251, 253, 0.24);
+  --clear-glass-nested: rgba(255, 255, 255, 0.14);
+  --clear-glass-rim: rgba(255, 255, 255, 0.75);
+  --clear-glass-top: rgba(255, 255, 255, 0.62);
+  --clear-glass-bottom: rgba(25, 58, 74, 0.16);
+  --clear-glass-shadow: rgba(17, 44, 58, 0.15);
+  --clear-glass-solid: #f4f8fa;
+  --clear-glass-muted: #425866;
+  --clear-glass-contrast-rim: #667d88;
+  --clear-glass-filter: blur(4px) saturate(118%);
+  --clear-glass-sheen: rgba(255, 255, 255, 0.06);
+}
+
+html.liquid-glass-on.liquid-glass-dark {
+  --clear-glass-fill: color-mix(in srgb, var(--fx-deep, #0c1426) 34%, transparent);
+  --clear-glass-reading: rgba(6, 20, 34, 0.43);
+  --clear-glass-nested: rgba(190, 215, 245, 0.06);
+  --clear-glass-rim: rgba(184, 221, 238, 0.3);
+  --clear-glass-top: rgba(225, 242, 255, 0.32);
+  --clear-glass-bottom: rgba(0, 5, 14, 0.4);
+  --clear-glass-shadow: rgba(0, 5, 14, 0.34);
+  --clear-glass-solid: var(--fx-deep, #0c1426);
+  --clear-glass-muted: var(--fx-ink-2, #aebfd0);
+  --clear-glass-contrast-rim: var(--fx-ink-2, #aebfd0);
+  --clear-glass-sheen: rgba(222, 245, 255, 0.045);
+}
+
+html.liquid-glass-on.liquid-glass-smooth {
+  --clear-glass-filter: none;
+}
+
+/* The thinner surface needs the demo's stronger secondary ink. Preserve
+ * semantic status colours, disabled opacity and all input/focus treatments. */
+html.liquid-glass-on[data-liquid-glass-material-quality] .app-main-content
+  :is(.text-stone-400, .text-stone-500, .text-slate-400, .text-slate-500, .glass-theme-option__description) {
+  color: var(--clear-glass-muted);
+}
+
+/* The scrolled navigation's old light rule otherwise wins against dark themes. */
+html.liquid-glass-on.liquid-glass-dark.lg-scrolled .mn-bar {
+  background: var(--fx-bar);
+  border-color: var(--clear-glass-rim);
+}
+
+/* Balanced grants sampling only to the outer panels opted in below; legacy
+ * blur utilities on standalone chips or decorative pseudo-elements stay off. */
+html.liquid-glass-on.liquid-glass-balanced .app-main-content *,
+html.liquid-glass-on.liquid-glass-balanced .app-main-content *::before,
+html.liquid-glass-on.liquid-glass-balanced .app-main-content *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* These are content panels, not buttons, inputs, menus, the AI editor or the
+ * deliberately opaque Seasons showcase. Do not change overflow: Console's
+ * popovers and New's suggestions must still extend outside their parent. */
+html.liquid-glass-on[data-liquid-glass-material-quality] .app-main-content
+  :is(.glow-card, .console-interactive-surface, .motion-v2-surface):not(:where(
+    button, a, input, select, textarea, label,
+    .settle-ai-quick-card, .wr-showcase, .wr-showcase *
+  )) {
+  position: relative;
+  background:
+    radial-gradient(ellipse at 45% 46%, var(--clear-glass-reading) 18%, transparent 77%),
+    linear-gradient(115deg, transparent 38%, var(--clear-glass-sheen) 46%, transparent 55%),
+    var(--clear-glass-fill) !important;
+  border: 1px solid var(--clear-glass-rim);
+  border-radius: 24px;
+  -webkit-backdrop-filter: var(--clear-glass-filter) !important;
+  backdrop-filter: var(--clear-glass-filter) !important;
+  box-shadow:
+    inset 0 1px 0 var(--clear-glass-top),
+    inset 0 -1px 0 var(--clear-glass-bottom),
+    inset 2px 2px 2px -1px var(--clear-glass-top),
+    inset -2px -2px 2px -1px var(--clear-glass-bottom),
+    0 18px 36px -12px var(--clear-glass-shadow);
+  /* No permanent compositor reservations on hundreds of Console surfaces. */
+  will-change: auto;
+  transition-property: transform, border-color;
+}
+
+/* A card samples its background once. Its nested controls retain their own
+ * semantic fills and focus treatments, but never start another sampling chain.
+ * Portal menus remain outside this scope. */
+html.liquid-glass-on[data-liquid-glass-material-quality] .app-main-content
+  :is(.glow-card, .console-interactive-surface, .motion-v2-surface):not(:where(
+    button, a, input, select, textarea, label,
+    .settle-ai-quick-card, .wr-showcase, .wr-showcase *
+  )) *,
+html.liquid-glass-on[data-liquid-glass-material-quality] .app-main-content
+  :is(.glow-card, .console-interactive-surface, .motion-v2-surface):not(:where(
+    button, a, input, select, textarea, label,
+    .settle-ai-quick-card, .wr-showcase, .wr-showcase *
+  )) *::before,
+html.liquid-glass-on[data-liquid-glass-material-quality] .app-main-content
+  :is(.glow-card, .console-interactive-surface, .motion-v2-surface):not(:where(
+    button, a, input, select, textarea, label,
+    .settle-ai-quick-card, .wr-showcase, .wr-showcase *
+  )) *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+html.liquid-glass-on[data-liquid-glass-material-quality] .app-main-content
+  :is(.glow-card, .console-interactive-surface, .motion-v2-surface):not(:where(
+    button, a, input, select, textarea, label,
+    .settle-ai-quick-card, .wr-showcase, .wr-showcase *
+  ))
+  :is(.glow-card, .console-interactive-surface, .motion-v2-surface):not(:where(
+    button, a, input, select, textarea, label,
+    .settle-ai-quick-card, .wr-showcase, .wr-showcase *
+  )) {
+  background: var(--clear-glass-nested) !important;
+  border-radius: 16px;
+  box-shadow: inset 0 1px 0 var(--clear-glass-top);
+}
+
+/* Selection is meaningful information; keep its blue tint and ring even when
+ * the selected item is itself a nested card. */
+html.liquid-glass-on[data-liquid-glass-material-quality] .app-main-content
+  :is(.glow-card, .console-interactive-surface, .motion-v2-surface).team-select-card--selected {
+  background:
+    linear-gradient(145deg, rgba(125, 211, 252, 0.34), rgba(165, 180, 252, 0.2) 52%, rgba(110, 231, 183, 0.24)),
+    var(--clear-glass-fill) !important;
+  border-color: rgba(56, 189, 248, 0.8) !important;
+  box-shadow:
+    0 0 0 1.5px rgba(56, 189, 248, 0.45),
+    inset 0 1px 0 var(--clear-glass-top),
+    0 18px 36px -12px var(--clear-glass-shadow);
+}
+
+/* Reuse the existing pseudo-element only on the active card. The controller
+ * clamps translation to +/-6px, inside this 8px inset: no overflow clipping is
+ * needed, and the sheen cannot cover adjacent cards. Text is never transformed. */
+html.liquid-glass-on[data-liquid-glass-material-quality='full'] .app-main-content
+  [data-glass-highlight='active']::after {
+  content: '';
+  display: block !important;
+  position: absolute;
+  inset: 8px;
+  width: auto;
+  height: auto;
+  border: 0;
+  border-radius: inherit;
+  background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.45) 48%, transparent 72%);
+  opacity: 0.12 !important;
+  pointer-events: none;
+  transform: translate(var(--glass-highlight-x, 0px), var(--glass-highlight-y, 0px));
+  transition: none;
+  will-change: transform;
+}
+
+/* The two cheaper budgets do not inherit expensive hover filters or reserve
+ * layout layers for every Console control. Functional pressed/focus states stay. */
+html.liquid-glass-on:is(.liquid-glass-smooth, .liquid-glass-balanced)
+  .console-motion-scope :is(.console-interactive-surface, .console-interactive-chip, .motion-v2-surface) {
+  will-change: auto;
+}
+html.liquid-glass-on:is(.liquid-glass-smooth, .liquid-glass-balanced)
+  .console-motion-scope :is(.console-interactive-surface, button:not(:disabled)):hover {
+  filter: none;
+}
+
+/* Theme miniatures preview the same thin material rather than the old white
+ * wash. They are illustrations and do not instantiate pointer tracking. */
+html.liquid-glass-on .glass-theme-option__sample {
+  background: rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: var(--clear-glass-filter);
+  backdrop-filter: var(--clear-glass-filter);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62), 0 4px 9px rgba(17, 44, 58, 0.13);
+}
+
+/* Last in the cascade, including against old !important background shorthands.
+ * Keep opacity on individual fills, never on the whole panel or its text. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html.liquid-glass-on,
+  html.liquid-glass-on.liquid-glass-dark {
+    --clear-glass-fill: var(--clear-glass-solid);
+    --clear-glass-reading: transparent;
+    --clear-glass-sheen: transparent;
+    --clear-glass-nested: var(--clear-glass-solid);
+    --clear-glass-filter: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  html.liquid-glass-on,
+  html.liquid-glass-on.liquid-glass-dark {
+    --clear-glass-fill: var(--clear-glass-solid);
+    --clear-glass-reading: transparent;
+    --clear-glass-sheen: transparent;
+    --clear-glass-nested: var(--clear-glass-solid);
+    --clear-glass-rim: var(--clear-glass-contrast-rim);
+    --clear-glass-filter: none;
+  }
+  html.liquid-glass-on[data-liquid-glass-material-quality='full'] .app-main-content
+    [data-glass-highlight='active']::after {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.liquid-glass-on[data-liquid-glass-material-quality='full'] .app-main-content
+    [data-glass-highlight='active']::after {
+    display: none !important;
+  }
+}

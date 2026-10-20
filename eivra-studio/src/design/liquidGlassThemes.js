@@ -6,7 +6,9 @@ export const DEFAULT_LIQUID_GLASS_STYLE = 'sand'
 export const DEFAULT_LIQUID_GLASS_QUALITY = 'smooth'
 export const normalizeLiquidGlassQuality = (value) => value === 'full' ? 'full' : DEFAULT_LIQUID_GLASS_QUALITY
 export const DEFAULT_LIQUID_GLASS_MATERIAL_QUALITY = 'full'
-export const normalizeLiquidGlassMaterialQuality = (value) => value === 'smooth' ? 'smooth' : DEFAULT_LIQUID_GLASS_MATERIAL_QUALITY
+export const normalizeLiquidGlassMaterialQuality = (value) => (
+  value === 'smooth' || value === 'balanced' ? value : DEFAULT_LIQUID_GLASS_MATERIAL_QUALITY
+)
 
 export const LIQUID_GLASS_THEMES = [
   { key: 'vivid', label: '流光溢彩', description: '多彩流动', preview: 'linear-gradient(135deg, #84b7ec, #b1a0ee 36%, #f4c174 68%, #84d9bd)' },
