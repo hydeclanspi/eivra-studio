@@ -35,3 +35,7 @@ coverage/
 *.orig
 temp_*.js
 *.tmp
+
+# Local Quant collector evidence and process locks
+quant-collector*.json
+quant-collector*.json.lock

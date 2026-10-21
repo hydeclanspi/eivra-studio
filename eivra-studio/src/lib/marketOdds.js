@@ -56,6 +56,7 @@ export const normalizeOfficialOdds = (payload) => {
 
       const pools = Array.isArray(match?.poolList) ? match.poolList : []
       const hadPool = pools.find((pool) => pool?.poolCode === 'HAD') || null
+      const crsPool = pools.find((pool) => pool?.poolCode === 'CRS') || null
 
       // 比分盘：s{主}{客} 为单格赔率（01 = 1 球），s1sh/s1sd/s1sa 为胜/平/负「其他」打包项。
       const scores = []
@@ -109,6 +110,10 @@ export const normalizeOfficialOdds = (payload) => {
         other,
         crsUpdatedAt: `${text(crs?.updateDate)} ${text(crs?.updateTime)}`.trim(),
         selling: Number(match?.sellStatus) === 1 && hadPool?.poolStatus === 'Selling',
+        sellingByMarket: {
+          result: Number(match?.sellStatus) === 1 && hadPool?.poolStatus === 'Selling',
+          score: Number(match?.sellStatus) === 1 && crsPool?.poolStatus === 'Selling',
+        },
         single: Number(hadPool?.single) === 1,
         allUp: Number(hadPool?.allUp) === 1,
         hot: Number(match?.isHot) === 1,

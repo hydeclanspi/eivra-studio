@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "read-quality": "node scripts/read-quality-report.mjs"
+    "read-quality": "node scripts/read-quality-report.mjs",
+    "quant:collect": "node scripts/quant-collector.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",

@@ -22,6 +22,8 @@ import { maskReactTree, useLabels, usePreviewTextMask } from '../lib/labels'
 import { useModeLabelMap } from '../components/ModeLabel'
 import { isPreviewMode } from '../lib/displayMode'
 import QuantsLiveSignals from '../components/QuantsLiveSignals'
+import QuantCandidateInbox from '../components/quant/QuantCandidateInbox'
+import { getActiveQuantCandidateRows, portfolioCandidateIssue, recordCandidateAdoption } from '../lib/quantCandidates'
 
 
 
@@ -1904,7 +1906,6 @@ const describeMissingLegQuote = (conf, odds) => {
 
 const getTodayMatches = () => {
   const pending = getInvestments().filter((item) => item.status === 'pending' && !item.is_archived)
-  if (pending.length === 0) return []
   const dismissedKeys = readDismissedCandidateKeys()
 
   const todayKey = formatDateKey(new Date().toISOString())
@@ -1953,6 +1954,7 @@ const getTodayMatches = () => {
     .filter((match) => !dismissedKeys.has(match.key))
 
   return [
+    ...getActiveQuantCandidateRows().filter((row) => !dismissedKeys.has(row.key)),
     ...rows.filter((row) => !row.missingLegQuote).slice(0, 12),
     ...rows.filter((row) => row.missingLegQuote),
   ]
@@ -2030,7 +2032,9 @@ const calcConfSurplus = (match, calibratedP = null, hyperparams = null) => {
   }
 }
 
-const calcAdjustedProbability = predictMatchProbability
+const calcAdjustedProbability = (match, ...args) => match.researchCandidateId
+  ? match.researchCandidate.forecast.probability
+  : predictMatchProbability(match, ...args)
 
 const buildAtomicLegProfile = (match, unionProbability, fallbackOdds = 2.5) => {
   const legOdds = Number(match.odds)
@@ -2052,6 +2056,12 @@ const buildAtomicLegProfile = (match, unionProbability, fallbackOdds = 2.5) => {
 }
 
 const getPortfolioInputIssue = (matches, qualityFilter = {}) => {
+  for (const match of matches) {
+    if (match.researchCandidate) {
+      const issue = portfolioCandidateIssue(match.researchCandidate)
+      if (issue) return `研究候选 ${match.match}：${issue}`
+    }
+  }
   for (const match of matches) {
     const profile = buildAtomicLegProfile(match, match.calibratedP ?? match.conf, match.odds)
     if (profile.valid === false || profile.modelStatus === 'approximate') {
@@ -5197,6 +5207,11 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
       return
     }
 
+    const researchIssue = toAdopt.flatMap((combo) => combo.subset || [])
+      .filter((item) => item.researchCandidate)
+      .map((item) => portfolioCandidateIssue(item.researchCandidate)).find(Boolean)
+    if (researchIssue) { window.alert(`研究候选不能采纳：${researchIssue}`); return }
+
     if (drawdownExceeded) {
       const ok = window.confirm(
         `当前方案最坏回撤估计 ${adoptPreview.worstDrawdownPct.toFixed(1)}%，超过阈值 ${maxWorstDrawdownAlertPct.toFixed(
@@ -5227,6 +5242,7 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
         fse_away: item.fseAway,
         fse_match: Number(Math.sqrt(item.fseHome * item.fseAway).toFixed(2)),
         note: item.note,
+        ...(item.researchCandidate ? { quant_research_origin: item.researchCandidate, kickoff: item.kickoff } : {}),
         results: '',
         is_correct: null,
         match_rating: null,
@@ -5273,11 +5289,24 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
       return
     }
     try {
+      const expired = toAdopt.flatMap((combo) => combo.subset || []).filter((item) => item.researchCandidate)
+        .map((item) => portfolioCandidateIssue(item.researchCandidate)).find(Boolean)
+      if (expired) { window.alert(`研究候选不能采纳：${expired}`); return }
       const saved = saveInvestments(payloads)
       if (saved.length !== payloads.length) throw new Error('incomplete_write')
     } catch {
       window.alert('采纳未写入，方案已保留，请重试。')
       return
+    }
+    try {
+      const adoptions = {}
+      payloads.forEach((investment) => investment.matches.forEach((match) => {
+        const id = match.quant_research_origin?.id
+        if (id) adoptions[id] = [...new Set([...(adoptions[id] || []), investment.id])]
+      }))
+      recordCandidateAdoption(Object.keys(adoptions), adoptions)
+    } catch {
+      window.alert('投资记录已保存，但研究候选状态未更新；请在收件箱手动移除已采纳候选，避免重复采纳。')
     }
     payloads.forEach((investment) => investment.matches.forEach((match) => touchedTeams.push(match.home_team, match.away_team)))
     bumpTeamSamples(touchedTeams)
@@ -5427,6 +5456,7 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
         <p className="text-stone-400 text-sm mt-1">基于 Portfolio Optimization 的最优投资方案</p>
       </div>
 
+      <QuantCandidateInbox />
       <QuantsLiveSignals />
 
       <PortfolioComposition inspiration={inspirationLayout} main={
