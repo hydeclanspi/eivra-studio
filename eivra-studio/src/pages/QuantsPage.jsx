@@ -120,6 +120,20 @@ const PRESET_TEMPLATES = [
     },
   },
   {
+    id: 'arsenal-win-one',
+    label: '阿森纳赢1个球 · 月度追踪',
+    spec: {
+      name: '阿森纳赢1个球 · 月度追踪',
+      team: '阿森纳',
+      market: 'score',
+      score: { for: 1, against: 0 },
+      matchesPlanned: 6,
+      stakePerMatch: 20,
+      oddsMode: 'market',
+      probMode: 'market',
+    },
+  },
+  {
     id: 'strong-home-win',
     label: '强队主胜追踪',
     spec: {
