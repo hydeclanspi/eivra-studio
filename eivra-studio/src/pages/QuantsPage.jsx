@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Archive,
+  BookOpen,
   Check,
   ChevronDown,
   ChevronUp,
@@ -44,13 +45,31 @@ import {
 } from '../lib/oddsHistory'
 import { buildTeamRatings, regimeSnapshot } from '../lib/teamRatings'
 import {
+  createResearchExperiment,
+  getResearchStore,
+  rerunResearchExperiment,
+  saveResearchConclusion,
+} from '../lib/quantResearch'
+import QuantGuideDialog from '../components/quant/QuantGuideDialog'
+import QuantForwardWorkspace from '../components/quant/QuantForwardWorkspace'
+import QuantValidationWorkspace from '../components/quant/QuantValidationWorkspace'
+import QuantEvidenceWorkspace from '../components/quant/QuantEvidenceWorkspace'
+import { EVIDENCE_KEY, emptyEvidenceStore, evidenceCoverage, evidenceFromOfficial, evidenceFromObservedResults, getEvidenceStore, importEvidence } from '../lib/quantEvidence'
+import { FORWARD_KEY, getForwardStore, runForwardTask } from '../lib/quantForward'
+import { sendQuantCandidate } from '../lib/quantCandidates'
+import {
+  ResearchBriefEditor,
+  ResearchDataCapabilities,
+  ResearchDesk,
+  ResearchLibrary,
+  ResearchRunReport,
+} from '../components/quant/QuantResearchWorkspace'
+import {
   DEFAULT_DISCOVERY_TEMPLATES,
   STRATEGY_STATUS_LABELS,
   aliasesForTeam,
-  analyzeStrategy,
   autoRetireStrategy,
   autoVoidStalePositions,
-  backtestStrategy,
   buildInvestmentFromPosition,
   createEmptySpec,
   deleteStrategy,
@@ -68,7 +87,6 @@ import {
   specFromDiscoveryRow,
   strategyPortfolio,
   strategyPositionsCsv,
-  strategyQualityScore,
   strategyStats,
   syncStrategyFixtures,
   updateStrategy,
@@ -134,22 +152,22 @@ const PRESET_TEMPLATES = [
 const DISCIPLINE_CARDS = [
   {
     id: 'vig',
-    title: '水位是对手',
-    body: '比分盘抽水常超 20%，牌面赔率永远高估你的处境——一切边际看去水后的公平概率。',
+    title: '价格需要时间坐标',
+    body: '赛果、报价与预测必须对应当时可知的信息。假定赔率情景不能还原历史可执行收益。',
     IconComp: ShieldAlert,
     tone: 'rose',
   },
   {
     id: 'sample',
-    title: '小样本会骗人',
-    body: 'n<30 的结论不可信。所有命中率看置信区间，先看需要多少样本才能下结论。',
+    title: '结论保留证据边界',
+    body: '样本量、区间与数据覆盖一起阅读。固定场数、正收益或单项分数都不等于策略已被验证。',
     IconComp: Scale,
     tone: 'amber',
   },
   {
     id: 'decay',
-    title: '策略会死',
-    body: '边际会随市场定价衰减。设好退役线：边际连续收窄就降级回影子盘，不恋战。',
+    title: '每次修改留下版本',
+    body: '先记录假设与失效条件，再冻结规则进行观察。修改后重新积累证据，保留旧实验和研究结论。',
     IconComp: TrendingUp,
     tone: 'slate',
   },
@@ -184,26 +202,25 @@ const fmtSignedPct = (value, digits = 1) =>
 const fmtYuan = (value, digits = 1) =>
   Number.isFinite(value) ? `${value > 0 ? '+' : value < 0 ? '-' : ''}¥${Math.abs(value).toFixed(digits)}` : '—'
 
-// Walk-Forward 三态：只有「样本外仍为正期望」才允许绿色；
-// 未退化但 ROI < 0 只能是 amber，退化是 rose。
+// 发现候选已接触全量数据；前后段切分仅为描述，不能称为独立样本外验证。
 const OOS_STATE_META = {
   insufficient: {
-    label: '样本外不足',
+    label: '后段样本不足',
     text: 'text-stone-500',
     badge: 'border-stone-200 bg-stone-50 text-stone-500',
   },
   profitable: {
-    label: '样本外通过',
-    text: 'text-emerald-600',
-    badge: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    label: '后段情景收益为正',
+    text: 'text-stone-600',
+    badge: 'border-stone-200 bg-stone-50 text-stone-600',
   },
   flat: {
-    label: '未退化但未盈利',
+    label: '后段情景未盈利',
     text: 'text-amber-600',
     badge: 'border-amber-200 bg-amber-50 text-amber-700',
   },
   degraded: {
-    label: '样本外退化',
+    label: '后段情景退化',
     text: 'text-rose-500',
     badge: 'border-rose-200 bg-rose-50 text-rose-600',
   },
@@ -385,13 +402,6 @@ const REGIME_TONE_META = {
   stable: { label: '环境稳定', className: 'border-stone-200 bg-stone-50 text-stone-500', line: '近期与前一窗口的进球和平局结构基本稳定。' },
 }
 
-const QUALITY_GRADE_CLASS = {
-  A: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-  B: 'border-sky-200 bg-sky-50 text-sky-700',
-  C: 'border-amber-200 bg-amber-50 text-amber-700',
-  D: 'border-rose-200 bg-rose-50 text-rose-500',
-}
-
 const downloadCsv = (content, filename) => {
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
   const href = URL.createObjectURL(blob)
@@ -482,6 +492,22 @@ const EquitySparkline = ({ equityCurve }) => {
   )
 }
 
+const EMPTY_RESEARCH = { schemaVersion: 1, projects: [], versions: [], runs: [] }
+const emptyBrief = () => ({ hypothesis: '', falsifier: '', notes: '' })
+const emptyProtocol = () => ({ startDate: '', endDate: '', holdoutStart: '' })
+const readResearchState = () => {
+  try { return { store: getResearchStore(), error: '' } }
+  catch (error) { return { store: EMPTY_RESEARCH, error: error.message || '研究记录暂时无法读取。' } }
+}
+const readEvidenceState = () => {
+  try { return { store: getEvidenceStore(), error: '' } }
+  catch (error) { return { store: emptyEvidenceStore(), error: error.message } }
+}
+const readForwardCount = () => {
+  try { return getForwardStore().plans.length }
+  catch { return 0 }
+}
+
 export default function QuantsPage() {
   const maskText = usePreviewTextMask()
   const systemConfig = useMemo(() => getSystemConfig(), [])
@@ -506,19 +532,32 @@ export default function QuantsPage() {
   const [expandedStrategy, setExpandedStrategy] = useState(null)
   const [syncLine, setSyncLine] = useState('')
   const [syncNotes, setSyncNotes] = useState({})
-  const [backtest, setBacktest] = useState(null)
   const [discoveryMinN, setDiscoveryMinN] = useState(15)
   const [discoveryQ, setDiscoveryQ] = useState(0.1)
   const [discoveryResult, setDiscoveryResult] = useState(null)
   const [discoveryShowAll, setDiscoveryShowAll] = useState(false)
-  const [activeTab, setActiveTab] = useState('lab')
-  const [walkForward, setWalkForward] = useState(null)
+  const [activeTab, setActiveTab] = useState('home')
   const [openFootballLoading, setOpenFootballLoading] = useState(false)
   const [openFootballSources, setOpenFootballSources] = useState([])
   const [oddsStatus, setOddsStatus] = useState(() => oddsHistoryStatus())
   const [executionNotes, setExecutionNotes] = useState({})
   const [teamSearch, setTeamSearch] = useState('')
   const [showFullRatings, setShowFullRatings] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(false)
+  const [researchState, setResearchState] = useState(readResearchState)
+  const [projectId, setProjectId] = useState(null)
+  const [brief, setBrief] = useState(emptyBrief)
+  const [protocol, setProtocol] = useState(emptyProtocol)
+  const [selectedRunId, setSelectedRunId] = useState(null)
+  const [currentRunId, setCurrentRunId] = useState(null)
+  const [researchNotice, setResearchNotice] = useState({ error: false, text: '' })
+  const [evidenceState, setEvidenceState] = useState(readEvidenceState)
+  const [forwardCount, setForwardCount] = useState(readForwardCount)
+  const [observationVersionId, setObservationVersionId] = useState(null)
+  const [labMode, setLabMode] = useState('single')
+  const researchStore = researchState.store
+  const currentRun = researchStore.runs.find((run) => run.id === currentRunId)
+  const currentVersion = researchStore.versions.find((version) => version.id === currentRun?.versionId)
 
   const resultsIndex = useMemo(() => (resultsStatus.count > 0 ? getResultsIndex() : { matches: [] }), [resultsStatus])
   const ratings = useMemo(
@@ -572,31 +611,65 @@ export default function QuantsPage() {
 
   useEffect(() => {
     const onDataChanged = (event) => {
+      if (event?.detail?.key === 'eivra.quant_research.v1') setResearchState(readResearchState())
       if (event?.detail?.key === 'eivra.strategies.v1') setStrategies(getStrategies())
       if (event?.detail?.key === 'eivra.results_cache.v1') setResultsStatus(resultsCacheStatus())
       if (event?.detail?.key === 'eivra.odds_history.v1') setOddsStatus(oddsHistoryStatus())
+      if (event?.detail?.key === EVIDENCE_KEY) setEvidenceState(readEvidenceState())
+      if (event?.detail?.key === FORWARD_KEY) setForwardCount(readForwardCount())
+    }
+    const onModeChanged = () => {
+      setResearchState(readResearchState())
+      setEvidenceState(readEvidenceState())
+      setForwardCount(readForwardCount())
+      setObservationVersionId(null)
+      setLabMode('single')
+      setProjectId(null)
+      setCurrentRunId(null)
+      setSelectedRunId(null)
+      setAnalysis(null)
+      setBrief(emptyBrief())
+      setSpec(normalizeSpec(createEmptySpec()))
+      setStrategies(getStrategies())
+      setResultsStatus(resultsCacheStatus())
+      setProtocol(emptyProtocol())
+      setResearchNotice({ error: false, text: '' })
     }
     window.addEventListener('eivra:data-changed', onDataChanged)
-    return () => window.removeEventListener('eivra:data-changed', onDataChanged)
+    window.addEventListener('eivra:display-mode-changed', onModeChanged)
+    return () => {
+      window.removeEventListener('eivra:data-changed', onDataChanged)
+      window.removeEventListener('eivra:display-mode-changed', onModeChanged)
+    }
   }, [])
 
-  // 挂载时静默自动同步：同步赛程 → 记录报价 → 刷新收盘 → 自动结算/作废/退役。
-  // 只有发生实际变化的策略才写回；任何失败都不打扰页面。
+  // 页面内同步；关闭页面后不会采集。失败与不可用原因在观察区保留。
   useEffect(() => {
     let cancelled = false
     const run = async () => {
       try {
         const result = await fetchOfficialMarketOdds()
-        if (cancelled || !result.ok) return
+        if (cancelled) return
+        if (!result.ok) {
+          setSyncLine('页面内同步未完成：行情暂不可用，可手动重试。')
+          return
+        }
         setMarketMatches(result.matches)
+        const capture = evidenceFromOfficial(result.matches)
+        importEvidence(capture, { label: '页面采集 · 官方报价' })
+        setMarketStatus({ state: 'ok', line: `已获取 ${result.matches.length} 场当前报价并保存采集时间。` })
         const currentResults = getResultsIndex()
+        const currentRatings = buildTeamRatings(currentResults)
         let addedTotal = 0
         let settledTotal = 0
         let retiredTotal = 0
         const nextStrategies = getStrategies()
           .filter((item) => item.status === 'shadow' || item.status === 'live')
           .map((item) => {
-            const synced = syncStrategyFixtures(item, result.matches)
+            const synced = syncStrategyFixtures(item, result.matches, { ratings: currentRatings })
+            if (synced.syncStatus?.available === false) {
+              setSyncNotes((previous) => ({ ...previous, [item.id]: synced.syncStatus.message }))
+            }
             const next = autoRetireStrategy(
               autoVoidStalePositions(
                 settleStrategyPositions(refreshClosingOdds(synced, result.matches), currentResults),
@@ -639,9 +712,9 @@ export default function QuantsPage() {
         const notes = []
         if (addedTotal > 0 || settledTotal > 0) notes.push(`新增 ${addedTotal} 头寸 · 新结算 ${settledTotal} 场`)
         if (retiredTotal > 0) notes.push(`自动退役 ${retiredTotal} 个策略`)
-        if (notes.length > 0) setSyncLine(`已同步：${notes.join(' · ')}`)
-      } catch {
-        // 静默：自动同步永远不该打断页面
+        setSyncLine(`最近页面内同步 ${new Date().toLocaleTimeString('zh-CN')} · ${notes.length ? notes.join(' · ') : '暂无新增记录'}`)
+      } catch (error) {
+        if (!cancelled) setSyncLine(`页面内同步未完成：${error.message || '行情或存储暂不可用'}`)
       }
     }
     run()
@@ -650,7 +723,14 @@ export default function QuantsPage() {
     }
   }, [])
 
-  const patchSpec = (patch) => setSpec((prev) => ({ ...prev, ...patch }))
+  const clearCurrentResult = () => {
+    setAnalysis(null)
+    setCurrentRunId(null)
+  }
+  const patchSpec = (patch) => {
+    setSpec((prev) => ({ ...prev, ...patch }))
+    clearCurrentResult()
+  }
 
   const applyTemplate = (template) => {
     setSpec((prev) =>
@@ -660,7 +740,10 @@ export default function QuantsPage() {
         ...template.spec,
       }),
     )
-    setAnalysis(null)
+    clearCurrentResult()
+    setProjectId(null)
+    setBrief(emptyBrief())
+    setProtocol(emptyProtocol())
   }
 
   const handleFetchMarket = async () => {
@@ -670,6 +753,7 @@ export default function QuantsPage() {
     setFetching(false)
     if (!result.ok) {
       // 抓取失败（WAF 拦截 / 超时 / 无网络）≠ 没有市场价，只能降级
+      setResearchNotice({ error: true, text: `官方报价采集失败（${result.reason || '网络不可用'}），历史证据保持原样。` })
       setMarketStatus({
         state: 'error',
         line: '拉取失败（网络被拦截或接口不可用）——已降级：可改用联赛基准概率 + 手动赔率继续推演',
@@ -677,6 +761,13 @@ export default function QuantsPage() {
       return
     }
     setMarketMatches(result.matches)
+    try {
+      const capture = evidenceFromOfficial(result.matches)
+      importEvidence(capture, { label: '手动采集 · 官方报价' })
+      setResearchNotice({ error: false, text: `已保存 ${capture.quotes.length} 条带采集时间的报价。可在影子观察中显式运行冻结计划。` })
+    } catch (error) {
+      setResearchNotice({ error: true, text: `当前行情已获取，证据保存或观察任务未完成：${error.message}` })
+    }
     const aliases = aliasesForTeam(spec.team)
     const count = aliases.length
       ? result.matches.filter((match) => matchVenueForTeam(match, aliases)).length
@@ -690,13 +781,8 @@ export default function QuantsPage() {
     })
   }
 
-  const handleRun = () => {
-    const result = analyzeStrategy(spec, marketMatches, { kellyDivisor: systemConfig.kellyDivisor, ratings })
-    setAnalysis(result)
-  }
-
-  const handleSave = () => {
-    if (!analysis) return
+  const runResearch = (kind) => {
+    if (researchState.error) return
     const normalized = normalizeSpec(spec)
     const name =
       normalized.name ||
@@ -705,22 +791,91 @@ export default function QuantsPage() {
           ? `${normalized.score.for}-${normalized.score.against}`
           : OUTCOME_LABELS[normalized.outcome]
       }`
-    saveStrategy({
-      ...normalized,
-      name,
-      snapshot: {
-        tone: analysis.verdict.tone,
-        edgePP: analysis.perBet.edgeVsFairPP,
-        evPct: analysis.perBet.evPct,
-        pProfit: analysis.monteCarlo.pProfit,
-        expectedProfit: analysis.monteCarlo.meanProfit,
-      },
-    })
+    try {
+      const saved = createResearchExperiment({
+        projectId, spec: { ...normalized, name }, brief, protocol, kind,
+        resultsIndex, marketMatches, ratings, kellyDivisor: systemConfig.kellyDivisor,
+      })
+      setResearchState({ store: saved.store, error: '' })
+      setProjectId(saved.project.id)
+      setCurrentRunId(saved.run.id)
+      setSelectedRunId(saved.run.id)
+      setAnalysis(kind === 'simulation' ? saved.run.result.analysis : null)
+      setResearchNotice({ error: false, text: `已保存 v${saved.version.number} 与本次实验的规则、输入快照和结果。可到策略库复现或补充结论。` })
+    } catch (error) {
+      setResearchNotice({ error: true, text: error.message || '实验未能完成保存，旧记录保持原样。' })
+    }
+  }
+
+  const handleRun = () => runResearch('simulation')
+  const handleSave = () => handleShadow(currentVersion, currentRun)
+
+  const handleShadow = (version, run) => {
+    if (!version || !run) return
+    setObservationVersionId(version.id)
+    setActiveTab('shelf')
+    setResearchNotice({ error: false, text: `已选中 v${version.number}。请在观察区声明复盘日期与门槛，再冻结前向计划；已有计划的版本会打开原记录。` })
+  }
+
+  const handleSendCandidate = (order, plan) => {
+    const candidate = sendQuantCandidate({ orderId: order.id, planId: plan.id, versionId: order.versionId,
+      name: plan.name, eventId: order.eventId, home: order.home, away: order.away, kickoff: order.kickoff,
+      market: order.market, selection: order.selection, quote: order.entryQuote, forecast: order.forecastSnapshot, stake: order.stake })
+    setResearchNotice({ error: false, text: '已送入 Portfolio 研究候选收件箱。核对后可加入组合候选池，尚未创建实际投资。' })
+    return candidate
+  }
+
+  const handleStartResearch = (intent = 'idea') => {
+    if (intent === 'compare') { setActiveTab('library'); return }
+    setProjectId(null)
+    setLabMode('single')
+    setSpec(normalizeSpec({ ...createEmptySpec(), bankroll: spec.bankroll }))
+    setBrief(intent === 'history' ? { ...emptyBrief(), hypothesis: '我想了解所选结果在历史比赛中的发生频率，并检查前后时间段的变化。' } : emptyBrief())
+    setProtocol(emptyProtocol())
+    clearCurrentResult()
+    setActiveTab('lab')
+    setResearchNotice({ error: false, text: '' })
+  }
+
+  const handleLoadVersion = (version) => {
+    if (!version) return
+    setSpec(normalizeSpec(version.spec))
+    setBrief({ ...emptyBrief(), ...version.brief })
+    setProtocol({ ...emptyProtocol(), ...version.protocol })
+    setProjectId(version.projectId)
+    clearCurrentResult()
+    setActiveTab('lab')
+    setResearchNotice({ error: false, text: `已载入 v${version.number}。下一次运行会创建新版本，不会覆盖原实验。` })
+  }
+
+  const handleOpenRun = (id) => { setSelectedRunId(id); setActiveTab('library') }
+  const handleRerun = (id) => {
+    try {
+      const saved = rerunResearchExperiment(id)
+      setResearchState({ store: saved.store, error: '' })
+      setSelectedRunId(saved.run.id)
+      setActiveTab('library')
+      setResearchNotice({ error: false, text: '已使用冻结输入复现；原实验保持不变。' })
+    } catch (error) { setResearchNotice({ error: true, text: error.message || '复现失败。' }) }
+  }
+  const handleConclusion = (id, text) => {
+    try {
+      saveResearchConclusion(id, text)
+      setResearchState(readResearchState())
+      return true
+    } catch (error) {
+      setResearchNotice({ error: true, text: error.message || '结论保存失败。' })
+      return false
+    }
   }
 
   const handleReevaluate = (item) => {
     setSpec(normalizeSpec(item))
-    setAnalysis(null)
+    setProjectId(item.researchProjectId || null)
+    setBrief({ ...emptyBrief(), ...item.researchBrief })
+    setProtocol({ ...emptyProtocol(), ...item.researchProtocol })
+    clearCurrentResult()
+    setActiveTab('lab')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -741,6 +896,12 @@ export default function QuantsPage() {
       return
     }
     setResultsAction({ state: 'ok', line: `新增 ${result.added ?? 0} 场（缓存共 ${status.count} 场）` })
+    try {
+      const observed = evidenceFromObservedResults(result.matches, getEvidenceStore())
+      const next = importEvidence(observed, { label: '页面采集 · 首次观察官方赛果' })
+      runForwardTask(null, next, { action: 'settle' })
+      setResultsAction({ state: 'ok', line: `缓存新增 ${result.added ?? 0} 场；${observed.results.length} 场记录了首次可知时间；${observed.excluded.length} 场未严格匹配到已知赛事。` })
+    } catch (error) { setResearchNotice({ error: true, text: `赛果缓存已更新，前向证据处理未完成：${error.message}` }) }
   }
 
   const handleHarvestSettled = () => {
@@ -793,7 +954,7 @@ export default function QuantsPage() {
 
   // ── 单个策略的合并同步：赛程/报价/收盘/结算/作废/退役，变化才持久化 ──
   const handleSyncStrategy = (item) => {
-    const synced = syncStrategyFixtures(item, marketMatches)
+    const synced = syncStrategyFixtures(item, marketMatches, { ratings })
     const next = autoRetireStrategy(
       autoVoidStalePositions(
         settleStrategyPositions(refreshClosingOdds(synced, marketMatches), getResultsIndex()),
@@ -816,7 +977,7 @@ export default function QuantsPage() {
     })
     setSyncNotes((prev) => ({
       ...prev,
-      [item.id]: `${marketMatches.length ? '' : '（未拉取市场赔率，赛程与收盘价未更新）'}已同步：新增 ${added} 头寸 · 新结算 ${newlySettled} 场${item.status !== next.status ? ' · 已自动退役' : ''}`,
+      [item.id]: `${synced.syncStatus?.message || ''}${marketMatches.length ? '' : '（未拉取市场赔率，赛程与收盘价未更新）'}已同步：新增 ${added} 头寸 · 新结算 ${newlySettled} 场${item.status !== next.status ? ' · 已自动退役' : ''}`,
     }))
   }
 
@@ -849,10 +1010,7 @@ export default function QuantsPage() {
   }
 
   // ── 历史回测 / 策略发现 ───────────────────────────────────────────
-  const handleBacktest = () => {
-    setBacktest(backtestStrategy(spec, getResultsIndex()))
-    setWalkForward(walkForwardStrategy(spec, getResultsIndex()))
-  }
+  const handleBacktest = () => runResearch('scenario')
 
   const handleDiscover = () => {
     const minN = Math.max(1, Number.parseInt(discoveryMinN, 10) || 15)
@@ -863,14 +1021,17 @@ export default function QuantsPage() {
 
   const handleLoadDiscoveryRow = (row) => {
     setSpec(specFromDiscoveryRow(row, DEFAULT_DISCOVERY_TEMPLATES))
-    setAnalysis(null)
-    setBacktest(null)
+    clearCurrentResult()
+    setProjectId(null)
+    setProtocol(emptyProtocol())
+    setBrief({
+      hypothesis: `${row.teamName} · ${row.label} 的历史频率值得进一步研究。`,
+      falsifier: '',
+      notes: `来源：探索扫描，共扫描 ${discoveryResult?.totalTested || 0} 个组合；候选已使用全量赛果筛选。后续历史时间切分不构成独立验证。`,
+    })
     setActiveTab('lab')
+    setResearchNotice({ error: false, text: '已将发现线索载入研究表单。先保存一次实验，再决定是否冻结规则进入影子观察。' })
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  const handleSaveDiscoveryRow = (row) => {
-    saveStrategy({ ...specFromDiscoveryRow(row, DEFAULT_DISCOVERY_TEMPLATES), status: 'shadow' })
   }
 
   const { legs } = analysis || { legs: [] }
@@ -895,96 +1056,40 @@ export default function QuantsPage() {
 
   return (
     <div className="page-shell page-content-wide">
-      {/* ── Header + command strip ── */}
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-2xl font-semibold text-stone-800 font-display flex items-center gap-2.5">
             <GlassCardIcon IconComp={FlaskConical} tone="violet" iconSize={16} className="h-9 w-9" />
-            Quants · 量化策略实验室
+            Quant · 策略研究工作台
           </h2>
-          <p className="text-stone-400 text-sm mt-1">把一个直觉翻译成可定价、可推演、可复盘的策略对象</p>
+          <p className="text-stone-500 text-sm mt-2">从研究假设，到可复现的实验与持续观察。</p>
         </div>
+        <button type="button" className="qr-guide-trigger" onClick={() => setGuideOpen(true)} aria-haspopup="dialog">
+          <BookOpen size={15} strokeWidth={1.8} />使用指南与设计思路
+        </button>
       </div>
-
-      <div className="mb-4 grid grid-cols-4 gap-3">
+      <QuantGuideDialog open={guideOpen} onClose={() => setGuideOpen(false)} />
+      <nav className="qr-workspace-tabs" aria-label="Quant 工作区">
         {[
-          {
-            label: '活跃策略',
-            value: `${portfolio.activeCount} 个`,
-            sub: '影子盘 + 已转正',
-            tone: 'text-stone-800',
-          },
-          {
-            label: '待结算敞口',
-            value: fmtYuan(portfolio.pendingStake).replace('+', ''),
-            sub: portfolio.exposurePct === null ? '蓄水池比例未知' : `占蓄水池 ${fmtPct(portfolio.exposurePct)}`,
-            tone: portfolio.exposurePct !== null && portfolio.exposurePct > systemConfig.riskCapRatio ? 'text-rose-500' : 'text-amber-600',
-          },
-          {
-            label: '组合盈利概率',
-            value: portfolioSimulation.nPositions > 0 ? fmtPct(portfolioSimulation.pProfit) : '—',
-            sub: portfolioSimulation.nPositions > 0 ? `${portfolioSimulation.nPositions} 头寸 / ${portfolioSimulation.nMatches} 场` : '暂无待结算头寸',
-            tone: 'text-emerald-600',
-          },
-          {
-            label: '蓄水池可用',
-            value: fmtYuan(Number(reservoir.availableCash) || 0).replace('+', ''),
-            sub: `风险上限 ${fmtPct(systemConfig.riskCapRatio)}`,
-            tone: 'text-stone-800',
-          },
-        ].map((kpi) => (
-          <div key={kpi.label} className="glow-card rounded-2xl border border-stone-100 bg-white p-4">
-            <span className="block text-[11px] text-stone-400">{kpi.label}</span>
-            <span className={`mt-1 block text-xl font-semibold ${kpi.tone}`}>{kpi.value}</span>
-            <span className="mt-0.5 block text-[10px] text-stone-400">{kpi.sub}</span>
-          </div>
-        ))}
-      </div>
-
-      {alertChips.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          {alertChips.map((alert) => (
-            <button
-              key={alert.id}
-              type="button"
-              onClick={() => setActiveTab('shelf')}
-              className={`rounded-full border px-3 py-1 text-[11px] ${
-                alert.level === 'danger'
-                  ? 'border-rose-200 bg-rose-50 text-rose-600'
-                  : 'border-amber-200 bg-amber-50 text-amber-700'
-              }`}
-            >
-              {alert.text} · 去策略架
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="mb-6 inline-flex rounded-xl border border-stone-200 bg-stone-50/80 p-1" role="tablist" aria-label="Quants 工作区">
-        {[
-          { id: 'lab', label: '实验室', Icon: FlaskConical },
-          { id: 'shelf', label: '策略架', Icon: Archive },
-          { id: 'discover', label: '发现', Icon: Radar },
-          { id: 'data', label: '数据', Icon: Database },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs transition-colors ${
-              activeTab === tab.id ? 'bg-white font-medium text-stone-800 shadow-sm' : 'text-stone-500 hover:text-stone-700'
-            }`}
-          >
-            <tab.Icon size={13} strokeWidth={1.8} />
-            {tab.label}
-          </button>
-        ))}
-      </div>
+          { id: 'home', label: '研究台', Icon: BookOpen },
+          { id: 'lab', label: '实验工作台', Icon: FlaskConical },
+          { id: 'library', label: '策略库', Icon: Library },
+          { id: 'shelf', label: '影子观察', Icon: Radar },
+          { id: 'data', label: '数据中心', Icon: Database },
+        ].map((tab) => <button key={tab.id} type="button" aria-current={activeTab === tab.id ? 'page' : undefined} onClick={() => setActiveTab(tab.id)}><tab.Icon size={14} strokeWidth={1.8} />{tab.label}</button>)}
+      </nav>
+      {(researchState.error || researchNotice.text) && <div role={researchState.error || researchNotice.error ? 'alert' : 'status'} className={`qr-page-notice ${researchState.error || researchNotice.error ? 'is-error' : ''}`}>{researchState.error || researchNotice.text}</div>}
+      {activeTab === 'home' && <ResearchDesk store={researchStore} onStart={handleStartResearch} onOpenRun={handleOpenRun} onNavigate={setActiveTab} onGuide={() => setGuideOpen(true)} shadowCount={forwardCount} resultCount={resultsStatus.count} />}
+      {activeTab === 'library' && <ResearchLibrary store={researchStore} selectedRunId={selectedRunId} onSelectRun={setSelectedRunId} onRerun={handleRerun} onConclusion={handleConclusion} onLoadVersion={handleLoadVersion} onShadow={handleShadow} onStart={() => handleStartResearch()} legacyStrategies={strategies} onImportLegacy={handleReevaluate} />}
 
       {activeTab === 'lab' && (
         <>
+      <ResearchBriefEditor brief={brief} onChange={(value) => { setBrief(value); clearCurrentResult() }} protocol={protocol} onProtocolChange={(value) => { setProtocol(value); clearCurrentResult() }} projectName={maskText(researchStore.projects.find((item) => item.id === projectId)?.name || '')} onNewResearch={() => handleStartResearch()} />
+      <div className="qr-lab-tabs" role="group" aria-label="实验方式"><button type="button" aria-pressed={labMode === 'single'} onClick={() => setLabMode('single')}><FlaskConical size={14} />规则与单次实验</button><button type="button" aria-pressed={labMode === 'validation'} onClick={() => setLabMode('validation')}><History size={14} />参数、滚动与价格回放</button></div>
+      {labMode === 'validation' && <QuantValidationWorkspace spec={spec} resultsIndex={resultsIndex} evidence={evidenceState.store} onLoadSpec={(next) => { setSpec(normalizeSpec(next)); clearCurrentResult(); setLabMode('single') }} />}
+      <div hidden={labMode !== 'single'}>
+      {currentRun && <ResearchRunReport run={currentRun} version={currentVersion} onRerun={handleRerun} onConclusion={handleConclusion} onLoadVersion={handleLoadVersion} onShadow={handleShadow} />}
+
       {/* ── 预设模板 ── */}
       <div className="mb-6 flex flex-wrap items-center gap-2">
         <span className="text-xs text-stone-400 mr-1">预设模板</span>
@@ -1001,9 +1106,9 @@ export default function QuantsPage() {
       </div>
 
       {/* ── 策略试算器 ── */}
-      <div className="grid grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         {/* 左：表单 */}
-        <div className="col-span-2 glow-card bg-white rounded-2xl border border-stone-100 p-6 space-y-5 self-start">
+        <div className="xl:col-span-2 glow-card bg-white rounded-2xl border border-stone-100 p-6 space-y-5 self-start">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <GlassCardIcon IconComp={FlaskConical} tone="indigo" />
             策略试算器
@@ -1189,30 +1294,38 @@ export default function QuantsPage() {
             )}
           </div>
 
-          <div className="flex items-center gap-3 pt-1">
+          {spec.oddsMode !== 'manual' && <div>
+            <FieldLabel>历史情景假定赔率</FieldLabel>
+            <input type="number" min="1.01" step="0.1" value={spec.manualOdds} onChange={(event) => patchSpec({ manualOdds: Number(event.target.value) })} className={INPUT_CLASS} aria-label="历史情景假定赔率" />
+            <p className="mt-1 text-xs text-stone-500">假设赔率情景始终使用此固定值，不会套用今天的市场价。</p>
+          </div>}
+          <div className="flex flex-wrap items-center gap-3 pt-1">
             <button type="button" onClick={handleFetchMarket} disabled={fetching} className="btn-secondary btn-hover">
               <span className="inline-flex items-center gap-1.5">
                 <DownloadCloud size={14} strokeWidth={1.8} />
                 {fetching ? '拉取中…' : '拉取市场定价'}
               </span>
             </button>
-            <button type="button" onClick={handleRun} className="btn-primary btn-hover">
+            <button type="button" onClick={handleRun} disabled={Boolean(researchState.error)} className="btn-primary btn-hover">
               <span className="inline-flex items-center gap-1.5">
                 <Play size={14} strokeWidth={1.8} />
-                运行推演
+                运行并保存推演
               </span>
             </button>
             <button
               type="button"
               onClick={handleBacktest}
-              disabled={resultsStatus.count === 0}
-              title={resultsStatus.count === 0 ? '赛果缓存为空——先在下方「赛果数据」里拉取或导入' : '按当前策略参数在赛果缓存上回测'}
+              disabled={resultsStatus.count === 0 || Boolean(researchState.error)}
+              title={resultsStatus.count === 0 ? '先在数据中心导入历史赛果' : '按固定假定赔率进行情景分析并保存'}
               className="btn-secondary btn-hover"
             >
               <span className="inline-flex items-center gap-1.5">
                 <History size={14} strokeWidth={1.8} />
-                历史回测
+                假设赔率情景
               </span>
+            </button>
+            <button type="button" onClick={() => runResearch('frequency')} disabled={resultsStatus.count === 0 || Boolean(researchState.error)} className="btn-secondary btn-hover">
+              <span className="inline-flex items-center gap-1.5"><Database size={14} />研究历史规律</span>
             </button>
           </div>
           <p
@@ -1229,8 +1342,13 @@ export default function QuantsPage() {
         </div>
 
         {/* 右：推演结果 */}
-        <div className="col-span-3 space-y-6">
-          {!analysis && (
+        <div className="xl:col-span-3 min-w-0 space-y-6">
+          {currentRun?.kind === 'scenario' && <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
+            <h3 className="font-medium text-stone-700 mb-3">假设赔率情景 · 累计盈亏</h3>
+            <EquitySparkline equityCurve={currentRun.result.summary.equityCurve} />
+            <p className="mt-2 text-xs text-stone-500">横向为入选比赛顺序，纵向为累计金额。全部比赛采用同一假定赔率，不代表历史可执行收益。</p>
+          </div>}
+          {!analysis && !currentRun && (
             <div className="glow-card bg-white rounded-2xl border border-stone-100 p-10 text-center">
               <GlassCardIcon IconComp={Gauge} tone="slate" iconSize={18} className="h-10 w-10 mx-auto mb-3" />
               <p className="text-sm text-stone-500">先拉取市场定价，再运行推演。</p>
@@ -1260,7 +1378,7 @@ export default function QuantsPage() {
                 </ul>
               </div>
 
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                   {
                     label: '单场期望 ROI',
@@ -1290,7 +1408,7 @@ export default function QuantsPage() {
                 ))}
               </div>
 
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                   { label: 'VaR 95（P5 盈亏）', value: fmtYuan(analysis.monteCarlo.p5) },
                   { label: '全亏概率', value: fmtPct(analysis.monteCarlo.pRuin) },
@@ -1299,8 +1417,8 @@ export default function QuantsPage() {
                     value: `${fmtYuan(analysis.kelly.suggestedStake).replace('+', '')} / 场`,
                   },
                   {
-                    label: '显著性所需样本',
-                    value: analysis.significance.nNeeded === Infinity ? '∞（边际≈0）' : `${analysis.significance.nNeeded} 场`,
+                    label: '样本量粗估 · 非通过标准',
+                    value: Number.isFinite(analysis.significance.nNeeded) ? `${analysis.significance.nNeeded} 场` : '不可可靠估计',
                   },
                 ].map((tile) => (
                   <div key={tile.label} className="glow-card bg-white rounded-2xl p-4 border border-stone-100">
@@ -1310,7 +1428,7 @@ export default function QuantsPage() {
                 ))}
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
                   <h3 className="font-medium text-stone-700 mb-4 flex items-center gap-2">
                     <GlassCardIcon IconComp={Scale} tone="sky" />
@@ -1432,83 +1550,22 @@ export default function QuantsPage() {
                 <button type="button" onClick={handleSave} disabled={!analysis} className="btn-primary btn-hover">
                   <span className="inline-flex items-center gap-1.5">
                     <Archive size={14} strokeWidth={1.8} />
-                    存入策略架
+                    冻结进入影子观察
                   </span>
                 </button>
               </div>
             </>
           )}
 
-          {backtest && (
-            <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
-              <h3 className="font-medium text-stone-700 mb-4 flex items-center gap-2">
-                <GlassCardIcon IconComp={History} tone="amber" />
-                历史回测
-                <span className="text-xs font-normal text-stone-400">
-                  {backtest.n} 场 · 每场按假定赔率 {backtest.assumedOdds} 平价结算
-                </span>
-              </h3>
-              <div className="grid grid-cols-5 gap-4 mb-4">
-                {[
-                  { label: '样本场数', value: `${backtest.n} 场（中 ${backtest.hits}）`, tone: 'text-stone-700' },
-                  {
-                    label: '命中率（95% CI）',
-                    value: `${fmtPct(backtest.hitRate)}`,
-                    sub: fmtCi(backtest.hitCI),
-                    tone: 'text-stone-700',
-                  },
-                  {
-                    label: '回测 ROI',
-                    value: fmtSignedPct(backtest.roi),
-                    tone: backtest.roi >= 0 ? 'text-emerald-600' : 'text-rose-500',
-                  },
-                  { label: '最大回撤', value: `-${fmtYuan(backtest.maxDrawdown, 0).replace(/^[+-]?/, '')}`, tone: 'text-rose-500' },
-                  { label: 'Sharpe（每场）', value: fmtSharpe(backtest.sharpe), tone: 'text-stone-700' },
-                ].map((tile) => (
-                  <div key={tile.label} className="rounded-xl border border-stone-100 bg-stone-50/60 p-3">
-                    <span className="block text-[11px] text-stone-400">{tile.label}</span>
-                    <span className={`mt-0.5 block text-sm font-semibold ${tile.tone}`}>{tile.value}</span>
-                    {tile.sub && <span className="block text-[10px] text-stone-400">{tile.sub}</span>}
-                  </div>
-                ))}
-              </div>
-              {walkForward && (
-                <div className="mb-4 rounded-xl border border-stone-100 bg-white p-4">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <h4 className="text-xs font-medium text-stone-600">Walk-Forward 样本外复核</h4>
-                    <span className={`rounded-full border px-2 py-0.5 text-[10px] ${OOS_STATE_META[oosStateFor(walkForward)].badge}`}>
-                      {OOS_STATE_META[oosStateFor(walkForward)].label}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { label: '训练段', data: walkForward.train },
-                      { label: '样本外', data: walkForward.test },
-                    ].map(({ label, data }) => (
-                      <div key={label} className="rounded-lg bg-stone-50/70 p-3">
-                        <span className="text-[11px] text-stone-400">{label} · {data.n} 场</span>
-                        <div className="mt-1 text-sm font-semibold text-stone-700">{fmtPct(data.hitRate)}</div>
-                        <div className="text-[10px] text-stone-400">CI {fmtCi(data.hitCI)} · ROI {fmtSignedPct(data.roi)}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-[11px] leading-relaxed text-stone-500">{walkForward.verdict}</p>
-                </div>
-              )}
-              <EquitySparkline equityCurve={backtest.equityCurve} />
-              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-[11px] leading-relaxed text-amber-800">
-                {backtest.disclaimer}
-              </p>
-            </div>
-          )}
         </div>
       </div>
-
+      </div>
         </>
       )}
 
-      {activeTab === 'discover' && (
-        <>
+      {activeTab === 'home' && (
+        <details className="qr-explore-details">
+          <summary>从历史数据寻找研究线索 · 探索工具</summary>
       {/* ── 策略发现扫描 ── */}
       <div className="mt-8 glow-card bg-white rounded-2xl border border-stone-100 p-6">
         <h3 className="font-medium text-stone-700 flex items-center gap-2">
@@ -1517,7 +1574,7 @@ export default function QuantsPage() {
         </h3>
         <p className="mt-1 text-xs text-stone-400">
           对赛果缓存里的每支球队 × 每个默认模板做一次历史命中率检验，并用 Benjamini–Hochberg
-          校正多重比较——只有 q ≤ 阈值的组合才算「统计上不像噪音」，其余一律按噪音处理。
+          校正本次批量比较。结果仅用于生成研究线索；假定赔率、重复筛选与同源数据切分，都限制了结论的独立性。
         </p>
         <div className="mt-4 flex flex-wrap items-end gap-3">
           <div>
@@ -1572,7 +1629,7 @@ export default function QuantsPage() {
                         {maskText(row.teamName)} · {row.label}
                       </span>
                       <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
-                        通过 FDR
+                        本次扫描入选
                       </span>
                     </div>
                     <p className="mt-1.5 text-[11px] text-stone-500">
@@ -1584,7 +1641,7 @@ export default function QuantsPage() {
                     </p>
                     {discoveryOos[discoveryRowKey(row)] && (
                       <p className="mt-1 text-[11px] text-stone-500">
-                        样本外 {discoveryOos[discoveryRowKey(row)].test.n} 场 · 命中率{' '}
+                        后段观察 {discoveryOos[discoveryRowKey(row)].test.n} 场 · 命中率{' '}
                         {fmtPct(discoveryOos[discoveryRowKey(row)].test.hitRate)}（全量 {row.n} 场） ·{' '}
                         <OosLabel walkForward={discoveryOos[discoveryRowKey(row)]} />
                       </p>
@@ -1600,11 +1657,11 @@ export default function QuantsPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleSaveDiscoveryRow(row)}
+                        onClick={() => handleLoadDiscoveryRow(row)}
                         className="inline-flex items-center gap-1 rounded-lg border border-sky-200 px-2.5 py-1 text-xs text-sky-700 btn-hover"
                       >
                         <Archive size={12} strokeWidth={1.8} />
-                        存为影子盘
+                        建立研究
                       </button>
                     </div>
                   </div>
@@ -1635,7 +1692,7 @@ export default function QuantsPage() {
                           <th className="py-2 px-3 font-medium text-right">假设赔率</th>
                           <th className="py-2 px-3 font-medium text-right">ROI</th>
                           <th className="py-2 px-3 font-medium text-right">q 值</th>
-                          <th className="py-2 px-3 font-medium text-right">样本外</th>
+                          <th className="py-2 px-3 font-medium text-right">后段观察</th>
                           <th className="py-2 px-3 font-medium text-right">判定</th>
                         </tr>
                       </thead>
@@ -1656,7 +1713,7 @@ export default function QuantsPage() {
                               <td className="py-2 px-3 text-right text-stone-600">{row.qValue.toFixed(3)}</td>
                               <td className="py-2 px-3 text-right">
                                 {row.survivesFdr && oos ? (
-                                  <span title={oos.verdict}>
+                                  <span title="单次前后时间切分，候选已使用全量数据筛选，不能作为独立验证。">
                                     <OosLabel walkForward={oos} />
                                     <span className="ml-1 text-stone-400">
                                       命中率 {fmtPct(oos.test.hitRate)}（n={oos.test.n}）
@@ -1666,9 +1723,9 @@ export default function QuantsPage() {
                               </td>
                               <td className="py-2 px-3 text-right">
                                 {row.survivesFdr ? (
-                                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] text-emerald-700">通过</span>
+                                  <span className="rounded-full border border-stone-200 bg-stone-50 px-2 py-0.5 text-[10px] text-stone-600">探索候选</span>
                                 ) : (
-                                  <span className="text-[10px] text-stone-300">噪音</span>
+                                  <span className="text-[10px] text-stone-500">未入选</span>
                                 )}
                               </td>
                             </tr>
@@ -1790,11 +1847,13 @@ export default function QuantsPage() {
         )}
       </div>
 
-        </>
+        </details>
       )}
 
       {activeTab === 'data' && (
         <>
+      <ResearchDataCapabilities resultCount={resultsStatus.count} coverage={evidenceCoverage(evidenceState.store)} />
+      <QuantEvidenceWorkspace evidence={evidenceState.store} error={evidenceState.error} onCollect={handleFetchMarket} collecting={fetching} onCollectResults={handleFetchResults} resultsCollecting={resultsFetching} onRefresh={() => setEvidenceState(readEvidenceState())} />
       {/* ── 赛果数据 ── */}
       <div className="mt-8 glow-card bg-white rounded-2xl border border-stone-100 p-6">
         <h3 className="font-medium text-stone-700 flex items-center gap-2">
@@ -1952,12 +2011,70 @@ export default function QuantsPage() {
 
       {activeTab === 'shelf' && (
         <>
+      <QuantForwardWorkspace versions={researchStore.versions} initialVersionId={observationVersionId} evidence={evidenceState.store} onRefresh={() => setEvidenceState(readEvidenceState())} onSendCandidate={handleSendCandidate} />
+      <details className="qr-explore-details"><summary>原有策略台账与执行记录<span>保留旧数据，使用旧同步口径</span></summary>
+      <div className="qr-page-notice">下方为原有台账，旧头寸不自动升级为严格前向证据。新的研究版本请使用上方冻结计划；已有执行记录和手动建仓流程继续保留。</div>
+      <div className="mb-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          {
+            label: '活跃策略',
+            value: `${portfolio.activeCount} 个`,
+            sub: '影子盘 + 已转正',
+            tone: 'text-stone-800',
+          },
+          {
+            label: '待结算敞口',
+            value: fmtYuan(portfolio.pendingStake).replace('+', ''),
+            sub: portfolio.exposurePct === null ? '蓄水池比例未知' : `占蓄水池 ${fmtPct(portfolio.exposurePct)}`,
+            tone: portfolio.exposurePct !== null && portfolio.exposurePct > systemConfig.riskCapRatio ? 'text-rose-500' : 'text-amber-600',
+          },
+          {
+            label: '组合盈利概率',
+            value: portfolioSimulation.available ? fmtPct(portfolioSimulation.pProfit) : '—',
+            sub: portfolioSimulation.available ? `${portfolioSimulation.nPositions} 头寸 / ${portfolioSimulation.nMatches} 场` : '缺少可靠的联合分布',
+            tone: 'text-emerald-600',
+          },
+          {
+            label: '蓄水池可用',
+            value: fmtYuan(Number(reservoir.availableCash) || 0).replace('+', ''),
+            sub: `风险上限 ${fmtPct(systemConfig.riskCapRatio)}`,
+            tone: 'text-stone-800',
+          },
+        ].map((kpi) => (
+          <div key={kpi.label} className="glow-card rounded-2xl border border-stone-100 bg-white p-4">
+            <span className="block text-[11px] text-stone-400">{kpi.label}</span>
+            <span className={`mt-1 block text-xl font-semibold ${kpi.tone}`}>{kpi.value}</span>
+            <span className="mt-0.5 block text-[10px] text-stone-400">{kpi.sub}</span>
+          </div>
+        ))}
+      </div>
+
+      {alertChips.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {alertChips.map((alert) => (
+            <button
+              key={alert.id}
+              type="button"
+              onClick={() => setActiveTab('shelf')}
+              className={`rounded-full border px-3 py-1 text-[11px] ${
+                alert.level === 'danger'
+                  ? 'border-rose-200 bg-rose-50 text-rose-600'
+                  : 'border-amber-200 bg-amber-50 text-amber-700'
+              }`}
+            >
+              {alert.text} · 去影子观察
+            </button>
+          ))}
+        </div>
+      )}
+
+
       {/* ── 策略架 ── */}
       <div className="mt-8">
         <div className="mb-4 flex items-center justify-between gap-3">
           <h3 className="font-medium text-stone-700 flex items-center gap-2">
             <GlassCardIcon IconComp={Archive} tone="indigo" />
-            策略架
+            影子观察台账
             {syncLine && <span className="text-[11px] font-normal text-emerald-600">{syncLine}</span>}
           </h3>
           {strategies.length > 0 && (
@@ -2008,9 +2125,9 @@ export default function QuantsPage() {
               </div>
             )) : <p className="text-xs text-stone-400">暂无待执行敞口。</p>}
           </div>
-          {portfolioSimulation.nPositions > 0 && (
+          {portfolioSimulation.available && (
             <div className="mt-4 border-t border-stone-100 pt-4">
-              <div className="grid grid-cols-4 gap-3 text-center">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
                 {[
                   { label: '联合盈利概率', value: fmtPct(portfolioSimulation.pProfit) },
                   { label: 'P5 盈亏', value: fmtYuan(portfolioSimulation.p5) },
@@ -2027,29 +2144,29 @@ export default function QuantsPage() {
               <ProfitHistogram monteCarlo={portfolioHistogram} />
             </div>
           )}
+          {!portfolioSimulation.available && <p className="mt-4 rounded-lg bg-stone-50 p-3 text-xs leading-relaxed text-stone-500">{portfolioSimulation.message}</p>}
         </div>
         {strategies.length === 0 ? (
           <div className="glow-card bg-white rounded-2xl border border-stone-100 p-8 text-center">
-            <p className="text-sm text-stone-500">策略架还是空的。</p>
+            <p className="text-sm text-stone-500">还没有观察中的策略。</p>
             <p className="mt-1 text-xs text-stone-400">
-              在上方试算器里跑一次推演，确认期望与回撤都能接受，再「存入策略架」进入影子盘观察期。
+              在实验工作台保存一次实验，再从策略库冻结对应版本，开始记录未来比赛。
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {strategies.map((item) => {
               const tone = item.snapshot?.tone
               const dotClass = VERDICT_DOT_CLASS[tone] || 'bg-stone-300'
               const positions = Array.isArray(item.positions) ? item.positions : []
               const stats = positions.length > 0 ? strategyStats(item) : null
-              const quality = stats ? strategyQualityScore(stats) : null
               const expanded = expandedStrategy === item.id
               const promotable = stats?.promotable === true
               const failingGates = stats ? stats.gateChecks.filter((gate) => !gate.pass) : []
               return (
                 <div
                   key={item.id}
-                  className={`glow-card bg-white rounded-2xl border border-stone-100 p-5${expanded ? ' col-span-3' : ''}`}
+                  className={`glow-card bg-white rounded-2xl border border-stone-100 p-5${expanded ? ' md:col-span-2 xl:col-span-3' : ''}`}
                 >
                   <div
                     className="flex items-start justify-between gap-2 cursor-pointer"
@@ -2065,11 +2182,6 @@ export default function QuantsPage() {
                       )}
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
-                      {quality && (
-                        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${QUALITY_GRADE_CLASS[quality.grade]}`} title={`策略质量分 ${quality.score}/100`}>
-                          {quality.grade} · {quality.score}
-                        </span>
-                      )}
                       <span className={`rounded-full border px-2 py-0.5 text-[10px] ${STATUS_BADGE_CLASS[item.status] || STATUS_BADGE_CLASS.shadow}`}>
                         {STRATEGY_STATUS_LABELS[item.status] || '影子盘'}
                       </span>
@@ -2259,7 +2371,7 @@ export default function QuantsPage() {
                     </div>
                   )}
 
-                  <div className="mt-4 flex items-center gap-2">
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
                     {(item.status === 'shadow' || item.status === 'live') && (
                       <button
                         type="button"
@@ -2319,12 +2431,12 @@ export default function QuantsPage() {
           </div>
         )}
       </div>
-
+      </details>
         </>
       )}
 
       {/* ── 量化纪律 ── */}
-      <div className="mt-8 grid grid-cols-3 gap-4">
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
         {DISCIPLINE_CARDS.map((card) => (
           <div key={card.id} className="glow-card bg-white rounded-2xl border border-stone-100 p-5">
             <h4 className="font-medium text-stone-700 mb-2 flex items-center gap-2">

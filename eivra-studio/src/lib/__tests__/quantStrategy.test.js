@@ -342,6 +342,9 @@ describe('refreshClosingOdds', () => {
       makeMarketMatch({ matchId: 'm1', scores: [{ home: 1, away: 1, odds: 7 }] }),
     ])
     expect(refreshed.positions[0].lastSeenOdds).toBe(7)
+    // 后续行情只能更新观察价，不能重写当时锁定的入场赔率与概率。
+    expect(refreshed.positions[0].entryOdds).toBe(6.5)
+    expect(refreshed.positions[0].p).toBe(strategy.positions[0].p)
     // 已结算仓位不动
     expect(refreshed.positions[1].lastSeenOdds).toBe(6.5)
 
@@ -544,6 +547,22 @@ describe('strategyStats', () => {
   it('returns nulls instead of NaN on an empty ledger', () => {
     const stats = strategyStats({ positions: [] })
     expect(stats).toMatchObject({ n: 0, pending: 0, hits: 0, hitRate: null, roi: null, avgClv: null, sharpe: null, promotable: false, suggestRetire: false })
+  })
+
+  it('excludes missing CLV values without converting them to zero', () => {
+    const ledger = makeLedger(20, 25, { clv: null })
+    ledger[0].clv = undefined
+    ledger[1].clv = ''
+    ledger[2].clv = '  '
+    const unavailable = strategyStats({ positions: ledger })
+    expect(unavailable.avgClv).toBeNull()
+    expect(unavailable.gateChecks.find((gate) => gate.id === 'clv_positive')).toMatchObject({
+      pass: false, detail: '尚无 CLV 样本',
+    })
+
+    ledger[3].clv = 0.1
+    ledger[4].clv = 0
+    expect(strategyStats({ positions: ledger }).avgClv).toBeCloseTo(0.05, 12)
   })
 })
 
@@ -918,7 +937,7 @@ describe('simulateStrategyPortfolio', () => {
     // Σp=1：每轮必中一个且只中一个，因此两笔一胜一负，组合盈亏恒为 0
     expect(result.nMatches).toBe(1)
     expect(result.nPositions).toBe(2)
-    expect(result).toMatchObject({ p5: 0, median: 0, p95: 0, worst: 0, best: 0, pProfit: 0, pRuin: 0 })
+    expect(result).toMatchObject({ available: true, p5: 0, median: 0, p95: 0, worst: 0, best: 0, pProfit: 0, pRuin: 0 })
   })
 
   it('settles same-outcome duplicates together and is deterministic', () => {
@@ -936,6 +955,68 @@ describe('simulateStrategyPortfolio', () => {
     expect(first.p95).toBe(40)
     expect(first.pProfit).toBeGreaterThan(0.3)
     expect(first.pProfit).toBeLessThan(0.5)
+  })
+
+  it('withholds risk numbers for overlapping score and result markets on one match', () => {
+    const positions = [
+      makePosition({ id: 'score', outcomeKey: 'crs:1-1', p: 0.12, entryOdds: 6.5 }),
+      makePosition({ id: 'draw', outcomeKey: 'had:draw', p: 0.3, entryOdds: 3.4 }),
+    ]
+    // 1-1 同时满足比分与平局；只有边际概率不足以复原统一的比分事件分布。
+    const result = simulateStrategyPortfolio([mcStrategy(positions)])
+    expect(result).toMatchObject({
+      available: false,
+      reason: 'joint_distribution_unavailable',
+      iterations: 0,
+      pProfit: null,
+      pRuin: null,
+      median: null,
+      worst: null,
+      best: null,
+      histogram: [],
+      nMatches: 1,
+      nPositions: 2,
+    })
+  })
+
+  it('still simulates score and result markets when they belong to different matches', () => {
+    const positions = [
+      makePosition({ id: 'score', matchKey: 'm1', outcomeKey: 'crs:1-1', p: 0.12 }),
+      makePosition({ id: 'draw', matchKey: 'm2', outcomeKey: 'had:draw', p: 0.3, entryOdds: 3.4 }),
+    ]
+    expect(simulateStrategyPortfolio([mcStrategy(positions)], { iterations: 100 })).toMatchObject({
+      available: true, nMatches: 2, nPositions: 2,
+    })
+  })
+
+  it('rejects conflicting forecasts instead of taking the maximum or renormalizing', () => {
+    const duplicate = [
+      makePosition({ id: 'a', outcomeKey: 'had:home', p: 0.4 }),
+      makePosition({ id: 'b', outcomeKey: 'had:home', p: 0.7 }),
+    ]
+    const excess = [
+      makePosition({ id: 'a', outcomeKey: 'had:home', p: 0.7 }),
+      makePosition({ id: 'b', outcomeKey: 'had:away', p: 0.6 }),
+    ]
+    for (const positions of [duplicate, excess]) {
+      expect(simulateStrategyPortfolio([mcStrategy(positions)])).toMatchObject({
+        available: false, reason: 'inconsistent_probabilities', pProfit: null,
+      })
+    }
+  })
+
+  it('distinguishes a missing probability from a valid zero probability', () => {
+    const missing = mcStrategy([makePosition({ p: null, outcomeKey: 'had:home' })])
+    expect(simulateStrategyPortfolio([missing])).toMatchObject({
+      available: false, reason: 'invalid_position_forecast', pProfit: null,
+    })
+    const zero = mcStrategy([makePosition({ p: 0, outcomeKey: 'had:home', stake: 20 })])
+    expect(simulateStrategyPortfolio([zero], { iterations: 100 })).toMatchObject({
+      available: true, pProfit: 0, pRuin: 1, median: -20,
+    })
+    expect(simulateStrategyPortfolio([])).toMatchObject({
+      available: false, reason: 'no_pending_positions', pProfit: null,
+    })
   })
 })
 
@@ -1094,11 +1175,73 @@ describe('ratings probability mode', () => {
     expect(analysis.perBet.avgP).toBeCloseTo(expected, 12)
   })
 
-  it('falls back to the league base when ratings are unavailable', () => {
+  it('uses the same frozen ratings forecast in analysis and newly synced positions', () => {
+    const ratings = buildTeamRatings(resultsIndex)
     const spec = chelseaDrawSpec({ probMode: 'ratings', matchesPlanned: 1 })
-    const { legs } = buildLegs(spec, [makeMarketMatch()])
-    expect(legs[0].p).toBeCloseTo(baseProbability(spec), 12)
-    expect(legs[0].pRatings).toBeNaN()
+    const match = makeMarketMatch()
+    const context = { ratings, now: Date.parse('2026-10-01T12:00:00.000Z') }
+    const analysis = analyzeStrategy(spec, [match], context)
+    const synced = syncStrategyFixtures(spec, [match], context)
+    const position = synced.positions[0]
+    expect(synced.syncStatus).toMatchObject({ available: true, skippedCount: 0 })
+    expect(position.p).toBe(analysis.legs[0].p)
+    expect(position.forecastSnapshot).toEqual(analysis.legs[0].forecastSnapshot)
+    expect(position.forecastSnapshot).toMatchObject({
+      schemaVersion: 1,
+      requestedMode: 'ratings',
+      source: 'ratings',
+      probability: position.p,
+      generatedAt: '2026-10-01T12:00:00.000Z',
+      available: true,
+      reason: null,
+    })
+
+    const changedQuote = { ...match, scores: [{ home: 1, away: 1, odds: 7 }] }
+    const refreshed = refreshClosingOdds(synced, [changedQuote])
+    const again = syncStrategyFixtures(refreshed, [changedQuote], { now: context.now + 1000 })
+    expect(again.positions).toHaveLength(1)
+    expect(again.positions[0]).toMatchObject({
+      entryOdds: 6.5,
+      lastSeenOdds: 7,
+      p: position.p,
+      forecastSnapshot: position.forecastSnapshot,
+    })
+  })
+
+  it('marks missing ratings unavailable without creating base-probability positions', () => {
+    const spec = chelseaDrawSpec({ probMode: 'ratings', matchesPlanned: 1 })
+    const built = buildLegs(spec, [makeMarketMatch()])
+    expect(built).toMatchObject({ available: false, reason: 'ratings_unavailable', degraded: true })
+    expect(built.legs[0].p).toBeNull()
+    expect(built.legs[0].forecastSnapshot).toMatchObject({
+      requestedMode: 'ratings', source: null, probability: null, available: false, reason: 'ratings_unavailable',
+    })
+    expect(built.legs[0].pRatings).toBeNaN()
+    const analysis = analyzeStrategy(spec, [makeMarketMatch()])
+    expect(analysis).toMatchObject({
+      available: false,
+      reason: 'ratings_unavailable',
+      perBet: { avgP: null, evPct: null },
+      monteCarlo: { iterations: 0, pProfit: null },
+      kelly: { suggestedStake: null },
+    })
+    const synced = syncStrategyFixtures(spec, [makeMarketMatch()])
+    expect(synced.positions).toEqual([])
+    expect(synced.syncStatus).toMatchObject({ available: false, reason: 'ratings_unavailable', skippedCount: 1 })
+    expect(buildLegs(spec, [])).toMatchObject({ available: false, reason: 'ratings_unavailable' })
+  })
+
+  it('skips only unrated fixtures and can retry them after ratings become available', () => {
+    const spec = chelseaDrawSpec({ probMode: 'ratings', matchesPlanned: 2 })
+    const matches = [makeMarketMatch({ matchId: 'unknown', away: '未知球队' }), makeMarketMatch()]
+    const ratings = buildTeamRatings(resultsIndex)
+    const synced = syncStrategyFixtures(spec, matches, { ratings })
+    expect(synced.positions).toHaveLength(1)
+    expect(synced.positions[0].matchId).toBe('m1')
+    expect(synced.syncStatus).toMatchObject({ available: false, skippedCount: 1 })
+    const retried = syncStrategyFixtures(synced, [makeMarketMatch({ matchId: 'unknown' })], { ratings })
+    expect(retried.positions).toHaveLength(2)
+    expect(retried.syncStatus).toMatchObject({ available: true, skippedCount: 0 })
   })
 })
 

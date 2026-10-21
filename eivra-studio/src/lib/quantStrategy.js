@@ -54,6 +54,11 @@ const toInt = (value, fallback = 0) => {
 
 const finiteOr = (value, fallback) => (Number.isFinite(value) ? value : fallback)
 
+const numberIfPresent = (value) =>
+  value === null || value === undefined || (typeof value === 'string' && value.trim() === '')
+    ? Number.NaN
+    : Number(value)
+
 const meanOf = (list) => {
   const valid = (Array.isArray(list) ? list : []).filter(Number.isFinite)
   return valid.length > 0 ? valid.reduce((sum, value) => sum + value, 0) / valid.length : Number.NaN
@@ -213,7 +218,7 @@ const devigProbability = (match, spec, venue) => {
   return outcome === 'win' ? devig.fair[2] : devig.fair[0]
 }
 
-/** 自建评级：双方 teamKey 都能落到 Elo 表时才启用，否则由调用方退回联赛基准。 */
+/** 自建评级：双方 teamKey 都能落到 Elo 表时才启用，否则明确不可用。 */
 const ratingsProbability = (match, spec, venue, ratings) => {
   if (!ratings) return Number.NaN
   const teamKeyHome = teamKeyForName(match?.home)
@@ -256,9 +261,42 @@ const marketQuoteForLeg = (match, spec, venue) => {
 const pickLegProbability = (spec, views) => {
   if (spec.probMode === 'custom') return spec.customProb
   if (spec.probMode === 'base') return views.pBase
-  if (spec.probMode === 'ratings') return Number.isFinite(views.pRatings) ? views.pRatings : views.pBase
+  if (spec.probMode === 'ratings') return views.pRatings
   // market：优先泊松反推，拟合不出来退到直接去水
   return Number.isFinite(views.pPoisson) ? views.pPoisson : views.pDevig
+}
+
+const RATINGS_UNAVAILABLE_MESSAGE = '评级概率不可用：缺少双方球队的有效评级，当前策略不能按评级口径推演或生成新头寸。'
+
+/** 试算与头寸使用同一概率选择器；快照记录实际来源，不把回退伪装成指定模型。 */
+const forecastForMatch = (spec, match, venue, context = {}) => {
+  const views = {
+    pPoisson: poissonProbability(match, spec, venue),
+    pDevig: devigProbability(match, spec, venue),
+    pBase: baseProbability(spec),
+    pRatings: ratingsProbability(match, spec, venue, context.ratings),
+  }
+  const raw = pickLegProbability(spec, views)
+  const unavailable = spec.probMode === 'ratings' && !Number.isFinite(raw)
+  const probability = unavailable ? null : finiteOr(raw, views.pBase)
+  const source = unavailable
+    ? null
+    : spec.probMode === 'market'
+      ? Number.isFinite(views.pPoisson) ? 'market_poisson' : Number.isFinite(views.pDevig) ? 'market_devig' : 'base'
+      : spec.probMode
+  const generatedAt = new Date(context.now ?? Date.now()).toISOString()
+  return {
+    views,
+    forecastSnapshot: {
+      schemaVersion: 1,
+      requestedMode: spec.probMode,
+      source,
+      probability,
+      generatedAt,
+      available: !unavailable,
+      reason: unavailable ? 'ratings_unavailable' : source === 'base' && spec.probMode !== 'base' ? 'market_probability_unavailable' : null,
+    },
+  }
 }
 
 // ── 腿构建 ────────────────────────────────────────────────────────────
@@ -286,13 +324,7 @@ export const buildLegs = (specInput, marketMatches = [], context = {}) => {
     .slice(0, planned)
 
   const legs = matched.map(({ match, venue }, index) => {
-    const views = {
-      pPoisson: poissonProbability(match, spec, venue),
-      pDevig: devigProbability(match, spec, venue),
-      pBase: baseProbability(spec),
-      pRatings: ratingsProbability(match, spec, venue, context.ratings),
-    }
-    const pRaw = pickLegProbability(spec, views)
+    const { views, forecastSnapshot } = forecastForMatch(spec, match, venue, context)
     const oddsRaw = spec.oddsMode === 'manual' ? spec.manualOdds : marketQuoteForLeg(match, spec, venue)
     const opponent = venue === 'home' ? match.away : match.home
     return {
@@ -304,7 +336,8 @@ export const buildLegs = (specInput, marketMatches = [], context = {}) => {
       matchKey: marketMatchKey(match),
       outcomeKey: outcomeKeyFor(spec, venue),
       venue,
-      p: finiteOr(pRaw, views.pBase),
+      p: forecastSnapshot.probability,
+      forecastSnapshot,
       odds: finiteOr(oddsRaw, spec.manualOdds),
       estimated: false,
       pPoisson: views.pPoisson,
@@ -339,7 +372,10 @@ export const buildLegs = (specInput, marketMatches = [], context = {}) => {
       degraded = true
       warning = DEGRADED_WARNING
     }
-    const fillP = finiteOr(meanOf(legs.map((leg) => leg.p)), spec.probMode === 'custom' ? spec.customProb : baseProbability(spec))
+    const fillP = finiteOr(
+      meanOf(legs.map((leg) => leg.p)),
+      spec.probMode === 'ratings' ? null : spec.probMode === 'custom' ? spec.customProb : baseProbability(spec),
+    )
     const fillOdds = finiteOr(meanOf(legs.map((leg) => leg.odds)), spec.manualOdds)
     const fillViews = {
       pPoisson: meanOf(legs.map((leg) => leg.pPoisson)),
@@ -369,7 +405,12 @@ export const buildLegs = (specInput, marketMatches = [], context = {}) => {
     }
   }
 
-  return { legs, degraded, warning }
+  const available = legs.every((leg) => Number.isFinite(leg.p))
+  if (!available) {
+    degraded = true
+    warning = RATINGS_UNAVAILABLE_MESSAGE
+  }
+  return { legs, degraded, warning, available, reason: available ? null : 'ratings_unavailable' }
 }
 
 // ── 随机数与分布工具 ───────────────────────────────────────────────────
@@ -549,9 +590,33 @@ const buildVerdict = ({ avgEvPct, avgEdgeVsFair, monteCarlo, overround, signific
 export const analyzeStrategy = (specInput, marketMatches = [], context = {}) => {
   const spec = normalizeSpec(specInput)
   const kellyDivisor = Math.max(1, toNumber(context.kellyDivisor, 4))
-  const { legs, degraded, warning } = buildLegs(spec, marketMatches, context)
+  const { legs, degraded, warning, available, reason } = buildLegs(spec, marketMatches, context)
   const stake = spec.stakePerMatch
   const totalStake = stake * legs.length
+  if (!available) {
+    return {
+      available: false,
+      reason,
+      message: warning,
+      spec,
+      legs,
+      degraded,
+      warning,
+      totalStake,
+      perBet: { evPct: null, breakevenP: null, edgePP: null, edgeVsFairPP: null, avgP: null, avgOdds: null },
+      exact: null,
+      monteCarlo: {
+        iterations: 0, meanProfit: null, expectedRoiPct: null, medianProfit: null,
+        p5: null, p95: null, pProfit: null, pRuin: null, expectedMaxDD: null,
+        worst: null, best: null, histogram: [],
+      },
+      kelly: { fraction: null, divisor: kellyDivisor, bankroll: spec.bankroll, suggestedStake: null, stakePerMatch: stake },
+      significance: { delta: null, nNeeded: null },
+      probViews: { devig: null, poisson: null, base: null, ratings: null },
+      overround: null,
+      verdict: { tone: 'neutral', headline: '评级概率不可用', lines: [warning] },
+    }
+  }
 
   const perBet = {
     evPct: meanOf(legs.map((leg) => leg.p * leg.odds - 1)),
@@ -602,6 +667,8 @@ export const analyzeStrategy = (specInput, marketMatches = [], context = {}) => 
   })
 
   return {
+    available: true,
+    reason: null,
     spec,
     legs,
     degraded,
@@ -713,13 +780,9 @@ const positionMatchKey = (position) =>
   position?.matchKey || marketMatchKey(position) || `position:${position?.id || 'unknown'}`
 
 /** 单场仓位定价：复用腿构建的同一套三视角概率与市场报价逻辑。 */
-const buildPositionForMatch = (spec, match, venue) => {
-  const views = {
-    pPoisson: poissonProbability(match, spec, venue),
-    pDevig: devigProbability(match, spec, venue),
-    pBase: baseProbability(spec),
-  }
-  const pRaw = pickLegProbability(spec, views)
+const buildPositionForMatch = (spec, match, venue, context = {}) => {
+  const { forecastSnapshot } = forecastForMatch(spec, match, venue, context)
+  if (!forecastSnapshot.available) return null
   const oddsRaw = spec.oddsMode === 'manual' ? spec.manualOdds : marketQuoteForLeg(match, spec, venue)
   const homeIdentity = resolveTeamIdentity(match.home)
   const awayIdentity = resolveTeamIdentity(match.away)
@@ -736,7 +799,8 @@ const buildPositionForMatch = (spec, match, venue) => {
     teamIdAway: awayIdentity?.teamId || null,
     venue,
     entryOdds: finiteOr(oddsRaw, spec.manualOdds),
-    p: finiteOr(pRaw, views.pBase),
+    p: forecastSnapshot.probability,
+    forecastSnapshot,
     stake: spec.stakePerMatch,
     status: 'pending',
     lastSeenOdds: finiteOr(oddsRaw, spec.manualOdds),
@@ -748,7 +812,7 @@ const buildPositionForMatch = (spec, match, venue) => {
  * 已在台账里的场次（matchId 或 home|away|kickoff 命中）不重复添加；
  * 总仓位封顶 matchesPlanned。retired 策略原样返回。
  */
-export const syncStrategyFixtures = (strategyInput, marketMatches = []) => {
+export const syncStrategyFixtures = (strategyInput, marketMatches = [], context = {}) => {
   const spec = normalizeSpec(strategyInput)
   const positions = [...spec.positions]
   if (spec.status === 'retired') return { ...spec, positions }
@@ -759,6 +823,7 @@ export const syncStrategyFixtures = (strategyInput, marketMatches = []) => {
   const known = new Set(positions.map((position) => positionKeyFor(position)))
   let remaining = Math.max(0, spec.matchesPlanned - positions.length)
   if (remaining === 0) return { ...spec, positions }
+  let skippedCount = 0
 
   for (const match of matches) {
     if (remaining <= 0) break
@@ -766,11 +831,25 @@ export const syncStrategyFixtures = (strategyInput, marketMatches = []) => {
     if (!venue || (venueFilter && venue !== venueFilter)) continue
     const key = positionKeyFor(match)
     if (known.has(key)) continue
+    const position = buildPositionForMatch(spec, match, venue, context)
+    if (!position) {
+      skippedCount += 1
+      continue
+    }
     known.add(key)
-    positions.push(buildPositionForMatch(spec, match, venue))
+    positions.push(position)
     remaining -= 1
   }
-  return { ...spec, positions }
+  return {
+    ...spec,
+    positions,
+    syncStatus: {
+      available: skippedCount === 0,
+      reason: skippedCount > 0 ? 'ratings_unavailable' : null,
+      message: skippedCount > 0 ? RATINGS_UNAVAILABLE_MESSAGE : '',
+      skippedCount,
+    },
+  }
 }
 
 /**
@@ -969,7 +1048,7 @@ export const strategyStats = (strategy) => {
     ? { low: hitCI.low * avgEntryOdds - 1, high: hitCI.high * avgEntryOdds - 1 }
     : null
 
-  const clvList = settled.map((position) => Number(position.clv)).filter(Number.isFinite)
+  const clvList = settled.map((position) => numberIfPresent(position.clv)).filter(Number.isFinite)
   const avgClv = clvList.length > 0 ? clvList.reduce((sum, value) => sum + value, 0) / clvList.length : null
 
   const recent = settled.slice(-RECENT_WINDOW)
@@ -1392,8 +1471,8 @@ export const strategyPortfolio = (strategiesInput, { poolBalance = 0, riskCapRat
 const PORTFOLIO_MC_SEED = 20261017
 
 /**
- * 联合蒙特卡洛：同场比赛只抽一个互斥结果，同结果格子共享命中；
- * 不同比赛独立抽样。重复押同一结果因此完全同涨同跌，不会被误算成独立下注。
+ * 同一盘口内的联合蒙特卡洛：同场比赛只抽一个互斥结果，同结果格子共享命中；
+ * 不同比赛独立抽样。跨盘口重叠缺少联合比分分布时明确不可用，不能强行互斥或归一化。
  */
 export const simulateStrategyPortfolio = (strategiesInput, { iterations = 10000 } = {}) => {
   const strategies = Array.isArray(strategiesInput) ? strategiesInput : []
@@ -1405,29 +1484,63 @@ export const simulateStrategyPortfolio = (strategiesInput, { iterations = 10000 
       if (!groups.has(matchKey)) groups.set(matchKey, [])
       groups.get(matchKey).push({
         outcomeKey: positionOutcomeKey(strategy, position),
-        p: clamp(Number(position.p) || 0, 0, 1),
+        p: numberIfPresent(position.p),
         stake: Math.max(0, Number(position.stake) || 0),
-        entryOdds: Math.max(1.01, Number(position.entryOdds) || 1.01),
+        entryOdds: numberIfPresent(position.entryOdds),
       })
       nPositions += 1
     })
   })
 
   const groupList = [...groups.values()]
+  const unavailable = (reason, message) => ({
+    available: false,
+    reason,
+    message,
+    iterations: 0,
+    pProfit: null,
+    pRuin: null,
+    p5: null,
+    median: null,
+    p95: null,
+    expectedMaxDD: null,
+    worst: null,
+    best: null,
+    histogram: [],
+    nMatches: groupList.length,
+    nPositions,
+  })
   if (groupList.length === 0) {
-    return { iterations: 0, pProfit: 0, pRuin: 0, p5: 0, median: 0, p95: 0, expectedMaxDD: 0, worst: 0, best: 0, histogram: [], nMatches: 0, nPositions: 0 }
+    return unavailable('no_pending_positions', '尚无待结算头寸，组合推演不可用。')
   }
 
-  const models = groupList.map((positions) => {
+  const models = []
+  for (const positions of groupList) {
+    if (positions.some(({ p, entryOdds }) => !Number.isFinite(p) || p < 0 || p > 1 || !Number.isFinite(entryOdds) || entryOdds <= 1)) {
+      return unavailable('invalid_position_forecast', '头寸缺少有效概率或入场赔率，不能生成组合风险读数。')
+    }
+    const markets = new Set()
     const categories = new Map()
-    positions.forEach((position) => {
-      categories.set(position.outcomeKey, Math.max(categories.get(position.outcomeKey) || 0, position.p))
-    })
-    let entries = [...categories.entries()].map(([outcomeKey, p]) => ({ outcomeKey, p }))
+    for (const position of positions) {
+      const key = position.outcomeKey
+      const market = /^had:(home|draw|away)$/.test(key) ? 'had' : /^crs:\d+-\d+$/.test(key) ? 'crs' : null
+      if (!market) return unavailable('unsupported_market', '头寸玩法缺少受支持的事件定义，组合推演不可用。')
+      markets.add(market)
+      if (categories.has(key) && Math.abs(categories.get(key) - position.p) > 1e-9) {
+        return unavailable('inconsistent_probabilities', '同场同一结果的概率快照不一致，无法建立可靠的联合分布。')
+      }
+      categories.set(key, position.p)
+    }
+    if (markets.size > 1) {
+      return unavailable('joint_distribution_unavailable', '同场比分与胜平负头寸可能同时命中，缺少完整一致的联合比分分布，组合推演不可用。')
+    }
+    const entries = [...categories.entries()].map(([outcomeKey, p]) => ({ outcomeKey, p }))
     const total = entries.reduce((sum, entry) => sum + entry.p, 0)
-    if (total > 1) entries = entries.map((entry) => ({ ...entry, p: entry.p / total }))
-    return { positions, entries }
-  })
+    if (total > 1 + 1e-9) {
+      return unavailable('inconsistent_probabilities', '同场互斥结果的概率合计超过 100%，不能靠归一化修饰不一致的预测。')
+    }
+    models.push({ positions, entries })
+  }
 
   const count = Math.max(1, Math.round(Number(iterations) || 10000))
   const rng = mulberry32(PORTFOLIO_MC_SEED)
@@ -1467,6 +1580,9 @@ export const simulateStrategyPortfolio = (strategiesInput, { iterations = 10000 
 
   const sorted = [...profits].sort((a, b) => a - b)
   return {
+    available: true,
+    reason: null,
+    message: '',
     iterations: count,
     pProfit: profitCount / count,
     pRuin: ruinCount / count,
