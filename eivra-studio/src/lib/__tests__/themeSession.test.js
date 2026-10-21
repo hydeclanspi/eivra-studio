@@ -29,6 +29,7 @@ describe('review-phase per-page glass themes', () => {
     expect(getPageGlassDefault('/dashboard')).toBe('moon')
     expect(getPageGlassDefault('/dashboard/analysis')).toBe('moon')
     expect(getPageGlassDefault('/params')).toBe('hongguo')
+    expect(getPageGlassDefault('/quants')).toBe('moon')
     expect(getPageGlassDefault('/unknown')).toBe('sand')
   })
 

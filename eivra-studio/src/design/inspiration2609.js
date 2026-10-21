@@ -23,11 +23,18 @@ export const getInspiration2609Surface = (
   pathname,
   layoutMode = 'inpiration',
 ) => {
-  const path = String(pathname || '/').replace(/\/+$/, '') || '/'
+  const path =
+    String(pathname || '/')
+      .replace(/\/+$/, '')
+      .replace(/^\/arsenal(?=\/|$)/, '') || '/'
+  // The Quant workspace keeps one visual language regardless of the global
+  // layout preference, so the research surface always reads as Prism silver.
   const material =
-    layoutMode === 'modern'
-      ? 'modern'
-      : INSPIRATION_2609_MATERIALS[path] || 'modern'
+    path === '/quants'
+      ? 'prism'
+      : layoutMode === 'modern'
+        ? 'modern'
+        : INSPIRATION_2609_MATERIALS[path] || 'modern'
   return {
     material,
     laboratory: ['folio', 'glacier', 'prism'].includes(material),

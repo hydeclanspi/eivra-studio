@@ -50,6 +50,22 @@ describe('inspiration 2609 selected page composition', () => {
     }
   })
 
+  it('resolves owner-prefixed routes to the same material', () => {
+    expect(getInspiration2609Surface('/arsenal/quants')).toEqual({
+      material: 'prism',
+      laboratory: true,
+    })
+    expect(getInspiration2609Surface('/arsenal/settle')).toEqual({
+      material: 'glacier',
+      laboratory: true,
+    })
+    expect(getInspiration2609Surface('/arsenal/quants', 'modern')).toEqual({
+      material: 'prism',
+      laboratory: true,
+    })
+    expect(getInspiration2609Surface('/params', 'modern').material).toBe('modern')
+  })
+
   it('keeps the original header outside the laboratory CSS ancestor', () => {
     for (const route of [
       '/new',
@@ -95,7 +111,9 @@ describe('inspiration 2609 selected page composition', () => {
   })
 
   it('can compare against Modern without changing the route or business components', () => {
-    for (const route of Object.keys(INSPIRATION_2609_MATERIALS)) {
+    for (const route of Object.keys(INSPIRATION_2609_MATERIALS).filter(
+      (key) => key !== '/quants',
+    )) {
       expect(getInspiration2609Surface(route, 'modern')).toEqual({
         material: 'modern',
         laboratory: false,
@@ -103,6 +121,10 @@ describe('inspiration 2609 selected page composition', () => {
       expect(renderShell(route, 'modern')).not.toContain('lab-editions')
       expect(renderShell(route, 'modern')).not.toContain('theme-inspiration-2609')
     }
+    expect(getInspiration2609Surface('/quants', 'modern')).toEqual({
+      material: 'prism',
+      laboratory: true,
+    })
   })
 
   it('only tints the existing header and scopes material corner overrides to Prism and Glacier', () => {

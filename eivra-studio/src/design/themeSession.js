@@ -17,6 +17,7 @@ export const PAGE_GLASS_DEFAULTS = {
   '/history': 'daylight',
   '/history/teams': 'moon',
   '/params': 'hongguo',
+  '/quants': 'moon',
 }
 export const DEFAULT_GLASS_THEME = 'sand'
 
