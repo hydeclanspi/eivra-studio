@@ -39,19 +39,19 @@ export function ResearchDesk({ store, onStart, onOpenRun, onNavigate, shadowCoun
   return (
     <div className="quant-research">
       <div className="qr-kpi-grid">
-        <div className="qr-kpi" data-tone="indigo"><span>研究项目</span><strong>{store.projects.length}</strong><small>围绕一个假设组织</small></div>
-        <div className="qr-kpi" data-tone="violet"><span>实验记录</span><strong>{store.runs.length}</strong><small>已冻结输入与结果</small></div>
-        <button className="qr-kpi" data-tone="amber" onClick={() => onNavigate('library')}><span>结论待补充</span><strong>{pendingConclusions}</strong><small>打开策略库写下判断</small></button>
-        <button className="qr-kpi" data-tone="emerald" onClick={() => onNavigate('shelf')}><span>影子观察</span><strong>{shadowCount}</strong><small>冻结规则后的前向计划</small></button>
+        <div className="qr-kpi"><span>研究项目</span><strong>{store.projects.length}</strong><small>围绕一个假设组织</small></div>
+        <div className="qr-kpi"><span>实验记录</span><strong>{store.runs.length}</strong><small>已冻结输入与结果</small></div>
+        <button className="qr-kpi" onClick={() => onNavigate('library')}><span>结论待补充</span><strong>{pendingConclusions}</strong><small>打开策略库写下判断</small></button>
+        <button className="qr-kpi" onClick={() => onNavigate('shelf')}><span>影子观察</span><strong>{shadowCount}</strong><small>冻结规则后的前向计划</small></button>
       </div>
 
       <div className="qr-start-grid">
         {[
-          { id: 'idea', tone: 'indigo', title: '检验一个想法', text: '把「某队的平局可能被低估」整理成规则与失效条件。', Icon: FlaskConical },
-          { id: 'history', tone: 'sky', title: '观察历史规律', text: '从已知赛果了解频率与分布，再决定如何验证。', Icon: History },
-          { id: 'compare', tone: 'violet', title: '比较策略版本', text: '对齐实验条件，检查一次规则修改带来了什么。', Icon: GitBranch },
-        ].map(({ id, tone, title, text, Icon }) => (
-          <button className="qr-start-card" data-tone={tone} key={id} onClick={() => onStart(id)}>
+          { id: 'idea', title: '检验一个想法', text: '把「某队的平局可能被低估」整理成规则与失效条件。', Icon: FlaskConical },
+          { id: 'history', title: '观察历史规律', text: '从已知赛果了解频率与分布，再决定如何验证。', Icon: History },
+          { id: 'compare', title: '比较策略版本', text: '对齐实验条件，检查一次规则修改带来了什么。', Icon: GitBranch },
+        ].map(({ id, title, text, Icon }) => (
+          <button className="qr-start-card" key={id} onClick={() => onStart(id)}>
             <Icon size={20} strokeWidth={1.6} /><strong>{title}</strong><span>{text}</span><ArrowRight size={16} />
           </button>
         ))}
@@ -71,7 +71,7 @@ export function ResearchDesk({ store, onStart, onOpenRun, onNavigate, shadowCoun
 
 export function ResearchBriefEditor({ brief, onChange, protocol, onProtocolChange, projectName, onNewResearch }) {
   return (
-    <section className="quant-research qr-surface qr-brief">
+    <section className="quant-research qr-surface qr-brief qr-tint-blue">
       <div className="qr-section-heading"><div><span className="qr-eyebrow">RESEARCH BRIEF</span><h3>{projectName ? `继续研究 · ${projectName}` : '从研究问题开始'}</h3><p>每次运行都会冻结当前规则与输入。修改后运行，将保留一个新版本。</p></div>{projectName && <button className="qr-button" onClick={onNewResearch}><Plus size={14} />另建研究</button>}</div>
       <div className="qr-form-grid">
         <label>研究假设<textarea value={brief.hypothesis} onChange={(e) => onChange({ ...brief, hypothesis: e.target.value })} placeholder="我认为什么规律可能存在？依据是什么？" rows={2} maxLength={3000} /></label>
@@ -164,7 +164,7 @@ function ResearchComparison({ store }) {
 export function ResearchLibrary({ store, selectedRunId, onSelectRun, onRerun, onConclusion, onLoadVersion, onShadow, onStart, legacyStrategies, onImportLegacy }) {
   const maskText = usePreviewTextMask()
   const selected = store.runs.find((run) => run.id === selectedRunId) || store.runs[store.runs.length - 1]
-  return <div className="quant-research">
+  return <div className="quant-research qr-tint-violet">
     <div className="qr-section-heading"><div><h3>策略与实验档案</h3><p>规则按版本保存，实验保留输入和结果。研究结论可以持续补充。</p></div><div className="qr-actions"><button className="qr-button" disabled={!store.runs.length} onClick={() => downloadResearch(store)}><Download size={14} />导出研究档案</button><button className="qr-button qr-button-primary" onClick={onStart}><Plus size={14} />新研究</button></div></div>
     {store.runs.length ? <>
       <div className="qr-library-layout"><aside className="qr-surface qr-project-list" aria-label="研究与版本">
@@ -178,7 +178,7 @@ export function ResearchLibrary({ store, selectedRunId, onSelectRun, onRerun, on
 }
 
 export function ResearchDataCapabilities({ resultCount, coverage }) {
-  return <section className="quant-research qr-surface"><div className="qr-section-heading"><div><span className="qr-eyebrow">DATA READINESS</span><h3>数据决定可以回答的问题</h3><p>每次历史实验都会重新检查日期、比分、赛事身份及重复记录，并保留排除明细。</p></div></div>
+  return <section className="quant-research qr-surface qr-tint-data"><div className="qr-section-heading"><div><span className="qr-eyebrow">DATA READINESS</span><h3>数据决定可以回答的问题</h3><p>每次历史实验都会重新检查日期、比分、赛事身份及重复记录，并保留排除明细。</p></div></div>
     <div className="qr-capabilities">
       <div><span className="qr-tag">{resultCount ? '可开展' : '待导入赛果'}</span><strong>历史规律研究</strong><p>已有 {resultCount} 条缓存赛果；有效样本以实验校验后的数量为准。</p></div>
       <div><span className="qr-tag">基于假设</span><strong>条件与赔率情景</strong><p>用明确的概率或固定赔率检验假设，结果保留条件标签。</p></div>
