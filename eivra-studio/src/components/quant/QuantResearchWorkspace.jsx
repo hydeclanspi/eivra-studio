@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowRight, ArrowUpRight, BookOpen, Check, ChevronRight, Download, FlaskConical, GitBranch, History, Layers, Plus, RotateCcw } from 'lucide-react'
+import { ArrowRight, Check, ChevronRight, Download, FlaskConical, GitBranch, History, Layers, Plus, RotateCcw } from 'lucide-react'
 import { compareResearchRuns } from '../../lib/quantResearch'
 import { isPreviewMode } from '../../lib/displayMode'
 import { usePreviewTextMask } from '../../lib/labels'
@@ -32,32 +32,17 @@ export function downloadResearch(value, filename = 'eivra-quant-research.json') 
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-export function ResearchDesk({ store, onStart, onOpenRun, onNavigate, onGuide, shadowCount, resultCount }) {
+export function ResearchDesk({ store, onStart, onOpenRun, onNavigate, shadowCount, resultCount }) {
   const maskText = usePreviewTextMask()
   const recent = [...store.runs].reverse().slice(0, 4)
   const pendingConclusions = store.runs.filter((run) => !run.conclusion?.trim()).length
   return (
     <div className="quant-research">
-      <section className="qr-intro">
-        <div>
-          <span className="qr-eyebrow">INTUITION, CALIBRATED.</span>
-          <h3>给一个直觉，建立一份证据。</h3>
-          <p>写下你的判断，冻结规则，比较结果。每次修改都有记录，每个结论都有来处。</p>
-          <div className="qr-actions">
-            <button className="qr-button qr-button-primary" onClick={() => onStart('idea')}><Plus size={15} />开始一项研究</button>
-            <button className="qr-button qr-button-quiet" onClick={onGuide}><BookOpen size={15} />先了解研究流程</button>
-          </div>
-        </div>
-        <ol className="qr-path" aria-label="研究路径">
-          {['提出假设', '冻结与实验', '理解证据', '前向观察'].map((step, i) => <li key={step}><span>0{i + 1}</span>{step}{i < 3 && <ChevronRight size={13} aria-hidden="true" />}</li>)}
-        </ol>
-      </section>
-
-      <div className="qr-status-row">
-        <span><strong>{store.projects.length}</strong> 项研究</span>
-        <span><strong>{store.runs.length}</strong> 次实验</span>
-        <button onClick={() => onNavigate('library')}><strong>{pendingConclusions}</strong> 份结论待补充<ArrowUpRight size={13} /></button>
-        <button onClick={() => onNavigate('shelf')}><strong>{shadowCount}</strong> 个观察策略<ArrowUpRight size={13} /></button>
+      <div className="qr-kpi-grid">
+        <div className="qr-kpi"><span>研究项目</span><strong>{store.projects.length}</strong><small>围绕一个假设组织</small></div>
+        <div className="qr-kpi"><span>实验记录</span><strong>{store.runs.length}</strong><small>已冻结输入与结果</small></div>
+        <button className="qr-kpi" onClick={() => onNavigate('library')}><span>结论待补充</span><strong>{pendingConclusions}</strong><small>打开策略库写下判断</small></button>
+        <button className="qr-kpi" onClick={() => onNavigate('shelf')}><span>影子观察</span><strong>{shadowCount}</strong><small>冻结规则后的前向计划</small></button>
       </div>
 
       <div className="qr-start-grid">
