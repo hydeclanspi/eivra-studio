@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   ArrowRight,
@@ -91,9 +91,11 @@ function Note({ label, children }) {
 export default function QuantGuideDialog({ open, onClose }) {
   const dialogRef = useRef(null)
   const titleRef = useRef(null)
+  const contentRef = useRef(null)
   const backdropPressRef = useRef(false)
   const instanceId = useId()
   const sectionId = key => `${instanceId}-${key}`
+  const [activeChapter, setActiveChapter] = useState(CHAPTERS[0][0])
 
   useEffect(() => {
     if (!open) return undefined
@@ -105,6 +107,8 @@ export default function QuantGuideDialog({ open, onClose }) {
     document.body.style.overflow = 'hidden'
     dialog.showModal()
     titleRef.current?.focus({ preventScroll: true })
+    if (contentRef.current) contentRef.current.scrollTop = 0
+    setActiveChapter(CHAPTERS[0][0])
 
     return () => {
       if (dialog.open) dialog.close()
@@ -114,6 +118,34 @@ export default function QuantGuideDialog({ open, onClose }) {
       }
     }
   }, [open])
+
+  useEffect(() => {
+    if (!open) return undefined
+    const content = contentRef.current
+    if (!content) return undefined
+    let frame = 0
+    const update = () => {
+      frame = 0
+      const sections = content.querySelectorAll('.quant-guide-section')
+      if (!sections.length) return
+      const top = content.getBoundingClientRect().top
+      let current = sections[0]
+      sections.forEach(section => {
+        if (section.getBoundingClientRect().top - top <= 96) current = section
+      })
+      if (current.id.startsWith(`${instanceId}-`)) setActiveChapter(current.id.slice(instanceId.length + 1))
+    }
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(update) }
+    update()
+    content.addEventListener('scroll', schedule, { passive: true })
+    const observer = new ResizeObserver(schedule)
+    observer.observe(content)
+    return () => {
+      content.removeEventListener('scroll', schedule)
+      observer.disconnect()
+      if (frame) cancelAnimationFrame(frame)
+    }
+  }, [open, instanceId])
 
   if (!open || typeof document === 'undefined') return null
 
@@ -127,6 +159,7 @@ export default function QuantGuideDialog({ open, onClose }) {
   const goToSection = key => {
     const section = document.getElementById(sectionId(key))
     if (!section) return
+    setActiveChapter(key)
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     section.scrollIntoView({ behavior: reducedMotion ? 'instant' : 'smooth', block: 'start' })
     section.focus({ preventScroll: true })
@@ -161,16 +194,23 @@ export default function QuantGuideDialog({ open, onClose }) {
 
       <div className="quant-guide-layout">
         <nav className="quant-guide-nav" aria-label="使用指南章节">
-          <p>阅读导航</p>
-          {CHAPTERS.map(([key, label], index) => (
-            <button key={key} type="button" onClick={() => goToSection(key)}>
-              <span>{String(index + 1).padStart(2, '0')}</span>{label}
-            </button>
-          ))}
-          <div className="quant-guide-nav-signature">Eivra Studio<br /><span>Intuition, calibrated.</span></div>
+          <div className="quant-guide-nav-scroll">
+            <p>阅读导航</p>
+            {CHAPTERS.map(([key, label], index) => (
+              <button
+                key={key}
+                type="button"
+                aria-current={activeChapter === key ? 'location' : undefined}
+                onClick={() => goToSection(key)}
+              >
+                <span>{String(index + 1).padStart(2, '0')}</span>{label}
+              </button>
+            ))}
+          </div>
+          <div className="quant-guide-nav-signature">Eivra Studio<span>Oct 21, 2026</span><span>Intuition, calibrated.</span></div>
         </nav>
 
-        <div className="quant-guide-content">
+        <div className="quant-guide-content" ref={contentRef}>
           <GuideSection id={sectionId('orientation')} number="01" title="先理解这间实验室">
             <p className="quant-guide-lead">Quant 是策略研究工作台：把一个直觉，逐步变成有规则、有证据、能持续观察的策略。</p>
             <p>每次进入这里，先回答三个问题：我正在验证什么？目前的证据支持到哪一步？下一步该做什么？一条漂亮的收益曲线只是研究材料的一部分，真正需要保留下来的是规则、条件和判断的过程。</p>

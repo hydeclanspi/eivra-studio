@@ -13,6 +13,7 @@ import {
   Landmark,
   Library,
   Play,
+  Plus,
   Radar,
   RefreshCw,
   RotateCcw,
@@ -536,7 +537,7 @@ export default function QuantsPage() {
   const [discoveryQ, setDiscoveryQ] = useState(0.1)
   const [discoveryResult, setDiscoveryResult] = useState(null)
   const [discoveryShowAll, setDiscoveryShowAll] = useState(false)
-  const [activeTab, setActiveTab] = useState('home')
+  const [activeTab, setActiveTab] = useState('lab')
   const [openFootballLoading, setOpenFootballLoading] = useState(false)
   const [openFootballSources, setOpenFootballSources] = useState([])
   const [oddsStatus, setOddsStatus] = useState(() => oddsHistoryStatus())
@@ -1055,18 +1056,23 @@ export default function QuantsPage() {
   const alertChips = [...portfolio.alerts, ...strategyAlertChips]
 
   return (
-    <div className="page-shell page-content-wide">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div className="page-shell page-content-wide quant-page">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-semibold text-stone-800 font-display flex items-center gap-2.5">
             <GlassCardIcon IconComp={FlaskConical} tone="violet" iconSize={16} className="h-9 w-9" />
-            Quant · 策略研究工作台
+            Quants · 量化策略实验室
           </h2>
-          <p className="text-stone-500 text-sm mt-2">从研究假设，到可复现的实验与持续观察。</p>
+          <p className="text-stone-400 text-sm mt-1">从一个直觉，到可复现的实验与持续观察</p>
         </div>
-        <button type="button" className="qr-guide-trigger" onClick={() => setGuideOpen(true)} aria-haspopup="dialog">
-          <BookOpen size={15} strokeWidth={1.8} />使用指南与设计思路
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className="qr-button qr-button-primary" onClick={() => handleStartResearch('idea')}>
+            <Plus size={15} strokeWidth={1.9} />开始一项研究
+          </button>
+          <button type="button" className="qr-guide-trigger" onClick={() => setGuideOpen(true)} aria-haspopup="dialog">
+            <BookOpen size={15} strokeWidth={1.8} />使用指南与设计思路
+          </button>
+        </div>
       </div>
       <QuantGuideDialog open={guideOpen} onClose={() => setGuideOpen(false)} />
       <nav className="qr-workspace-tabs" aria-label="Quant 工作区">
@@ -1079,7 +1085,7 @@ export default function QuantsPage() {
         ].map((tab) => <button key={tab.id} type="button" aria-current={activeTab === tab.id ? 'page' : undefined} onClick={() => setActiveTab(tab.id)}><tab.Icon size={14} strokeWidth={1.8} />{tab.label}</button>)}
       </nav>
       {(researchState.error || researchNotice.text) && <div role={researchState.error || researchNotice.error ? 'alert' : 'status'} className={`qr-page-notice ${researchState.error || researchNotice.error ? 'is-error' : ''}`}>{researchState.error || researchNotice.text}</div>}
-      {activeTab === 'home' && <ResearchDesk store={researchStore} onStart={handleStartResearch} onOpenRun={handleOpenRun} onNavigate={setActiveTab} onGuide={() => setGuideOpen(true)} shadowCount={forwardCount} resultCount={resultsStatus.count} />}
+      {activeTab === 'home' && <ResearchDesk store={researchStore} onStart={handleStartResearch} onOpenRun={handleOpenRun} onNavigate={setActiveTab} shadowCount={forwardCount} resultCount={resultsStatus.count} />}
       {activeTab === 'library' && <ResearchLibrary store={researchStore} selectedRunId={selectedRunId} onSelectRun={setSelectedRunId} onRerun={handleRerun} onConclusion={handleConclusion} onLoadVersion={handleLoadVersion} onShadow={handleShadow} onStart={() => handleStartResearch()} legacyStrategies={strategies} onImportLegacy={handleReevaluate} />}
 
       {activeTab === 'lab' && (
