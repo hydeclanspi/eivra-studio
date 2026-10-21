@@ -1056,7 +1056,7 @@ export default function QuantsPage() {
   const alertChips = [...portfolio.alerts, ...strategyAlertChips]
 
   return (
-    <div className="page-shell page-content-wide quant-page">
+    <div className={`page-shell page-content-wide quant-page qr-tone-${activeTab}`}>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-2xl font-semibold text-stone-800 font-display flex items-center gap-2.5">

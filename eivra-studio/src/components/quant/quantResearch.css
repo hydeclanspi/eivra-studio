@@ -9,6 +9,13 @@
 }
 /* Quant research surfaces follow the app's clear-glass language: translucent
    white sheets, hairline stone borders and restrained indigo accents. */
+.quant-page.qr-tone-home { --qr-tint-rgb: 99, 102, 241; }
+.quant-page.qr-tone-lab { --qr-tint-rgb: 59, 130, 246; }
+.quant-page.qr-tone-library { --qr-tint-rgb: 139, 92, 246; }
+.quant-page.qr-tone-shelf { --qr-tint-rgb: 245, 158, 11; }
+.quant-page.qr-tone-data { --qr-tint-rgb: 13, 148, 136; }
+.quant-page { --qr-tint-rgb: 100, 116, 139; }
+
 .quant-research {
   --qr-ink: #292524;
   --qr-body: #57534e;
@@ -81,7 +88,7 @@
 .qr-workspace-tabs button:hover { color: var(--qr-ink); background: rgba(255, 255, 255, .55); }
 .qr-workspace-tabs button[aria-current="page"] {
   color: var(--qr-ink);
-  background: rgba(255, 255, 255, .32);
+  background: linear-gradient(150deg, rgba(255, 255, 255, .8), rgba(var(--qr-tint-rgb), .12));
   font-weight: 500;
   box-shadow: inset 0 1px 0 #fff, 0 6px 16px -12px rgba(41, 37, 36, .4);
 }
@@ -90,7 +97,7 @@
 .qr-surface,
 .qr-intro {
   position: relative;
-  background: linear-gradient(150deg, rgba(255,255,255,.46), rgba(255,255,255,.2) 42%, rgba(255,255,255,.3));
+  background: linear-gradient(150deg, rgba(255, 255, 255, .5), rgba(var(--qr-tint-rgb), .06) 42%, rgba(255, 255, 255, .28));
   border: 1px solid rgba(255, 255, 255, .72);
   border-radius: 16px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.92), inset 0 -1px 0 rgba(255,255,255,.22), 0 18px 42px -32px rgba(41,37,36,.5);
@@ -98,6 +105,24 @@
   backdrop-filter: blur(34px) saturate(190%);
 }
 .qr-surface { padding: 22px; margin-bottom: 16px; min-width: 0; }
+.qr-surface::before,
+.qr-intro::before,
+.qr-kpi::before,
+.qr-start-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(120% 90% at 0% 0%, rgba(var(--qr-tint-rgb), .07), transparent 60%);
+}
+.qr-kpi[data-tone="indigo"] { --qr-tint-rgb: 99, 102, 241; }
+.qr-kpi[data-tone="violet"] { --qr-tint-rgb: 139, 92, 246; }
+.qr-kpi[data-tone="amber"] { --qr-tint-rgb: 245, 158, 11; }
+.qr-kpi[data-tone="emerald"] { --qr-tint-rgb: 16, 185, 129; }
+.qr-start-card[data-tone="indigo"] { --qr-tint-rgb: 99, 102, 241; }
+.qr-start-card[data-tone="sky"] { --qr-tint-rgb: 14, 165, 233; }
+.qr-start-card[data-tone="violet"] { --qr-tint-rgb: 139, 92, 246; }
 
 .qr-intro {
   display: flex;
@@ -175,12 +200,13 @@ button.qr-button:focus-visible,
 /* ── Research desk ──────────────────────────────────────────────── */
 .qr-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
 .qr-kpi {
+  position: relative;
   display: block;
   padding: 15px 17px;
   text-align: left;
   border: 1px solid rgba(255, 255, 255, .72);
   border-radius: 16px;
-  background: linear-gradient(150deg, rgba(255,255,255,.44), rgba(255,255,255,.18) 42%, rgba(255,255,255,.28));
+  background: linear-gradient(150deg, rgba(255, 255, 255, .5), rgba(var(--qr-tint-rgb), .08) 42%, rgba(255, 255, 255, .28));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .92), inset 0 -1px 0 rgba(255,255,255,.2), 0 18px 42px -32px rgba(41, 37, 36, .5);
   -webkit-backdrop-filter: blur(30px) saturate(185%);
   backdrop-filter: blur(30px) saturate(185%);
@@ -194,6 +220,7 @@ button.qr-kpi { cursor: pointer; font: inherit; }
 
 .qr-start-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
 .qr-start-card {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 4px 10px;
@@ -202,14 +229,14 @@ button.qr-kpi { cursor: pointer; font: inherit; }
   text-align: left;
   border: 1px solid rgba(255, 255, 255, .72);
   border-radius: 16px;
-  background: linear-gradient(150deg, rgba(255,255,255,.44), rgba(255,255,255,.18) 42%, rgba(255,255,255,.28));
+  background: linear-gradient(150deg, rgba(255, 255, 255, .5), rgba(var(--qr-tint-rgb), .08) 42%, rgba(255, 255, 255, .28));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .92), inset 0 -1px 0 rgba(255,255,255,.2), 0 18px 42px -32px rgba(41, 37, 36, .5);
   -webkit-backdrop-filter: blur(30px) saturate(185%);
   backdrop-filter: blur(30px) saturate(185%);
   transition: transform .18s, box-shadow .18s, border-color .18s, background .18s;
   min-width: 0;
 }
-.qr-start-card:hover { transform: translateY(-2px); background: linear-gradient(150deg, rgba(255,255,255,.58), rgba(255,255,255,.3)); box-shadow: inset 0 1px 0 #fff, 0 18px 38px -26px rgba(41, 37, 36, .4); }
+.qr-start-card:hover { transform: translateY(-2px); background: linear-gradient(150deg, rgba(255, 255, 255, .62), rgba(var(--qr-tint-rgb), .1) 42%, rgba(255, 255, 255, .34)); box-shadow: inset 0 1px 0 #fff, 0 18px 38px -26px rgba(41, 37, 36, .4); }
 .qr-start-card > svg:first-child {
   grid-column: 1 / -1;
   width: 32px;
@@ -217,8 +244,8 @@ button.qr-kpi { cursor: pointer; font: inherit; }
   padding: 7px;
   margin-bottom: 6px;
   border-radius: 10px;
-  background: rgba(99, 102, 241, .08);
-  color: #6366f1;
+  background: rgba(var(--qr-tint-rgb), .12);
+  color: rgba(var(--qr-tint-rgb), 1);
 }
 .qr-start-card > strong { grid-column: 1; grid-row: 2; color: var(--qr-ink); font-size: 13px; font-weight: 600; }
 .qr-start-card > span { grid-column: 1 / -1; grid-row: 3; color: var(--qr-muted); font-size: 11px; line-height: 1.7; }
@@ -396,7 +423,7 @@ button.qr-kpi { cursor: pointer; font: inherit; }
 .qr-candidate-inbox { margin-top: 16px; }
 .qr-lab-tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 4px; margin: 0 0 18px; border: 1px solid rgba(231, 229, 228, .9); border-radius: 12px; background: rgba(255, 255, 255, .26); width: fit-content; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .8); }
 .qr-lab-tabs button { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 14px; border-radius: 8px; color: var(--qr-muted); font-size: 12px; transition: background .16s, color .16s, box-shadow .16s; }
-.qr-lab-tabs button[aria-pressed="true"] { background: rgba(255, 255, 255, .92); color: var(--qr-ink); font-weight: 500; box-shadow: 0 1px 3px rgba(41, 37, 36, .08); }
+.qr-lab-tabs button[aria-pressed="true"] { background: linear-gradient(150deg, rgba(255, 255, 255, .82), rgba(var(--qr-tint-rgb), .12)); color: var(--qr-ink); font-weight: 500; box-shadow: 0 1px 3px rgba(41, 37, 36, .08); }
 .qr-lab-tabs button:hover { color: var(--qr-ink); }
 .qr-lab-tabs button:focus-visible { outline: 2px solid #64748b; outline-offset: 3px; }
 .quant-research .qr-section-heading h3:has(svg) { display: flex; align-items: center; gap: 8px; }
@@ -448,7 +475,7 @@ button.qr-kpi { cursor: pointer; font: inherit; }
 
 /* ── Legacy blocks inside the Quant page join the same glass layer ── */
 .quant-page .glow-card {
-  background: linear-gradient(150deg, rgba(255, 255, 255, .44), rgba(255, 255, 255, .18) 42%, rgba(255, 255, 255, .28)) !important;
+  background: linear-gradient(150deg, rgba(255, 255, 255, .5), rgba(var(--qr-tint-rgb), .06) 42%, rgba(255, 255, 255, .28)) !important;
   border-color: rgba(255, 255, 255, .72) !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .92), inset 0 -1px 0 rgba(255, 255, 255, .2), 0 18px 42px -32px rgba(41, 37, 36, .5) !important;
   -webkit-backdrop-filter: blur(30px) saturate(185%);
@@ -459,7 +486,7 @@ button.qr-kpi { cursor: pointer; font: inherit; }
   box-shadow: inset 0 1px 0 #fff, 0 20px 46px -30px rgba(41, 37, 36, .52) !important;
 }
 .quant-page .btn-secondary {
-  background: rgba(255, 255, 255, .34);
+  background: linear-gradient(150deg, rgba(255, 255, 255, .5), rgba(var(--qr-tint-rgb), .08));
   border-color: rgba(255, 255, 255, .72);
   -webkit-backdrop-filter: blur(18px) saturate(160%);
   backdrop-filter: blur(18px) saturate(160%);

@@ -39,19 +39,19 @@ export function ResearchDesk({ store, onStart, onOpenRun, onNavigate, shadowCoun
   return (
     <div className="quant-research">
       <div className="qr-kpi-grid">
-        <div className="qr-kpi"><span>研究项目</span><strong>{store.projects.length}</strong><small>围绕一个假设组织</small></div>
-        <div className="qr-kpi"><span>实验记录</span><strong>{store.runs.length}</strong><small>已冻结输入与结果</small></div>
-        <button className="qr-kpi" onClick={() => onNavigate('library')}><span>结论待补充</span><strong>{pendingConclusions}</strong><small>打开策略库写下判断</small></button>
-        <button className="qr-kpi" onClick={() => onNavigate('shelf')}><span>影子观察</span><strong>{shadowCount}</strong><small>冻结规则后的前向计划</small></button>
+        <div className="qr-kpi" data-tone="indigo"><span>研究项目</span><strong>{store.projects.length}</strong><small>围绕一个假设组织</small></div>
+        <div className="qr-kpi" data-tone="violet"><span>实验记录</span><strong>{store.runs.length}</strong><small>已冻结输入与结果</small></div>
+        <button className="qr-kpi" data-tone="amber" onClick={() => onNavigate('library')}><span>结论待补充</span><strong>{pendingConclusions}</strong><small>打开策略库写下判断</small></button>
+        <button className="qr-kpi" data-tone="emerald" onClick={() => onNavigate('shelf')}><span>影子观察</span><strong>{shadowCount}</strong><small>冻结规则后的前向计划</small></button>
       </div>
 
       <div className="qr-start-grid">
         {[
-          { id: 'idea', title: '检验一个想法', text: '把「某队的平局可能被低估」整理成规则与失效条件。', Icon: FlaskConical },
-          { id: 'history', title: '观察历史规律', text: '从已知赛果了解频率与分布，再决定如何验证。', Icon: History },
-          { id: 'compare', title: '比较策略版本', text: '对齐实验条件，检查一次规则修改带来了什么。', Icon: GitBranch },
-        ].map(({ id, title, text, Icon }) => (
-          <button className="qr-start-card" key={id} onClick={() => onStart(id)}>
+          { id: 'idea', tone: 'indigo', title: '检验一个想法', text: '把「某队的平局可能被低估」整理成规则与失效条件。', Icon: FlaskConical },
+          { id: 'history', tone: 'sky', title: '观察历史规律', text: '从已知赛果了解频率与分布，再决定如何验证。', Icon: History },
+          { id: 'compare', tone: 'violet', title: '比较策略版本', text: '对齐实验条件，检查一次规则修改带来了什么。', Icon: GitBranch },
+        ].map(({ id, tone, title, text, Icon }) => (
+          <button className="qr-start-card" data-tone={tone} key={id} onClick={() => onStart(id)}>
             <Icon size={20} strokeWidth={1.6} /><strong>{title}</strong><span>{text}</span><ArrowRight size={16} />
           </button>
         ))}
