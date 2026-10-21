@@ -13,7 +13,7 @@
 
 Eivra Studio 将一份主观判断转化为可追溯的预测、配置、结果与修正记录。它把概率校准、组合构建与实证检验放进同一个交互工作空间，让研究者既能理解一笔决策，也能审视支撑它的证据。
 
-[体验在线工作台](https://hydeclanspi.vercel.app) · [模型内核](#模型内核) · [本地运行](#本地运行) · [品牌记录](eivra-studio/docs/brand-identity.md)
+[体验在线工作台](https://hydeclanspi.vercel.app) · [模型内核](#模型内核) · [策略实验室](#策略实验室) · [本地运行](#本地运行) · [品牌记录](eivra-studio/docs/brand-identity.md)
 
 
 **概率校准 · 分数凯利 · 共享事件蒙特卡洛 · 滚动前推验证**
@@ -86,6 +86,38 @@ $$
 
 → [时间数据契约](eivra-studio/src/lib/temporalValidation.js) · [预测快照](eivra-studio/src/lib/investmentForecast.js) · [历史审计记录](eivra-studio/docs/audits/)
 
+### 策略实验室
+
+Quant 是 Eivra 的策略研究工作台。它处理的不是“哪组参数在历史上最赚钱”，而是一个更慢的问题：一个直觉如何被写成可复核的规则，规则如何在明确的数据条件下接受检验，证据又如何决定下一步。
+
+工作区围绕两个不可变对象组织：**策略版本**与**实验记录**。五个工作区各自回答一个问题。
+
+| 工作区 | 研究问题 | 保留的产物 |
+| --- | --- | --- |
+| **研究台** | 今天继续研究什么？ | 最近实验、待补结论、等待结果的影子计划 |
+| **实验工作台** | 这个想法如何检验？ | 假设与失效条件、适用范围、概率来源、投入与评估协议 |
+| **策略库** | 哪套规则值得保留？ | 版本谱系、冻结输入、对照结果、研究结论与适用边界 |
+| **影子观察** | 冻结规则遇到新比赛会怎样？ | 赛前预测与报价快照、完整候选日志、纸面订单、结算与阶段复盘 |
+| **数据中心** | 现有数据能支持哪些实验？ | 赛事身份、报价时点、赛果可知时间、覆盖缺口与导入记录 |
+
+**实验类型由数据条件决定，而不是由界面提供一份可以随意点选的菜单。** 只有赛果时，能做的是历史频率与条件差异，结果是描述性的；加入人为设定的赔率或概率后，才能做情景推演，但结论仍受假设约束；只有当赛果、对应时点的历史报价与当时可知的信息同时存在，才构成历史策略回放；从当下开始记录赛前判断与报价，才是前向影子实验。结果的名称跟随证据条件，避免把情景分析写成可执行收益。
+
+每个结果从三个视角阅读：
+
+- **预测质量**：在有冻结预测的样本上查看 Brier 评分与对数损失，并对照简单基准；校准曲线尚未提供。
+- **收益与风险**：按声明的价格与配置规则，盈亏、回撤与资金占用。
+- **证据质量**：覆盖是否完整、独立赛事有多少、验证数据是否参与过筛选、结论对参数变化是否敏感。
+
+缺少依据的指标显示“不可用”，并说明缺少什么。整体结果可以下钻到单场：当时的概率、报价、是否入选、为什么入选，以及最终如何结算。
+
+Quant 不替代组合工作台。研究阶段输出的是规则与候选；候选进入 Portfolio 后，仍由组合层处理整体配置与资金约束，研究冻结的概率不被二次校准。Settle 记录实际结果，Analysis 提供下一轮研究线索。
+
+生命周期保留失败、修改与重新验证。调参产生新版本，原实验保留规则、数据指纹、时间区间、引擎版本与随机种子；探索与验证使用隔离的数据，并记录搜索过多少方案；工作状态（观察中）与证据状态（样本不足）分开表达；复盘条件在运行前声明。影子观察记录完整候选范围，包括未入选、缺报价、规则拒绝与漏采，而不是只留下成功路径。
+
+底层只有一套规则。同一份策略版本贯穿历史回放、影子观察与候选生成，每条信号绑定预测快照与报价快照，同场不同市场共享一致的赛事结果模型，“1–1”与“平局”可以同时命中。采集器是需要手动启动的本地进程；页面展示最近导入的任务快照，不是常驻服务的实时心跳。
+
+→ [研究引擎](eivra-studio/src/lib/quantResearch.js) · [前向观察](eivra-studio/src/lib/quantForward.js) · [证据契约](eivra-studio/src/lib/quantEvidence.js) · [实现说明](eivra-studio/docs/quant-research-workspace.md)
+
 ### 工程架构
 
 产品由浏览器中的研究界面与共享分析内核组成。数据通过结构化或自然语言流程进入系统，经由存储与模型函数处理，再以可检查的结果返回界面。
@@ -122,7 +154,7 @@ React 工作台
 | Dashboard | `/dashboard` | 查看资金与总体表现 |
 | Analysis & Metrics | `/dashboard/analysis` · `/dashboard/metrics` | 分析表现切片与校准情况 |
 | Seasons | `/dashboard/report` | 在完整背景下复盘一个研究周期 |
-| Quants | `/quants` | 探索策略、赛果与赔率历史 |
+| Quants | `/quants` | 策略版本、实验、影子观察与数据证据 |
 | History & Teams | `/history` · `/history/teams` | 回溯决策与事件画像 |
 | Console | `/params` | 检查参数、验证与配置 |
 
@@ -203,7 +235,7 @@ Eivra Studio 是独立开发的研究与作品集项目，包含可运行的应�
 
 Eivra Studio turns a discretionary thesis into a traceable sequence of forecasts, allocations, outcomes, and revisions. It brings probability calibration, portfolio construction, and empirical validation into one interactive workspace—built for a researcher who wants to understand both the decision and the evidence behind it.
 
-[Explore the live workspace](https://hydeclanspi.vercel.app) · [Inside the engine](#inside-the-engine) · [Run locally](#run-locally) · [Brand notes](eivra-studio/docs/brand-identity.md)
+[Explore the live workspace](https://hydeclanspi.vercel.app) · [Inside the engine](#inside-the-engine) · [The strategy lab](#the-strategy-lab) · [Run locally](#run-locally) · [Brand notes](eivra-studio/docs/brand-identity.md)
 
 [![CI](https://github.com/hydeclanspi/eivra-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/hydeclanspi/eivra-studio/actions/workflows/ci.yml)
 
@@ -279,6 +311,38 @@ Unreliable estimates have an unavailable state. Repeated copies of the same iden
 
 → [Temporal data contract](eivra-studio/src/lib/temporalValidation.js) · [Forecast snapshots](eivra-studio/src/lib/investmentForecast.js) · [Historical audit notes](eivra-studio/docs/audits/)
 
+### The strategy lab
+
+Quant is Eivra's strategy research workbench. Its subject is not the parameter set that performed best in hindsight, but a slower question: how a hunch becomes a rule that can be inspected, how that rule is tested under explicit data conditions, and how the evidence decides what comes next.
+
+The workspace is organized around two immutable objects: the **strategy version** and the **experiment record**. Five areas each answer one question.
+
+| Area | Research question | What is retained |
+| --- | --- | --- |
+| **Research desk** | What should I continue today? | Recent experiments, conclusions still to be written, shadow plans awaiting results |
+| **Experiment bench** | How should this idea be tested? | Hypothesis and falsifier, scope, probability source, stake sizing and evaluation protocol |
+| **Strategy library** | Which rules deserve to stay? | Version lineage, frozen inputs, comparisons, conclusions, and applicability limits |
+| **Shadow observation** | How do frozen rules meet new matches? | Pre-match forecast and quote snapshots, the full candidate log, paper orders, settlement, and staged reviews |
+| **Data center** | Which experiments does the available data support? | Event identity, quote timestamps, result availability, coverage gaps, and import records |
+
+**The data condition determines the experiment type; the interface does not offer a menu of interchangeable backtests.** With results alone, the work is a historical frequency study—descriptive, not a return. Add assumed odds or probabilities and it becomes a scenario analysis, still bounded by its assumptions. Only when results, as-of odds, and the information available at the time coexist does a historical strategy replay become possible. Recording forecasts and quotes from this moment forward is a forward shadow experiment. The name of the result follows the evidence, so a scenario is not presented as an executable return.
+
+Every result is read from three angles:
+
+- **Forecast quality.** Brier score and log loss where a frozen forecast exists, alongside a simple benchmark; a calibration curve is not yet provided.
+- **Return and risk.** Profit and loss, drawdown, and capital committed under the declared prices and sizing rules.
+- **Evidence quality.** Coverage, the number of independent matches, whether validation data took part in selection, and whether conclusions move under parameter changes.
+
+An estimate without a basis is shown as unavailable, with the missing input named. Aggregate results drill down to the single match: the probability and quote at the time, whether it entered the strategy, why, and how it settled.
+
+Quant does not replace the portfolio workspace. Research produces rules and candidates; the portfolio layer still owns aggregate allocation and capital constraints, and the frozen research probability is not recalibrated a second time. Settle records what actually happened; Analysis supplies the next line of inquiry.
+
+The lifecycle keeps failures, revisions, and re-validation. A revised rule produces a new version, while the original experiment retains its rules, data fingerprint, time window, engine version, and random seed. Exploration and validation use separated data, and the record counts how many candidates were searched. Working state (observing) and evidence state (insufficient sample) are reported separately. Review conditions are declared before the run. Shadow observation keeps the full candidate range—rejected, unpriced, refused by a rule, or missed—rather than only the successful path.
+
+One rule set underlies every surface. A strategy version runs through historical replay, shadow observation, and candidate generation; each signal binds a forecast snapshot and a quote snapshot, and different markets on the same match share one result model—a 1–1 scoreline and a draw settle from the same event. The collector is a local process the researcher starts by hand; the page shows the last imported task snapshot, not a live heartbeat.
+
+→ [Research engine](eivra-studio/src/lib/quantResearch.js) · [Forward observation](eivra-studio/src/lib/quantForward.js) · [Evidence contract](eivra-studio/src/lib/quantEvidence.js) · [Implementation notes](eivra-studio/docs/quant-research-workspace.md)
+
 ### Built as a system
 
 The product combines a browser-based research interface with a shared analytical core. Data enters through structured or natural-language workflows, moves through storage and model functions, and returns to the interface as inspectable results.
@@ -315,7 +379,7 @@ Optional services: encrypted Git snapshots · Supabase sync · server-side AI pa
 | Dashboard | `/dashboard` | Review capital and aggregate performance |
 | Analysis & Metrics | `/dashboard/analysis` · `/dashboard/metrics` | Investigate performance slices and calibration |
 | Seasons | `/dashboard/report` | Review a research period in context |
-| Quants | `/quants` | Explore strategies, result history, and odds history |
+| Quants | `/quants` | Strategy versions, experiments, shadow observation, and data evidence |
 | History & Teams | `/history` · `/history/teams` | Revisit decisions and event-level profiles |
 | Console | `/params` | Inspect parameters, validation, and configuration |
 
