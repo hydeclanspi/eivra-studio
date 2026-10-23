@@ -1,0 +1,215 @@
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { getDisplayMode, useDisplayMode } from '../../lib/displayMode'
+import { isDesignPreview } from '../../design/labEditions'
+import { ACTS, DEMO_SENTENCE, STEPS, navAnchor } from '../../lib/tour/tourScript'
+import { initialTourState, stepId, tourReducer } from '../../lib/tour/tourMachine'
+import { readTourRecord, readTourSession, rememberTour, saveTourSession, sessionSuppressed, shouldAutoOffer, suppressTourSession, tourEligible } from '../../lib/tour/tourGate'
+import { delay, tourBus, tourCache } from '../../lib/tour/tourBus'
+import { setTourOnStage, spendDemoFlourishes } from '../../lib/tour/demoChoreography'
+import { beamRoute, computeLanes } from '../../lib/tour/laneRouting'
+import { centerOf, findAnchor, rectOf, scrollToAnchor, visibleCards, waitForAnchor } from './tourDom'
+import { TourContext } from './TourContext'
+import TourStage from './TourStage'
+import TourLauncher from './TourLauncher'
+import '../../design/tour.css'
+
+const defaultTrack = () => window.innerWidth < 768 ? 'short' : 'full'
+export default function TourProvider({ children }) {
+  const location = useLocation(), navigate = useNavigate(), mode = useDisplayMode()
+  const param = new URLSearchParams(location.search).get('tour')
+  const eligible = tourEligible({ pathname: window.location.pathname, mode, design: isDesignPreview(), param, suppressed: sessionSuppressed() })
+  const [state, dispatch] = useReducer(tourReducer, initialTourState)
+  const [anchor, setAnchor] = useState(null)
+  const [dataTag, setDataTag] = useState('')
+  const [notice, setNotice] = useState('')
+  const [pointer, setPointer] = useState(null)
+  const [reduced, setReduced] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  const light = useRef(null), controller = useRef(null), guideController = useRef(null), expectedPath = useRef(null)
+  const stateRef = useRef(state), locationRef = useRef(location), bootstrapped = useRef(false)
+  stateRef.current = state; locationRef.current = location
+  const step = STEPS[stepId(state)]
+  const onStage = eligible && ['offered', 'running', 'paused', 'finale'].includes(state.status)
+  const stopEffects = useCallback(() => {
+    controller.current?.abort(); light.current?.clear(); setPointer(null); setAnchor(null)
+    document.querySelectorAll('[data-tour-arrival]').forEach((el) => { el.removeAttribute('data-tour-arrival'); el.style.removeProperty('--tour-arrival') })
+  }, [])
+  const start = useCallback((track = defaultTrack()) => {
+    if (!eligible) return
+    stopEffects(); guideController.current?.abort(); dispatch({ type: 'START', track })
+  }, [eligible, stopEffects])
+  const pause = useCallback(() => { stopEffects(); dispatch({ type: 'PAUSE' }) }, [stopEffects])
+  const resume = useCallback(() => dispatch({ type: 'RESUME' }), [])
+  const exit = useCallback(() => {
+    stopEffects(); guideController.current?.abort()
+    const status = stateRef.current.status === 'finale' ? 'completed' : 'dismissed'
+    rememberTour(status); saveTourSession({ status }); dispatch({ type: 'EXIT' })
+  }, [stopEffects])
+  const jump = useCallback((type) => { stopEffects(); dispatch({ type }) }, [stopEffects])
+
+  useLayoutEffect(() => { setTourOnStage(onStage || (eligible && !bootstrapped.current)) }, [onStage, eligible])
+  useEffect(() => () => { setTourOnStage(false); controller.current?.abort(); guideController.current?.abort() }, [])
+  useEffect(() => {
+    if (param === '0') suppressTourSession()
+    if (!eligible) {
+      stopEffects(); guideController.current?.abort(); tourCache.clear()
+      if (['running', 'paused'].includes(stateRef.current.status)) saveTourSession({ status: 'dismissed' })
+      dispatch({ type: 'DISABLE' }); setTourOnStage(false)
+      return undefined
+    }
+    if (bootstrapped.current) return undefined
+    const timer = setTimeout(() => {
+      bootstrapped.current = true
+      const saved = readTourSession()
+      if (['running', 'paused'].includes(saved?.status)) dispatch({ type: 'RESTORE', record: saved })
+      else if (['1', 'short', 'dev'].includes(param)) start(param === 'short' ? 'short' : defaultTrack())
+      else if (shouldAutoOffer(locationRef.current.pathname, readTourRecord())) dispatch({ type: 'OFFER', track: defaultTrack() })
+      else setTourOnStage(false)
+    }, ['1', 'short', 'dev'].includes(param) ? 80 : 600)
+    return () => clearTimeout(timer)
+  }, [eligible, param, start, stopEffects])
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const update = () => setReduced(media.matches)
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+  useEffect(() => {
+    if (!onStage) return undefined
+    const keyboard = (event) => {
+      if (event.key === 'Escape') { event.preventDefault(); exit(); return }
+      if (event.target.closest('input, textarea, select, [contenteditable="true"]') || event.altKey || event.ctrlKey || event.metaKey) return
+      if (event.code === 'Space' && !event.target.closest('button, a')) { event.preventDefault(); stateRef.current.status === 'paused' ? resume() : pause() }
+      if (event.key === 'ArrowRight') { event.preventDefault(); jump('NEXT') }
+      if (event.key === 'ArrowLeft') { event.preventDefault(); jump('PREV') }
+    }
+    const visibility = () => { if (document.hidden) pause() }
+    window.addEventListener('keydown', keyboard); document.addEventListener('visibilitychange', visibility)
+    return () => { window.removeEventListener('keydown', keyboard); document.removeEventListener('visibilitychange', visibility) }
+  }, [onStage, exit, jump, pause, resume])
+  const previousPath = useRef(location.pathname)
+  useEffect(() => {
+    if (previousPath.current !== location.pathname && stateRef.current.status === 'running' && location.pathname !== expectedPath.current) pause()
+    previousPath.current = location.pathname
+  }, [location.pathname, pause])
+
+  useEffect(() => {
+    if (!eligible || state.status !== 'running') return undefined
+    const ctl = new AbortController(); controller.current = ctl
+    const renderer = light.current
+    const signal = ctl.signal, current = STEPS[stepId(state)], begin = performance.now()
+    const play = (fx) => { if (!reduced && !signal.aborted) light.current?.play(fx) }
+    const focus = async (name, scroll = true) => {
+      const element = await waitForAnchor(name, signal)
+      if (!element) { setAnchor(null); return null }
+      if (scroll) { scrollToAnchor(element, reduced); await delay(reduced ? 30 : 460, signal) }
+      setAnchor(element)
+      const rect = rectOf(element), cards = visibleCards()
+      const source = centerOf(document.querySelector('.tour-host-avatar'))
+      play({ kind: 'beam', points: beamRoute(source, rect, computeLanes(cards), cards, window.innerWidth < 768), duration: 620 })
+      play({ kind: 'scan', rect, duration: 640 })
+      setDataTag(element.dataset.tourTag || '')
+      return element
+    }
+    const click = async (name) => {
+      const target = await waitForAnchor(name, signal, 1000)
+      if (!target || reduced) return
+      scrollToAnchor(target, reduced); await delay(100, signal)
+      const from = centerOf(document.querySelector('.tour-host-avatar')), to = centerOf(target)
+      setPointer({ from, to, token: performance.now() }); target.setAttribute('data-tour-arrival', '')
+      try {
+        const t0 = performance.now()
+        while (performance.now() - t0 < 680) {
+          const p = (performance.now() - t0) / 680
+          target.style.setProperty('--tour-arrival', String(.75 * Math.sin(Math.PI * Math.max(0, Math.min(1, (p - .7) / .3)))))
+          await delay(24, signal)
+        }
+        await delay(120, signal)
+      } finally {
+        target.removeAttribute('data-tour-arrival'); target.style.removeProperty('--tour-arrival'); setPointer(null)
+      }
+    }
+    const run = async () => {
+      setNotice(''); setDataTag(''); setAnchor(null)
+      const sameRoute = locationRef.current.pathname === current.route || (current.route === '/new' && locationRef.current.pathname === '/')
+      if (!sameRoute) {
+        dispatch({ type: 'PHASE', phase: 'routing' })
+        const nav = findAnchor(navAnchor(current.route))
+        if (nav) play({ kind: 'beam', points: [centerOf(document.querySelector('.tour-host-avatar')), centerOf(nav)], duration: 420 })
+        await delay(reduced ? 0 : 420, signal)
+        play({ kind: 'sweep', duration: 950 })
+        expectedPath.current = current.route
+        navigate({ pathname: current.route, search: locationRef.current.search })
+        const routingStart = performance.now()
+        while (locationRef.current.pathname !== current.route && performance.now() - routingStart < 4000) await delay(30, signal)
+        await delay(reduced ? 30 : 530, signal)
+      }
+      dispatch({ type: 'PHASE', phase: 'anchoring' })
+      if (current.prepare) await tourBus.run(current.prepare, { text: DEMO_SENTENCE, reduced: true, instant: true }, { signal })
+      let target = await focus(current.preAnchor || current.anchor)
+      if (current.action) {
+        dispatch({ type: 'PHASE', phase: 'acting' })
+        if (current.action === 'combo.ensureGenerated') {
+          await click('combo.generateBtn')
+          let lanes = computeLanes(visibleCards())
+          if (window.innerWidth < 768) lanes = lanes.filter((l) => l.axis === 'H')
+          play({ kind: 'lasers', lanes, duration: 3000 })
+          setNotice('正在求解…')
+        }
+        // Yield before the synchronous solver so the host and laser layer paint first.
+        await delay(40, signal)
+        const outcome = await tourBus.run(current.action, { text: DEMO_SENTENCE, reduced, beforeParse: () => click('new.parse') }, { signal })
+        setNotice(outcome?.ok ? '' : '本段结果暂不可用，可继续探索。')
+        target = await focus(outcome?.ok ? current.anchor : (current.preAnchor || current.anchor))
+      }
+      if (!target) setNotice('此区域暂不可用，继续为你介绍。')
+      const elapsed = performance.now() - begin - (sameRoute ? 0 : 950)
+      dispatch({ type: 'PHASE', phase: 'dwelling', remaining: state.remaining ?? Math.max(1600, current.duration - elapsed) })
+    }
+    run().catch((error) => {
+      if (!signal.aborted) { setNotice('此区域暂不可用，继续为你介绍。'); dispatch({ type: 'PHASE', phase: 'dwelling', remaining: 2500 }); console.warn('[Tour] Step unavailable', error.name) }
+    })
+    return () => { ctl.abort(); renderer?.clear(); setPointer(null) }
+    // One cancellable driver per step/resume; PHASE/TICK must not restart it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eligible, state.status, state.index, state.epoch, state.track, reduced, navigate])
+
+  useEffect(() => {
+    if (state.status !== 'running' || state.phase !== 'dwelling') return undefined
+    let last = performance.now()
+    const timer = setInterval(() => { const now = performance.now(); dispatch({ type: 'TICK', delta: now - last }); last = now }, 100)
+    return () => clearInterval(timer)
+  }, [state.status, state.phase])
+  useEffect(() => { if (state.status === 'running' && state.phase === 'dwelling' && state.remaining <= 0) dispatch({ type: 'NEXT' }) }, [state.status, state.phase, state.remaining])
+  useEffect(() => {
+    if (state.status === 'finale') { spendDemoFlourishes(); rememberTour('completed'); saveTourSession({ status: 'completed' }) }
+  }, [state.status])
+  useEffect(() => {
+    const save = () => {
+      const s = stateRef.current
+      if (['running', 'paused'].includes(s.status)) saveTourSession({ status: s.status, stepId: stepId(s), track: s.track, remaining: s.remaining })
+    }
+    save(); window.addEventListener('pagehide', save)
+    return () => window.removeEventListener('pagehide', save)
+  }, [state.status, state.index, state.track])
+  useEffect(() => {
+    if (!anchor) return undefined
+    const update = () => setDataTag(anchor.dataset.tourTag || '')
+    const observer = new MutationObserver(update)
+    observer.observe(anchor, { attributes: true, attributeFilter: ['data-tour-tag'] })
+    update()
+    return () => observer.disconnect()
+  }, [anchor])
+  const openGuide = async () => {
+    pause()
+    const ctl = new AbortController(); guideController.current = ctl
+    const outcome = await tourBus.run('quants.openGuide', {}, { signal: ctl.signal, timeoutMs: 60 * 60 * 1000 }).catch(() => null)
+    if (outcome?.ok && !ctl.signal.aborted && getDisplayMode() === 'preview') resume()
+  }
+  const explore = (route) => { exit(); navigate(route) }
+  return <TourContext.Provider value={{ eligible, state, start }}>
+    {children}
+    <TourLauncher mobile />
+    {onStage && <TourStage state={state} step={step} act={ACTS[step.act]} anchor={anchor} dataTag={dataTag} notice={notice} pointer={pointer} reduced={reduced} light={light} start={start} pause={pause} resume={resume} exit={exit} explore={explore} openGuide={openGuide} />}
+  </TourContext.Provider>
+}

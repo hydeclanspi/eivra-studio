@@ -1,3 +1,6 @@
+import useTourAction from '../components/tour/useTourAction'
+import { delay, tourCache } from '../lib/tour/tourBus'
+import { useDemoFlourish } from '../lib/tour/demoChoreography'
 import { brandLocalStorage } from '../lib/brandStorage.js'
 import { predictMatchProbability } from "../lib/matchPrediction"
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -20,7 +23,7 @@ import CountUp from '../components/CountUp'
 import ExplainHover from '../components/ExplainHover'
 import { maskReactTree, useLabels, usePreviewTextMask } from '../lib/labels'
 import { useModeLabelMap } from '../components/ModeLabel'
-import { isPreviewMode } from '../lib/displayMode'
+import { isPreviewMode, useDisplayMode } from '../lib/displayMode'
 import QuantsLiveSignals from '../components/QuantsLiveSignals'
 import QuantCandidateInbox from '../components/quant/QuantCandidateInbox'
 import { getActiveQuantCandidateRows, portfolioCandidateIssue, recordCandidateAdoption } from '../lib/quantCandidates'
@@ -3869,6 +3872,9 @@ export const __portfolioTestables = {
 }
 
 export default function ComboPage({ openModal, inspirationLayout = false }) {
+  const tourDisplayMode = useDisplayMode()
+  const tourSnapshot = useRef(isPreviewMode() ? tourCache.get('combo.result') : null).current
+  const flourishesAllowed = useDemoFlourish()
   const navigate = useNavigate()
   const labels = useLabels()
   const maskMode = useModeLabelMap()
@@ -3881,9 +3887,9 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
   const [checkedMatches, setCheckedMatches] = useState([])
   const [analysisFilter, setAnalysisFilter] = useState(() => readAnalysisFilter())
   const [riskPref, setRiskPref] = useState(50)
-  const [recommendations, setRecommendations] = useState([])
-  const [rankingRows, setRankingRows] = useState([])
-  const [layerSummary, setLayerSummary] = useState([])
+  const [recommendations, setRecommendations] = useState(() => tourSnapshot?.recommendations || [])
+  const [rankingRows, setRankingRows] = useState(() => tourSnapshot?.rankingRows || [])
+  const [layerSummary, setLayerSummary] = useState(() => tourSnapshot?.layerSummary || [])
   const [qualityFilter, setQualityFilter] = useState(() => sanitizeQualityFilter(DEFAULT_QUALITY_FILTER))
   const [comboStrategy, setComboStrategy] = useState(DEFAULT_COMBO_STRATEGY)
   const [allocationMode, setAllocationMode] = useState(DEFAULT_ALLOCATION_MODE)
@@ -3900,8 +3906,8 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
   const [showDeepRefresh, setShowDeepRefresh] = useState(false)
   const [lessTeams, setLessTeams] = useState(new Set())
   const [moreTeams, setMoreTeams] = useState(new Set())
-  const [mcSimResult, setMcSimResult] = useState(null)
-  const [portfolioAllocations, setPortfolioAllocations] = useState([])
+  const [mcSimResult, setMcSimResult] = useState(() => tourSnapshot?.mcSimResult || null)
+  const [portfolioAllocations, setPortfolioAllocations] = useState(() => tourSnapshot?.portfolioAllocations || [])
   // resultsAnimNonce bumps once per generate to (re)play the result count-up
   // + dependency-matrix 光扫，并驱动【最优】行的自动「秀一下」。
   const [resultsAnimNonce, setResultsAnimNonce] = useState(0)
@@ -3933,7 +3939,7 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
   const [ftCellOverrides, setFtCellOverrides] = useState({}) // { portfolioKey: { "rowKey|colKey": "decouple"|"release" } }
   const [ftDirtyPortfolios, setFtDirtyPortfolios] = useState(() => new Set()) // Set<portfolioKey>
   const [ftConflictResolution, setFtConflictResolution] = useState(null)
-  const [generationSummary, setGenerationSummary] = useState({
+  const [generationSummary, setGenerationSummary] = useState(tourSnapshot?.generationSummary || {
     totalInvest: 0,
     expectedReturnPercent: 0,
     candidateCombos: 0,
@@ -4312,6 +4318,8 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
 
     setTodayMatches([])
     setCheckedMatches([])
+    tourGeneration.current = null
+    tourCache.delete('combo.result')
     setRecommendations([])
     setRankingRows([])
     setLayerSummary([])
@@ -4538,6 +4546,7 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
   // is-peek-refold 缓缓倒卷收回。只在演示态触发，私用 FULL 态不打扰；尊重 reduced-motion。
   // 键于 resultsAnimNonce（揭晓帷幕在 ~1.1s 时回调使其 +1），故「每次生成秀一次」。
   useEffect(() => {
+    if (!flourishesAllowed) return undefined
     if (resultsAnimNonce === 0) return undefined
     if (!isPreviewMode()) return undefined
     if (portfolioAllocations.length === 0) return undefined
@@ -4629,7 +4638,7 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
     return () => timers.forEach((t) => window.clearTimeout(t))
     // 仅在揭晓脉冲变化时重跑；portfolioAllocations 在同一次生成里已与 nonce 同步就绪。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resultsAnimNonce])
+  }, [resultsAnimNonce, flourishesAllowed])
 
   // 聚光环填满（或被点击跳过）→ 量取 Hero 卡自然高度，切到「拉长揭晓」相位，并脉冲
   // resultsAnimNonce 驱动数字 count-up、依赖矩阵光扫与【最优】行的自动「秀一下」。
@@ -4664,14 +4673,14 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
           }
         : undefined
 
-  const handleGenerate = () => {
+  const runGenerate = ({ silent = false } = {}) => {
+    const fail = (reason) => { if (!silent) window.alert(reason); return { ok: false, reason } }
     if (selectedMatches.length === 0) {
-      window.alert('请先勾选至少 1 场比赛。')
-      return
+      return fail('请先勾选至少 1 场比赛。')
     }
 
     const inputIssue = getPortfolioInputIssue(selectedMatches, qualityFilter)
-    if (inputIssue) { window.alert(inputIssue); return }
+    if (inputIssue) return fail(inputIssue)
 
     const generated = generateRecommendations(
       selectedMatches,
@@ -4689,12 +4698,11 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
       solverMode,
     )
     if (!generated) {
-      window.alert(
+      return fail(
         comboStrategy === 'thresholdStrict'
           ? `当前阈值下没有可用方案，请降低最小胜率${minCoverageGateEnabled ? ' / 最小覆盖率' : ''}，或放宽最大相关性。`
           : '当前参数下没有可用方案，请调整风险偏好或降低过滤强度后重试。',
       )
-      return
     }
 
     setRecommendations(generated.recommendations)
@@ -4730,7 +4738,7 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
     )
     const normalizedAllocations = normalizePortfolioAllocations(allocations)
     setPortfolioAllocations(normalizedAllocations)
-    pushPlanHistory(generated, selectedMatches, riskPref, {
+    if (!silent) pushPlanHistory(generated, selectedMatches, riskPref, {
       portfolioAllocations: normalizedAllocations,
       mcSimResult: mc,
     })
@@ -4760,7 +4768,46 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
     } else {
       setResultsAnimNonce((n) => n + 1)
     }
+    if (silent) tourCache.set('combo.result', {
+      ...generated,
+      generationSummary: generated,
+      mcSimResult: mc,
+      portfolioAllocations: normalizedAllocations,
+    })
+    return { ok: true }
   }
+
+  const handleGenerate = () => runGenerate()
+  const tourGeneration = useRef(null)
+  const revealRef = useRef(revealPhase)
+  revealRef.current = revealPhase
+  useTourAction('combo.ensureGenerated', async ({ signal }) => {
+    if (!isPreviewMode()) return { ok: false, reason: 'not_preview' }
+    if (!recommendations.length && !tourGeneration.current) {
+      // Allow candidate hydration to finish before reading the latest handler.
+      if (!selectedMatches.length) return { ok: false, reason: 'no_candidates' }
+      tourGeneration.current = runGenerate({ silent: true })
+    }
+    if (tourGeneration.current?.ok === false) {
+      const result = tourGeneration.current; tourGeneration.current = null; return result
+    }
+    await delay(60, signal)
+    while (['computing', 'reveal'].includes(revealRef.current)) await delay(40, signal)
+    return { ok: true, reused: recommendations.length > 0 }
+  })
+
+  useEffect(() => {
+    if (tourDisplayMode !== 'full' || (!tourSnapshot && !tourGeneration.current)) return
+    tourGeneration.current = null
+    setRecommendations([])
+    setRankingRows([])
+    setLayerSummary([])
+    setPortfolioAllocations([])
+    setMcSimResult(null)
+    setRevealPhase('idle')
+    setResultsAnimNonce(0)
+    setGenerationSummary({ totalInvest: 0, expectedReturnPercent: 0, candidateCombos: 0, qualifiedCombos: 0, filteredOutCombos: 0, coverageInjectedCombos: 0, uncoveredMatches: 0, legsDistribution: {} })
+  }, [tourDisplayMode, tourSnapshot])
 
   const handleConfirmChecked = () => {
     if (selectedMatches.length === 0) {
@@ -5461,7 +5508,7 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
 
       <PortfolioComposition inspiration={inspirationLayout} main={
       <div className={`combo-main-grid mb-6${leftPanelCollapsed ? ' combo-left-collapsed' : ''}`}>
-        <div className={`combo-left-card motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 ${leftPanelCollapsed ? 'px-4 py-4' : 'p-6'} transition-[padding] duration-300`}>
+        <div data-tour="combo.candidates" data-tour-tag={`${selectedMatches.length} CANDIDATES`} className={`combo-left-card motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 ${leftPanelCollapsed ? 'px-4 py-4' : 'p-6'} transition-[padding] duration-300`}>
           <div className={`flex items-center justify-between ${leftPanelCollapsed ? 'mb-2' : 'mb-4'}`}>
             <h3 className={`font-medium text-stone-700 ${leftPanelCollapsed ? 'text-[13px]' : ''}`}>今日备选比赛</h3>
             <div className="flex items-center gap-2">
@@ -5655,7 +5702,7 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
           </div>
 
           <div className="combo-left-panel-detail flex gap-3 mt-4">
-            <button onClick={handleGenerate} className="flex-1 btn-primary btn-hover">
+            <button data-tour="combo.generateBtn" onClick={handleGenerate} className="flex-1 btn-primary btn-hover">
               生成最优组合
             </button>
             <button onClick={handleConfirmChecked} className="flex-1 btn-secondary btn-hover">
@@ -6088,7 +6135,7 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
                 <Check size={15} strokeWidth={2.5} />
               </button>
               <button
-                onClick={handleGenerate}
+                data-tour="combo.generateBtn" onClick={handleGenerate}
                 className="h-9 px-3.5 inline-flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-[12px] font-medium whitespace-nowrap shadow-[0_2px_8px_rgba(99,102,241,0.35)] hover:shadow-[0_4px_14px_rgba(99,102,241,0.45)] hover:scale-[1.02] active:scale-95 transition-all"
                 title="生成最优组合"
               >
@@ -6102,6 +6149,8 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
         {/* ═══ 智能组合包 Hero Card ═══ */}
         <div
           ref={heroCardRef}
+          data-tour="combo.package"
+          data-tour-tag={`${generationSummary.candidateCombos} → ${recommendations.length} PLANS · MONTE CARLO ${mcSimResult?.valid === false || !mcSimResult?.iterations ? 'UNAVAILABLE' : mcSimResult.iterations.toLocaleString()}`}
           className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 p-6 relative"
           style={heroRevealStyle}
         >
@@ -7067,7 +7116,7 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
       )}
 
       </>} fragility={
-      <div className="mb-6 relative">
+      <div className="mb-6 relative" data-tour="combo.heatmap" data-tour-tag="DEPENDENCY INDEX · 0–100">
         <FragilityHeatmapCard
           matches={rankingRows.length > 0 ? selectedMatches.map((m) => ({
             odds: Number(m.odds) || 2.5,

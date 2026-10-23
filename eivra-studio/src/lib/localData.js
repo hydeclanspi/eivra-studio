@@ -38,6 +38,7 @@ const DATA_PATCH_V20260205_KEY = 'eivra.data_patch.v20260205'
 const DATA_PATCH_V20260206_KEY = 'eivra.data_patch.v20260206'
 const ACCESS_LOG_MAX_ROWS = 600
 let cloudBootstrapInProgress = false
+let genesisApplying = false
 
 export const PAGE_AMBIENT_THEME_DEFAULTS = {
   new: 'soft_blue',
@@ -1312,7 +1313,7 @@ const applyDataBundle = (bundle, mode = 'replace') => {
 }
 
 const ensureGenesisApplied = () => {
-  if (!isBrowser) return
+  if (!isBrowser || genesisApplying) return
   // Preview mode is already fully seeded from `demoData` (see previewStore).
   // Applying the genesis bundle on top writes through writeJSON → previewWrite
   // and REPLACES that seed — wiping the demo's poolSettlements /
@@ -1323,10 +1324,14 @@ const ensureGenesisApplied = () => {
   // reload after. Genesis has no business running in preview at all.
   if (isPreviewMode()) return
   if (brandLocalStorage.getItem(GENESIS_APPLIED_KEY) === '1') return
-  const ok = applyDataBundle(genesisBundle, 'replace')
-  if (ok) {
-    brandLocalStorage.setItem(GENESIS_APPLIED_KEY, '1')
-  }
+  // writeJSON synchronously notifies mounted pages. Their getters can re-enter
+  // here during the first Preview → Full transition, before the final marker.
+  // Guard the in-flight transaction without marking a failed write complete.
+  genesisApplying = true
+  try {
+    const ok = applyDataBundle(genesisBundle, 'replace')
+    if (ok) brandLocalStorage.setItem(GENESIS_APPLIED_KEY, '1')
+  } finally { genesisApplying = false }
 }
 
 export const getInvestments = () => {

@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
+import TourProvider from './components/tour/TourProvider'
 import { bootstrapCloudSnapshotOnLoad, ensureCurrentMonthSnapshot } from './lib/localData'
 import { isOwnerRoute, OWNER_ROUTE_BASENAME } from './lib/displayMode'
 import { getDesignPreviewBase } from './design/labEditions'
@@ -28,7 +29,7 @@ const renderApp = () => {
           routes are flat & absolute with no splat routes, so v7_relativeSplatPath
           is behaviour-neutral and v7_startTransition is the recommended path. */}
       <BrowserRouter basename={basename} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <App />
+        <TourProvider><App /></TourProvider>
       </BrowserRouter>
     </React.StrictMode>,
   )

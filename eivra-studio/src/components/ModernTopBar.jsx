@@ -1,3 +1,4 @@
+import TourLauncher from './tour/TourLauncher'
 import { brandLocalStorage } from '../lib/brandStorage.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -201,7 +202,7 @@ export default function ModernTopBar({ layoutMode = 'modern', designLink = null,
     <header className="mn-bar">
       {/* ── Brand ── */}
       <button className="mn-brand" onClick={() => navigate('/new')}>
-        <span className="mn-brand-logo-wrap">
+        <span className="mn-brand-logo-wrap" data-tour="brand.logo">
           <C15DiamondCutV1Logo size="sm" />
         </span>
         <span className="mn-brand-name">Eivra Studio</span>
@@ -218,6 +219,7 @@ export default function ModernTopBar({ layoutMode = 'modern', designLink = null,
 
       {/* ── Preview / Full mode toggle ── */}
       <PreviewModeToggle previewOnly={designPreview} />
+      <TourLauncher />
 
       {/* ── Separator ── */}
       <div className="h-4 w-px bg-gradient-to-b from-transparent via-neutral-200 to-transparent mx-2 flex-shrink-0" />
@@ -232,6 +234,7 @@ export default function ModernTopBar({ layoutMode = 'modern', designLink = null,
           return (
             <div key={item.id} className="mn-nav-group">
               <button
+                data-tour={`nav.${item.id}`}
                 onClick={() => {
                   if (hasChildren) {
                     setOpenDropdown(openDropdown === item.id ? null : item.id)
@@ -291,6 +294,7 @@ export default function ModernTopBar({ layoutMode = 'modern', designLink = null,
 
         {/* Console — direct nav link (replaces gear icon dropdown) */}
         <button
+          data-tour="nav.params"
           onClick={() => navigate('/params')}
           className={`mn-settings-link ${location.pathname === '/params' ? 'mn-settings-link-active' : ''}`}
         >

@@ -138,7 +138,7 @@ function VerdictBanner({ report, runKey, onRename, children }) {
   ].join(' — ')
 
   return (
-    <div className={`wr-banner ${GRADE_TONE[kpi.grade] || 'is-grade-none'}`}>
+    <div data-tour="seasons.hero" data-tour-tag={`GRADE ${kpi.grade} · DEMO DATA`} className={`wr-banner ${GRADE_TONE[kpi.grade] || 'is-grade-none'}`}>
       <div className="wr-banner__sheen" aria-hidden="true" />
       <div className="wr-banner__grid" aria-hidden="true" />
       <span className="wr-banner__corner is-tl" aria-hidden="true" />
@@ -1415,7 +1415,7 @@ export default function WarReportPage() {
         <span>表现拆解</span>
         <h2>从结果里，找到真正有效的模式。</h2>
       </div>
-      <div className="wr-grid-3">
+      <div className="wr-grid-3" data-tour="seasons.split" data-tour-tag="LEAGUE · STAKE · STRATEGY · WEEK">
         <BreakdownList
           title="分联赛战果"
           Icon={Flag}

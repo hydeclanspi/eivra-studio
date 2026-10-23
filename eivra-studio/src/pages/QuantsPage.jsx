@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import useTourAction from '../components/tour/useTourAction'
+import { delay } from '../lib/tour/tourBus'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Archive,
   BookOpen,
@@ -559,6 +561,13 @@ export default function QuantsPage() {
   const [teamSearch, setTeamSearch] = useState('')
   const [showFullRatings, setShowFullRatings] = useState(false)
   const [guideOpen, setGuideOpen] = useState(false)
+  const tourGuide = useRef(false)
+  useTourAction('quants.openGuide', async ({ signal }) => {
+    tourGuide.current = true
+    setGuideOpen(true)
+    while (tourGuide.current) await delay(80, signal)
+    return { ok: true }
+  })
   const [researchState, setResearchState] = useState(readResearchState)
   const [projectId, setProjectId] = useState(null)
   const [brief, setBrief] = useState(emptyBrief)
@@ -1083,13 +1092,13 @@ export default function QuantsPage() {
           <button type="button" className="qr-button qr-button-primary" onClick={() => handleStartResearch('idea')}>
             <Plus size={15} strokeWidth={1.9} />开始一项研究
           </button>
-          <button type="button" className="qr-guide-trigger" onClick={() => setGuideOpen(true)} aria-haspopup="dialog">
+          <button type="button" data-tour="quants.guideTrigger" className="qr-guide-trigger" onClick={() => setGuideOpen(true)} aria-haspopup="dialog">
             <BookOpen size={15} strokeWidth={1.8} />使用指南与设计思路
           </button>
         </div>
       </div>
-      <QuantGuideDialog open={guideOpen} onClose={() => setGuideOpen(false)} />
-      <nav className="qr-workspace-tabs" aria-label="Quant 工作区">
+      <QuantGuideDialog open={guideOpen} onClose={() => { tourGuide.current = false; setGuideOpen(false) }} />
+      <nav data-tour="quants.workspaces" data-tour-tag="5 WORKSPACES · VERSIONED EVIDENCE" className="qr-workspace-tabs" aria-label="Quant 工作区">
         {[
           { id: 'home', label: '研究台', tone: 'home', Icon: BookOpen },
           { id: 'lab', label: '实验工作台', tone: 'lab', Icon: FlaskConical },

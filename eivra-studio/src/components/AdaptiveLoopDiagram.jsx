@@ -1,3 +1,4 @@
+import { useDemoFlourish } from '../lib/tour/demoChoreography'
 import { brandSessionStorage } from '../lib/brandStorage.js'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import {
@@ -87,12 +88,14 @@ export default function AdaptiveLoopDiagram({ sampleCount = 0, updateCount = 0 }
   const data = { sampleCount, updateCount }
   const containerRef = useRef(null)
   const firedRef = useRef(false)
+  const flourishesAllowed = useDemoFlourish()
   const [tracing, setTracing] = useState(false)
   const [coachOpen, setCoachOpen] = useState(false)
 
   // Fire once when the loop scrolls into view: trace the flow and — in
   // preview mode, once per session — float the coachmark.
   useEffect(() => {
+    if (!flourishesAllowed) { setCoachOpen(false); setTracing(false); return undefined }
     const el = containerRef.current
     if (!el || firedRef.current) return undefined
 
@@ -122,7 +125,7 @@ export default function AdaptiveLoopDiagram({ sampleCount = 0, updateCount = 0 }
     )
     obs.observe(el)
     return () => obs.disconnect()
-  }, [])
+  }, [flourishesAllowed])
 
   // Retire the trace class once the sheen has swept through.
   useEffect(() => {

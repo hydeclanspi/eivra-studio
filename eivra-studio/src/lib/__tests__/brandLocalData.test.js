@@ -7,6 +7,24 @@ vi.mock('../cloudSync', () => ({ getTimeMachineSession: () => null, isInTimeMach
 afterEach(() => { vi.unstubAllGlobals(); vi.resetModules() })
 
 describe('existing owner data at first Eivra load', () => {
+  it('does not re-enter genesis when mounted listeners read during first unlock', async () => {
+    const data = new Map()
+    let readConfig, nestedReads = 0
+    const writes = new Map()
+    vi.stubGlobal('window', {
+      location: { pathname: '/arsenal/new' },
+      localStorage: { getItem: (key) => data.get(key) ?? null, setItem: (key, value) => { data.set(key, value); writes.set(key, (writes.get(key) || 0) + 1) } },
+      sessionStorage: { getItem: () => null },
+      addEventListener: vi.fn(), removeEventListener: vi.fn(),
+      dispatchEvent: () => { if (readConfig && nestedReads++ < 20) readConfig() },
+    })
+    const { getSystemConfig } = await import('../localData.js')
+    readConfig = getSystemConfig
+    expect(() => getSystemConfig()).not.toThrow()
+    expect(nestedReads).toBeLessThan(20)
+    expect(writes.get('eivra.investments.v1')).toBe(1)
+    expect(data.get('eivra.genesis_applied.v1')).toBe('1')
+  })
   it('keeps saved positions and patch markers rather than reseeding genesis', async () => {
     const prefix = LEGACY_BRAND.storagePrefix
     const storedPositions = JSON.stringify([{ id: 'synthetic-existing-position', created_at: '2026-10-01T00:00:00Z', matches: [] }])

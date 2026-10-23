@@ -1,3 +1,4 @@
+import { useDemoFlourish } from '../lib/tour/demoChoreography'
 import { brandSessionStorage } from '../lib/brandStorage.js'
 import { useEffect, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
@@ -51,6 +52,7 @@ const markShownThisSession = () => {
 }
 
 export default function DemoBubble() {
+  const flourishesAllowed = useDemoFlourish()
   const [phase, setPhase] = useState('pre')
   const [hovered, setHovered] = useState(false)
   const [sweepKey, setSweepKey] = useState(0) // keyed remount replays the sheen
@@ -58,6 +60,7 @@ export default function DemoBubble() {
 
   // Appear after a short beat — unless already nudged this session.
   useEffect(() => {
+    if (!flourishesAllowed) { setPhase('pre'); return undefined }
     if (alreadyShownThisSession()) {
       setPhase('done')
       return undefined
@@ -67,7 +70,7 @@ export default function DemoBubble() {
       setPhase('enter')
     }, APPEAR_DELAY_MS)
     return () => window.clearTimeout(timer)
-  }, [])
+  }, [flourishesAllowed])
 
   // Drive enter → idle → done by timers matched to the CSS durations.
   // (More robust than animationend, which can be dropped under HMR /
@@ -125,7 +128,7 @@ export default function DemoBubble() {
 
   return (
     <>
-      {showBubble && (
+      {showBubble && flourishesAllowed && (
         <div
           className={`demo-bubble${stateClass}`}
           role="button"

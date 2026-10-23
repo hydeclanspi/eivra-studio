@@ -353,7 +353,7 @@ export default function PreMatchBoard({
   }
 
   return (
-    <section className="pre-board" data-testid="pre-match-board">
+    <section data-tour="new.scoreCloud" data-tour-tag={`P(HOME) ${pct(myMarkets.oneXTwo.home)} · JUDGMENT DISTRIBUTION`} className="pre-board" data-testid="pre-match-board">
       <header className="pre-board-head">
         <span className="pre-board-title">我的进球分布</span>
         <span className="pre-board-sub">

@@ -1,3 +1,4 @@
+import { useDemoFlourish } from '../lib/tour/demoChoreography'
 import { brandSessionStorage } from '../lib/brandStorage.js'
 import { useEffect, useState } from 'react'
 import { ChevronsLeft, ChevronsRight } from 'lucide-react'
@@ -47,6 +48,7 @@ const markHintedThisSession = () => {
 }
 
 export default function ComboExpandHint({ collapsed, onToggle }) {
+  const flourishesAllowed = useDemoFlourish()
   const [phase, setPhase] = useState('idle')
   const [coachOpen, setCoachOpen] = useState(false)
 
@@ -54,6 +56,7 @@ export default function ComboExpandHint({ collapsed, onToggle }) {
   // this session. Intentionally mount-only — a later manual collapse must
   // not re-trigger the attention sequence.
   useEffect(() => {
+    if (!flourishesAllowed) { setCoachOpen(false); setPhase('idle'); return undefined }
     if (!collapsed || alreadyHintedThisSession()) return undefined
     // Mark inside the timer (not synchronously here) so React StrictMode's
     // mount→cleanup→remount in dev doesn't set the flag on the throwaway
@@ -65,7 +68,7 @@ export default function ComboExpandHint({ collapsed, onToggle }) {
     }, START_DELAY_MS)
     return () => window.clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [flourishesAllowed])
 
   // Drive sonar → nudge → done with timers matched to the CSS durations.
   useEffect(() => {

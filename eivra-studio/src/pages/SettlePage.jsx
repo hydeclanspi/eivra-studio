@@ -989,7 +989,7 @@ export default function SettlePage() {
       </div>
 
       {pendingCombos.length > 0 && (
-        <div className="settle-ai-quick-card motion-v2-surface glow-card mb-4 overflow-hidden rounded-2xl border">
+        <div data-tour="settle.quick" data-tour-tag={`${pendingCombos.length} PENDING · DEMO`} className="settle-ai-quick-card motion-v2-surface glow-card mb-4 overflow-hidden rounded-2xl border">
           <button
             type="button"
             onClick={() => setSettleQuickOpen((open) => !open)}

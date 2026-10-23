@@ -4387,6 +4387,8 @@ export default function ParamsPage({ openModal, previewLayoutMode }) {
 
       <div
         id="console-grp-overview"
+        data-tour="console.fit"
+        data-tour-tag={`FIT SCORE ${ratingFitScore !== null ? ratingFitScore.toFixed(2) : 'UNAVAILABLE'} · ${analyticsProgress.rating ? ratingRows.length + ' SAMPLES' : 'COMPUTING'}`}
         onClick={openRatingModal}
         className="console-interactive-surface glow-card relative z-30 hover:z-40 overflow-visible rounded-2xl border border-indigo-200/75 bg-[linear-gradient(145deg,rgba(244,247,255,0.96),rgba(255,255,255,0.95)_48%,rgba(238,247,255,0.92))] p-6 mb-6 cursor-pointer shadow-[0_24px_44px_-34px_rgba(79,70,229,0.42)]"
       >

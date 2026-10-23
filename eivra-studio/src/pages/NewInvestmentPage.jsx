@@ -1,3 +1,6 @@
+import useTourAction from '../components/tour/useTourAction'
+import { delay, tourCache } from '../lib/tour/tourBus'
+import { useDemoFlourish } from '../lib/tour/demoChoreography'
 import { brandLocalStorage, brandSessionStorage } from '../lib/brandStorage.js'
 import { predictMatchProbability } from "../lib/matchPrediction"
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -324,11 +327,14 @@ export default function NewInvestmentPage() {
   const maskText = usePreviewTextMask()
   const displayMode = useDisplayMode()
   const isPreview = displayMode === PREVIEW_MODE
+  const flourishesAllowed = useDemoFlourish()
+  const tourFormOwned = useRef(isPreview && Boolean(tourCache.get('new.form')))
+  const tourParsedText = useRef(isPreview ? tourCache.get('new.parsed') : null)
   const [dataVersion, setDataVersion] = useState(0)
   // 进入页面时一次性读取草稿——刷新 / 标签页被回收后恢复进行中的录入。
   const restoredDraftRef = useRef(undefined)
   if (restoredDraftRef.current === undefined) {
-    restoredDraftRef.current = readInvestmentDraft()
+    restoredDraftRef.current = (isPreview && tourCache.get('new.form')) || readInvestmentDraft()
   }
   const restoredDraft = restoredDraftRef.current
   const [parlaySize, setParlaySize] = useState(() => restoredDraft?.parlaySize ?? 1)
@@ -340,11 +346,11 @@ export default function NewInvestmentPage() {
   const [profilesVersion, setProfilesVersion] = useState(0)
   const [historyPrefillApplied, setHistoryPrefillApplied] = useState({})
   const [historyFloatDismissed, setHistoryFloatDismissed] = useState({})
-  const [quickInputText, setQuickInputText] = useState('')
+  const [quickInputText, setQuickInputText] = useState(() => isPreview ? tourCache.get('new.text') || '' : '')
   // 首屏自动展卷后保持展开；用户仍可手动收起。
   const [quickInputOpen, setQuickInputOpen] = useState(false)
   const [quickIntroUnfurl, setQuickIntroUnfurl] = useState(false)
-  const [quickInputResult, setQuickInputResult] = useState(null)
+  const [quickInputResult, setQuickInputResult] = useState(() => isPreview ? tourCache.get('new.result') || null : null)
   const [quickComboIndex, setQuickComboIndex] = useState(0)
   const [quickInputPhase, setQuickInputPhase] = useState('idle')
   const [quickInputMeta, setQuickInputMeta] = useState(null)
@@ -362,6 +368,7 @@ export default function NewInvestmentPage() {
   const quickShown = quickInputOpen
 
   useEffect(() => {
+    if (!flourishesAllowed) { setQuickIntroUnfurl(false); return undefined }
     let shouldPlayIntro = true
     try {
       shouldPlayIntro = brandSessionStorage.getItem(QI_AUTO_UNFURL_SESSION_KEY) !== '1'
@@ -399,7 +406,7 @@ export default function NewInvestmentPage() {
       timers.forEach((timer) => window.clearTimeout(timer))
       quickUnfurlTimersRef.current = []
     }
-  }, [])
+  }, [flourishesAllowed])
 
   useEffect(() => () => quickAiAbortRef.current?.abort(), [])
 
@@ -615,6 +622,10 @@ export default function NewInvestmentPage() {
   // 进行中的表单实时存草稿（刷新 / 标签页被回收也不丢）；空表单则清掉草稿。
   useEffect(() => {
     const handle = window.setTimeout(() => {
+      if (tourFormOwned.current) {
+        tourCache.set('new.form', { parlaySize, matches, comboName, actualInput })
+        return
+      }
       if (draftHasContent(matches, comboName)) {
         writeInvestmentDraft({ parlaySize, matches, comboName, actualInput })
       } else {
@@ -1381,6 +1392,36 @@ export default function NewInvestmentPage() {
     }
   }
 
+  useTourAction('new.ensureQuickInputParsed', async ({ text, signal, reduced, instant, beforeParse }) => {
+    if (!isPreview || signal.aborted) return { ok: false, reason: 'not_preview' }
+    setQuickInputOpen(true)
+    if (tourParsedText.current === text && quickInputResult) return { ok: true, reused: true }
+    tourFormOwned.current = true
+    setViewMode('pre')
+    setQuickInputResult(null)
+    if (!reduced && !instant) {
+      setQuickInputText('')
+      for (let i = 1; i <= text.length; i++) {
+        await delay(45, signal)
+        setQuickInputText(text.slice(0, i))
+      }
+      await beforeParse?.()
+    } else setQuickInputText(text)
+    if (signal.aborted) return { ok: false, reason: 'cancelled' }
+    await handleQuickInput(text)
+    setHistoryFloatDismissed({ 0: true })
+    setActiveTeamInput(null)
+    tourParsedText.current = text
+    tourCache.set('new.parsed', text)
+    return { ok: true }
+  })
+  useEffect(() => {
+    if (tourFormOwned.current && quickInputResult) {
+      tourCache.set('new.result', quickInputResult)
+      tourCache.set('new.text', quickInputText)
+    }
+  }, [quickInputResult, quickInputText])
+
   const resetQuickInput = ({ restoreSource = false } = {}) => {
     quickAiAbortRef.current?.abort()
     setQuickInputText(restoreSource ? quickInputSourceRef.current : '')
@@ -1390,6 +1431,23 @@ export default function NewInvestmentPage() {
     setQuickInputPhase('idle')
     setQuickInputMeta(null)
   }
+
+  useEffect(() => {
+    if (isPreview || !tourFormOwned.current) return
+    // Unlock returns to the visitor's original persistent form; demo values
+    // must never become the starting point for an owner's next real write.
+    const draft = readInvestmentDraft()
+    tourFormOwned.current = false
+    tourParsedText.current = null
+    prevParlaySizeRef.current = draft?.parlaySize || 1
+    setParlaySize(draft?.parlaySize || 1)
+    setMatches(draft?.matches || [createEmptyMatch()])
+    setComboName(draft?.comboName || '')
+    setActualInput(draft?.actualInput || '150')
+    setQuickInputText('')
+    setQuickInputResult(null)
+    setQuickInputPhase('idle')
+  }, [isPreview])
 
   const persistInvestmentFromPayload = (payload) => {
     if (!payload) return null
@@ -1562,7 +1620,7 @@ export default function NewInvestmentPage() {
   )
 
   const quickInputCard = (
-      <div className="settle-ai-quick-card motion-v2-surface glow-card mb-5 overflow-hidden rounded-2xl border lab-new-quick">
+      <div data-tour="new.quickInput" data-tour-tag="LOCAL PARSER · DEMO" className="settle-ai-quick-card motion-v2-surface glow-card mb-5 overflow-hidden rounded-2xl border lab-new-quick">
         <button
           onClick={() => {
             quickUnfurlTimersRef.current.forEach((timer) => window.clearTimeout(timer))
@@ -1629,6 +1687,7 @@ export default function NewInvestmentPage() {
                 {!quickInputHasStructuredResult && (
                   <button
                     type="button"
+                    data-tour="new.parse"
                     onClick={handleQuickInput}
                     disabled={!quickInputText.trim() || quickInputPhase === 'loading'}
                     aria-busy={quickInputPhase === 'loading'}
@@ -1763,7 +1822,14 @@ export default function NewInvestmentPage() {
   )
 
   return (
-    <div className="page-shell page-content-fluid motion-v2-scope lab-new-page" data-investment-view={viewMode}>
+    <div onChangeCapture={(event) => {
+      if (!event.nativeEvent.isTrusted) return
+      tourFormOwned.current = false
+      tourParsedText.current = null
+      // A real edit hands this form back to the visitor. A later route mount
+      // must restore their draft, not the tour snapshot it replaced.
+      for (const key of ['new.form', 'new.parsed', 'new.text', 'new.result']) tourCache.delete(key)
+    }} className="page-shell page-content-fluid motion-v2-scope lab-new-page" data-investment-view={viewMode}>
       <div className="mb-8 lab-page-heading flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-semibold text-stone-800 font-display">新建投资</h2>
@@ -2389,7 +2455,7 @@ export default function NewInvestmentPage() {
           </div>
         </div>
 
-        <div className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 px-6 py-6 mt-6 pre-footer-card">
+        <div data-tour="new.sizing" data-tour-tag={`KELLY ÷ ${effectiveKellyDivisor.toFixed(1)} · CAP ${Math.round(systemConfig.riskCapRatio * 100)}%`} className="motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100 px-6 py-6 mt-6 pre-footer-card">
           {combinedAtomicProfile.modelStatus === 'approximate' && (
             <p role="status" className="mb-3 text-xs text-amber-700">同场混合或重叠选项尚不支持精确联合建模，已停用自动仓位建议；仍可按实际投入手动入档。</p>
           )}
