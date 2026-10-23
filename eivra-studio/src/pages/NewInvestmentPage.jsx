@@ -1657,7 +1657,7 @@ export default function NewInvestmentPage() {
                 }}
                 maxLength={AI_PARSE_MAX_TEXT_LENGTH}
                 readOnly={quickInputHasStructuredResult}
-                placeholder={'示例：1. 利兹联1-2拜仁 conf 0.45 odds 4.3 fse 0.72 mode 赌一把  阿森纳2-0利物浦 odds 3.9 conf 0.71  140块\n2. 巴萨3-3皇马 odds 7.5 20块'}
+                placeholder={'示例：1. 利兹联1-2拜仁 conf 0.45 odds 4.3 fse 0.72 mode 常规-杠杆  阿森纳2-0利物浦 odds 3.9 conf 0.71  140块\n2. 巴萨3-3皇马 odds 7.5 20块'}
                 rows={quickInputHasStructuredResult ? Math.min(16, 4 + quickInputMatchCount * 3) : 3}
                 aria-label={quickInputHasStructuredResult ? '解析后的结构化投资数据' : '自然语言投资描述'}
                 aria-describedby="quick-input-privacy"
