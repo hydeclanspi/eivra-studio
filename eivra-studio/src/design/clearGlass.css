@@ -17,6 +17,13 @@ html.liquid-glass-on {
   --clear-glass-sheen: rgba(255, 255, 255, 0.06);
 }
 
+/* Hongguo's restored saturated accents need deeper secondary ink. Keep the
+ * transparent material and semantic status colours unchanged. */
+html.liquid-glass-on[data-liquid-glass-style='hongguo'] {
+  --clear-glass-muted: #20363a;
+  --clear-glass-solid: #f4f8f6;
+}
+
 html.liquid-glass-on.liquid-glass-dark {
   --clear-glass-fill: color-mix(in srgb, var(--fx-deep, #0c1426) 34%, transparent);
   --clear-glass-reading: rgba(6, 20, 34, 0.43);

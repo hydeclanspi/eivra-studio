@@ -64,53 +64,63 @@
   border-radius: inherit;
 }
 
-/* Hongguo keeps its cyan/orange identity in two tangible surfaces: a cool
- * ceramic sweep and a small warm return at the edge. The reading field stays
- * porcelain. Both background budgets and both pickers use this composition,
- * without the old full-screen colour fog, bitmap or animated shader. */
+/* Hongguo's icon supplies the mint/orange hue relationship, not official brand
+ * tokens. Each curved surface contains both hues: mint with apricot light above,
+ * amber returning to mint below. Relief and fine contours supply structure;
+ * light stays local instead of splitting the composition with a white band. */
 .composed-glass-scene--hongguo {
-  background: #eff2ee;
+  --hongguo-mint: #6adab9;
+  background: linear-gradient(128deg, #d7eee0 12%, #efe7cf 47%, #cae9da 82%);
 }
 .composed-glass-scene--hongguo .composed-glass-scene__cool {
-  width: 164%;
+  width: 158%;
   height: 166%;
-  left: -14%;
-  top: -106%;
-  border-radius: 49%;
-  transform: rotate(-18deg);
-  background: linear-gradient(164deg, #fbfcf9 45%, #e4eeea 71%, #bad4cd 88%, #83afab);
+  left: 3%;
+  top: -111%;
+  border-radius: 48% 52% 46% 54%;
+  transform: rotate(-22deg);
+  background:
+    radial-gradient(ellipse 38% 24% at 18% 70%, #f5cc96 4%, #f5d6a38c 40%, transparent 78%),
+    linear-gradient(162deg, #edf9ef 40%, #d9f6ea 58%, #a0e9d1 70%, var(--hongguo-mint) 82%, #8ddfc5);
   box-shadow:
-    inset 0 -1px 0 #658e8526,
-    0 1px 0 #ffffffeb,
-    0 5px 10px #355d4e08,
-    0 18px 36px #355d4e08;
+    inset 0 -1px 0 #63c9a91a,
+    0 1px 0 #ffffffed,
+    0 5px 12px #1c9a720a,
+    0 20px 36px #146b510a;
   filter: none;
 }
 .composed-glass-scene--hongguo .composed-glass-scene__warm {
-  width: 125%;
-  height: 122%;
-  left: 38%;
-  top: 76%;
-  border-radius: 49%;
-  transform: rotate(-23deg);
-  background: linear-gradient(145deg, #e8beaa, #f3e0d0 48%, #faf8f1 78%);
+  width: 168%;
+  height: 126%;
+  left: -40%;
+  top: 66%;
+  border-radius: 48% 52% 50% 50%;
+  transform: rotate(12deg);
+  background: linear-gradient(112deg, #f8d8a6 8%, #f0b47c 35%, #dedab0 60%, #a0dfc2 83%, var(--hongguo-mint));
   box-shadow:
-    inset 0 2px 1px #ffffffc9,
-    0 -1px 0 #b276582e,
-    0 -12px 28px #6d533e0a;
+    0 -1px 0 #fff8e680,
+    0 -8px 24px #a8784906;
   filter: none;
 }
+/* A single fine contour on the upper plane; the warm return stays seamless. */
+.composed-glass-scene--hongguo .composed-glass-scene__cool::after {
+  content: '';
+  position: absolute;
+  inset: 2%;
+  border: 1px solid #ffffff70;
+  border-radius: inherit;
+}
 .composed-glass-scene--hongguo .composed-glass-scene__light {
-  background: linear-gradient(108deg, #ffffff24, transparent 42%, #ffffff0a);
+  background: linear-gradient(108deg, #ffffff0a, transparent 45%);
 }
 /* Wide swatches need a shallower angle so both material edges remain legible. */
 .composed-glass-scene--hongguo.composed-glass-scene--preview .composed-glass-scene__cool {
   transform: rotate(-6deg);
 }
 .composed-glass-scene--hongguo.composed-glass-scene--preview .composed-glass-scene__warm {
-  top: 68%;
-  left: 30%;
-  transform: rotate(-8deg);
+  top: 60%;
+  left: -40%;
+  transform: rotate(8deg);
 }
 
 /* Choices reflow instead of forcing the Console card wider than its page. */
@@ -258,16 +268,16 @@ html.liquid-glass-on .theme-modern .team-select-card:hover::before {
     width: 225%;
   }
   .composed-glass-scene--hongguo:not(.composed-glass-scene--preview) .composed-glass-scene__cool {
-    left: -106%;
-    top: -98%;
+    left: -78%;
+    top: -104%;
     width: 280%;
     transform: rotate(-12deg);
   }
   .composed-glass-scene--hongguo:not(.composed-glass-scene--preview) .composed-glass-scene__warm {
-    left: 20%;
-    top: 80%;
-    width: 210%;
-    transform: rotate(-18deg);
+    left: -92%;
+    top: 67%;
+    width: 240%;
+    transform: rotate(14deg);
   }
 }
 @media (prefers-reduced-motion: reduce) {
