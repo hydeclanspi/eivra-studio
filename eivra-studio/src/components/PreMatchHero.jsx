@@ -91,7 +91,7 @@ const TeamPanel = ({ side, team, onTeamChange, onTeamFocus, onTeamBlur, suggesti
         value={team}
         onChange={(event) => onTeamChange(side, event.target.value)}
         onFocus={() => onTeamFocus(side)}
-        onBlur={() => setTimeout(() => onTeamBlur(side), 120)}
+        onBlur={() => onTeamBlur(side)}
         placeholder={side === 'home' ? '主队' : '客队'}
         aria-label={side === 'home' ? '主队' : '客队'}
         className="pre-hero-input"

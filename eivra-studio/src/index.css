@@ -604,8 +604,8 @@
 }
 
 .history-float-wrap {
-  width: clamp(220px, 24vw, 306px);
-  animation: historyFloatDrift 5.2s ease-in-out 0.45s infinite;
+  width: 100%;
+  min-width: 0;
 }
 
 .history-float-panel {

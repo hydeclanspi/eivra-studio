@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState }
 import { useLocation, useNavigate } from 'react-router-dom'
 import { getDisplayMode, useDisplayMode } from '../../lib/displayMode'
 import { isDesignPreview } from '../../design/labEditions'
-import { ACTS, DEMO_SENTENCE, STEPS, navAnchor } from '../../lib/tour/tourScript'
+import { ACTS, DEMO_SENTENCE, ENTRY_DELAY_MS, PAGE_OVERVIEW_MS, ROUTE_LEAD_MS, STEPS, navAnchor } from '../../lib/tour/tourScript'
 import { initialTourState, stepId, tourReducer } from '../../lib/tour/tourMachine'
 import { readTourRecord, readTourSession, rememberTour, saveTourSession, sessionSuppressed, shouldAutoOffer, suppressTourSession, tourEligible } from '../../lib/tour/tourGate'
 import { delay, tourBus, tourCache } from '../../lib/tour/tourBus'
@@ -12,6 +12,7 @@ import { centerOf, findAnchor, rectOf, scrollToAnchor, visibleCards, waitForAnch
 import { TourContext } from './TourContext'
 import TourStage from './TourStage'
 import TourLauncher from './TourLauncher'
+import { waitForInitialPage, waitForOverviewPaint } from './tourReady'
 import '../../design/tour.css'
 
 const defaultTrack = () => window.innerWidth < 768 ? 'short' : 'full'
@@ -27,6 +28,7 @@ export default function TourProvider({ children }) {
   const [reduced, setReduced] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
   const light = useRef(null), controller = useRef(null), guideController = useRef(null), expectedPath = useRef(null)
   const stateRef = useRef(state), locationRef = useRef(location), bootstrapped = useRef(false)
+  const bootController = useRef(null), overviewUntil = useRef(0)
   stateRef.current = state; locationRef.current = location
   const step = STEPS[stepId(state)]
   const onStage = eligible && ['offered', 'running', 'paused', 'finale'].includes(state.status)
@@ -36,12 +38,14 @@ export default function TourProvider({ children }) {
   }, [])
   const start = useCallback((track = defaultTrack()) => {
     if (!eligible) return
-    stopEffects(); guideController.current?.abort(); dispatch({ type: 'START', track })
+    bootController.current?.abort(); bootstrapped.current = true
+    stopEffects(); guideController.current?.abort(); tourBus.reset(); overviewUntil.current = 0
+    dispatch({ type: 'START', track })
   }, [eligible, stopEffects])
   const pause = useCallback(() => { stopEffects(); dispatch({ type: 'PAUSE' }) }, [stopEffects])
   const resume = useCallback(() => dispatch({ type: 'RESUME' }), [])
   const exit = useCallback(() => {
-    stopEffects(); guideController.current?.abort()
+    stopEffects(); guideController.current?.abort(); tourBus.reset()
     const status = stateRef.current.status === 'finale' ? 'completed' : 'dismissed'
     rememberTour(status); saveTourSession({ status }); dispatch({ type: 'EXIT' })
   }, [stopEffects])
@@ -58,15 +62,17 @@ export default function TourProvider({ children }) {
       return undefined
     }
     if (bootstrapped.current) return undefined
-    const timer = setTimeout(() => {
+    const ctl = new AbortController(); bootController.current = ctl
+    waitForInitialPage(ctl.signal, ENTRY_DELAY_MS).then(() => {
+      if (bootstrapped.current) return
       bootstrapped.current = true
       const saved = readTourSession()
       if (['running', 'paused'].includes(saved?.status)) dispatch({ type: 'RESTORE', record: saved })
       else if (['1', 'short', 'dev'].includes(param)) start(param === 'short' ? 'short' : defaultTrack())
       else if (shouldAutoOffer(locationRef.current.pathname, readTourRecord())) dispatch({ type: 'OFFER', track: defaultTrack() })
       else setTourOnStage(false)
-    }, ['1', 'short', 'dev'].includes(param) ? 80 : 600)
-    return () => clearTimeout(timer)
+    }).catch(() => { /* Navigation or a manual start cancelled the welcome. */ })
+    return () => ctl.abort()
   }, [eligible, param, start, stopEffects])
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -97,7 +103,7 @@ export default function TourProvider({ children }) {
     if (!eligible || state.status !== 'running') return undefined
     const ctl = new AbortController(); controller.current = ctl
     const renderer = light.current
-    const signal = ctl.signal, current = STEPS[stepId(state)], begin = performance.now()
+    const signal = ctl.signal, current = STEPS[stepId(state)]
     const play = (fx) => { if (!reduced && !signal.aborted) light.current?.play(fx) }
     const focus = async (name, scroll = true) => {
       const element = await waitForAnchor(name, signal)
@@ -136,14 +142,24 @@ export default function TourProvider({ children }) {
         dispatch({ type: 'PHASE', phase: 'routing' })
         const nav = findAnchor(navAnchor(current.route))
         if (nav) play({ kind: 'beam', points: [centerOf(document.querySelector('.tour-host-avatar')), centerOf(nav)], duration: 420 })
-        await delay(reduced ? 0 : 420, signal)
+        await delay(reduced ? 0 : ROUTE_LEAD_MS, signal)
         play({ kind: 'sweep', duration: 950 })
         expectedPath.current = current.route
         navigate({ pathname: current.route, search: locationRef.current.search })
         const routingStart = performance.now()
         while (locationRef.current.pathname !== current.route && performance.now() - routingStart < 4000) await delay(30, signal)
-        await delay(reduced ? 30 : 530, signal)
+        document.querySelector('.app-main-scroll')?.scrollTo({ top: 0, behavior: 'instant' })
+        overviewUntil.current = performance.now() + PAGE_OVERVIEW_MS
       }
+      if (overviewUntil.current > performance.now()) {
+        dispatch({ type: 'PHASE', phase: 'settling' })
+        await waitForOverviewPaint(signal)
+        // Count the five seconds from the unobscured page's actual paint.
+        // Heavy route rendering must not consume the visitor's reading time.
+        if (!sameRoute) overviewUntil.current = performance.now() + PAGE_OVERVIEW_MS
+        await delay(Math.max(0, overviewUntil.current - performance.now()), signal)
+      }
+      const contentBegin = performance.now()
       dispatch({ type: 'PHASE', phase: 'anchoring' })
       if (current.prepare) await tourBus.run(current.prepare, { text: DEMO_SENTENCE, reduced: true, instant: true }, { signal })
       let target = await focus(current.preAnchor || current.anchor)
@@ -156,6 +172,7 @@ export default function TourProvider({ children }) {
           play({ kind: 'lasers', lanes, duration: 3000 })
           setNotice('正在求解…')
         }
+        if (current.action === 'new.showPostImport') await click('new.postImport')
         // Yield before the synchronous solver so the host and laser layer paint first.
         await delay(40, signal)
         const outcome = await tourBus.run(current.action, { text: DEMO_SENTENCE, reduced, beforeParse: () => click('new.parse') }, { signal })
@@ -163,16 +180,17 @@ export default function TourProvider({ children }) {
         target = await focus(outcome?.ok ? current.anchor : (current.preAnchor || current.anchor))
       }
       if (!target) setNotice('此区域暂不可用，继续为你介绍。')
-      const elapsed = performance.now() - begin - (sameRoute ? 0 : 950)
+      const elapsed = performance.now() - contentBegin
       dispatch({ type: 'PHASE', phase: 'dwelling', remaining: state.remaining ?? Math.max(1600, current.duration - elapsed) })
     }
     run().catch((error) => {
       if (!signal.aborted) { setNotice('此区域暂不可用，继续为你介绍。'); dispatch({ type: 'PHASE', phase: 'dwelling', remaining: 2500 }); console.warn('[Tour] Step unavailable', error.name) }
     })
     return () => { ctl.abort(); renderer?.clear(); setPointer(null) }
-    // One cancellable driver per step/resume; PHASE/TICK must not restart it.
+    // One cancellable driver per step/resume. Router navigate changes identity
+    // on navigation; depending on it would cancel the five-second overview.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eligible, state.status, state.index, state.epoch, state.track, reduced, navigate])
+  }, [eligible, state.status, state.index, state.epoch, state.track, reduced])
 
   useEffect(() => {
     if (state.status !== 'running' || state.phase !== 'dwelling') return undefined
@@ -182,8 +200,11 @@ export default function TourProvider({ children }) {
   }, [state.status, state.phase])
   useEffect(() => { if (state.status === 'running' && state.phase === 'dwelling' && state.remaining <= 0) dispatch({ type: 'NEXT' }) }, [state.status, state.phase, state.remaining])
   useEffect(() => {
-    if (state.status === 'finale') { spendDemoFlourishes(); rememberTour('completed'); saveTourSession({ status: 'completed' }) }
-  }, [state.status])
+    if (state.status === 'finale') {
+      stopEffects(); tourBus.reset(); spendDemoFlourishes()
+      rememberTour('completed'); saveTourSession({ status: 'completed' })
+    }
+  }, [state.status, stopEffects])
   useEffect(() => {
     const save = () => {
       const s = stateRef.current

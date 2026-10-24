@@ -1,4 +1,4 @@
-import useTourAction from '../components/tour/useTourAction'
+import useTourAction, { useTourReset } from '../components/tour/useTourAction'
 import { delay, tourCache } from '../lib/tour/tourBus'
 import { useDemoFlourish } from '../lib/tour/demoChoreography'
 import { brandLocalStorage, brandSessionStorage } from '../lib/brandStorage.js'
@@ -343,6 +343,10 @@ export default function NewInvestmentPage() {
   const [showModeDropdown, setShowModeDropdown] = useState({})
   const [actualInput, setActualInput] = useState(() => restoredDraft?.actualInput ?? '150')
   const [activeTeamInput, setActiveTeamInput] = useState(null)
+  const releaseTeamFocus = (event, matchIdx, side) => {
+    if (event.relatedTarget?.closest(`[data-history-match="${matchIdx}"]`)) return
+    setActiveTeamInput((current) => current?.matchIdx === matchIdx && current.side === side ? null : current)
+  }
   const [profilesVersion, setProfilesVersion] = useState(0)
   const [historyPrefillApplied, setHistoryPrefillApplied] = useState({})
   const [historyFloatDismissed, setHistoryFloatDismissed] = useState({})
@@ -366,6 +370,14 @@ export default function NewInvestmentPage() {
   const quickInputSourceRef = useRef('')
 
   const quickShown = quickInputOpen
+
+  useEffect(() => { setActiveTeamInput(null) }, [viewMode, flourishesAllowed])
+  useEffect(() => {
+    const clearFocus = () => setActiveTeamInput(null)
+    window.addEventListener('blur', clearFocus)
+    document.addEventListener('visibilitychange', clearFocus)
+    return () => { window.removeEventListener('blur', clearFocus); document.removeEventListener('visibilitychange', clearFocus) }
+  }, [])
 
   useEffect(() => {
     if (!flourishesAllowed) { setQuickIntroUnfurl(false); return undefined }
@@ -1032,6 +1044,7 @@ export default function NewInvestmentPage() {
       return next
     })
     setShowModeDropdown((prev) => ({ ...prev, [idx]: false }))
+    setActiveTeamInput(null)
   }
 
   const clearHistoryPrefill = (idx) => {
@@ -1392,10 +1405,10 @@ export default function NewInvestmentPage() {
     }
   }
 
-  useTourAction('new.ensureQuickInputParsed', async ({ text, signal, reduced, instant, beforeParse }) => {
+  const ensureTourInput = async ({ text, signal, reduced, instant, beforeParse }) => {
     if (!isPreview || signal.aborted) return { ok: false, reason: 'not_preview' }
     setQuickInputOpen(true)
-    if (tourParsedText.current === text && quickInputResult) return { ok: true, reused: true }
+    if (tourParsedText.current === text && quickInputResult && viewMode === 'pre') return { ok: true, reused: true }
     tourFormOwned.current = true
     setViewMode('pre')
     setQuickInputResult(null)
@@ -1409,10 +1422,22 @@ export default function NewInvestmentPage() {
     } else setQuickInputText(text)
     if (signal.aborted) return { ok: false, reason: 'cancelled' }
     await handleQuickInput(text)
+    if (signal.aborted) return { ok: false, reason: 'cancelled' }
     setHistoryFloatDismissed({ 0: true })
     setActiveTeamInput(null)
     tourParsedText.current = text
     tourCache.set('new.parsed', text)
+    return { ok: true }
+  }
+  useTourAction('new.ensureQuickInputParsed', ensureTourInput)
+  const activatePostImport = () => {
+    setViewMode('post')
+    setParlaySize((size) => (size === 1 ? 2 : size))
+  }
+  useTourAction('new.showPostImport', async (payload) => {
+    const result = await ensureTourInput({ ...payload, instant: true })
+    if (!result.ok || payload.signal.aborted) return result
+    activatePostImport()
     return { ok: true }
   })
   useEffect(() => {
@@ -1432,10 +1457,10 @@ export default function NewInvestmentPage() {
     setQuickInputMeta(null)
   }
 
-  useEffect(() => {
-    if (isPreview || !tourFormOwned.current) return
-    // Unlock returns to the visitor's original persistent form; demo values
-    // must never become the starting point for an owner's next real write.
+  const clearTourForm = () => {
+    if (!tourFormOwned.current) return
+    quickAiAbortRef.current?.abort()
+    // Demo edits stay in memory, so this remains the pre-tour visitor draft.
     const draft = readInvestmentDraft()
     tourFormOwned.current = false
     tourParsedText.current = null
@@ -1447,6 +1472,17 @@ export default function NewInvestmentPage() {
     setQuickInputText('')
     setQuickInputResult(null)
     setQuickInputPhase('idle')
+    setQuickInputMeta(null)
+    setQuickComboIndex(0)
+    setQuickInputOpen(false)
+    setViewMode('pre')
+    setActiveTeamInput(null)
+    setHistoryFloatDismissed({})
+    quickInputSourceRef.current = ''
+  }
+  useTourReset('new', clearTourForm)
+  useEffect(() => {
+    if (!isPreview) clearTourForm()
   }, [isPreview])
 
   const persistInvestmentFromPayload = (payload) => {
@@ -1606,11 +1642,8 @@ export default function NewInvestmentPage() {
             type="button"
             role="tab"
             aria-selected={viewMode === 'post'}
-            onClick={() => {
-              setViewMode('post')
-              // 投后默认两场；用户已手动选过场次时保留其选择。
-              setParlaySize((size) => (size === 1 ? 2 : size))
-            }}
+            onClick={activatePostImport}
+            data-tour="new.postImport"
             data-testid="view-switch-post"
             className={`pre-view-side pre-view-side--post${viewMode === 'post' ? ' is-active' : ''}`}
           >
@@ -1823,12 +1856,11 @@ export default function NewInvestmentPage() {
 
   return (
     <div onChangeCapture={(event) => {
-      if (!event.nativeEvent.isTrusted) return
-      tourFormOwned.current = false
+      if (!event.nativeEvent.isTrusted || !tourFormOwned.current) return
       tourParsedText.current = null
-      // A real edit hands this form back to the visitor. A later route mount
-      // must restore their draft, not the tour snapshot it replaced.
-      for (const key of ['new.form', 'new.parsed', 'new.text', 'new.result']) tourCache.delete(key)
+      // During a tour, even paused edits belong to this disposable demo.
+      // Replay/completion restores the pre-existing draft without saving them.
+      for (const key of ['new.parsed', 'new.result']) tourCache.delete(key)
     }} className="page-shell page-content-fluid motion-v2-scope lab-new-page" data-investment-view={viewMode}>
       <div className="mb-8 lab-page-heading flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -1880,8 +1912,124 @@ export default function NewInvestmentPage() {
 
             return (
               <section key={idx} className="pre-match-section pre-match-section--main relative">
-                {appliedHistory ? (
-                  <div className="absolute right-1 top-0 z-30 history-float-wrap">
+                {matchHeader}
+                {viewMode === 'pre' ? (
+                  <PreMatchHero
+                    homeTeam={match.homeTeam}
+                    awayTeam={match.awayTeam}
+                    onTeamChange={(side, value) => {
+                      updateMatch(idx, side === 'home' ? 'homeTeam' : 'awayTeam', resolveTypingTeamName(value))
+                      setActiveTeamInput({ matchIdx: idx, side })
+                    }}
+                    onTeamFocus={(side) => setActiveTeamInput({ matchIdx: idx, side })}
+                    onTeamBlur={(side) => setActiveTeamInput((current) => current?.matchIdx === idx && current.side === side ? null : current)}
+                    onPickSuggestion={(side, name) => applyTeamSuggestion(idx, side, name)}
+                    activeSide={activeTeamInput?.matchIdx === idx ? activeTeamInput.side : null}
+                    /* 投前不要自动匹配的历史提示：写着队名就好，别在旁边堆 REP 之类的记录。 */
+                    suggestions={{ home: [], away: [] }}
+                    hintFor={() => null}
+                  />
+                ) : (
+                <div className="grid grid-cols-11 gap-3 items-center mb-4">
+                  <div className="col-span-5 relative">
+                    <label className="text-xs text-stone-400 mb-1.5 block">主队</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="输入球队名或缩写..."
+                        value={match.homeTeam}
+                        onFocus={() => setActiveTeamInput({ matchIdx: idx, side: 'home' })}
+                        onBlur={(event) => releaseTeamFocus(event, idx, 'home')}
+                        onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); dismissHistorySuggestions(idx); setActiveTeamInput(null) } }}
+                        data-team-input={idx}
+                        aria-label={`第${idx + 1}场主队`}
+                        onChange={(event) => {
+                          updateMatch(idx, 'homeTeam', resolveTypingTeamName(event.target.value))
+                          setActiveTeamInput({ matchIdx: idx, side: 'home' })
+                        }}
+                        className="input-glow w-full px-4 py-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400"
+                      />
+                      {match.homeTeam && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-stone-400 pointer-events-none">
+                          {getTeamHint(match.homeTeam)}
+                        </div>
+                      )}
+                    </div>
+                    {homeSuggestions.length > 0 && (
+                      <div className="mt-2 bg-white rounded-xl border border-stone-200 shadow-lg overflow-hidden">
+                        {homeSuggestions.map((team) => (
+                          <button
+                            key={`${team.teamId}-home-${idx}`}
+                            type="button"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => applyTeamSuggestion(idx, 'home', team.teamName)}
+                            className="w-full px-3 py-2 text-left hover:bg-amber-50 transition-colors"
+                          >
+                            <div className="text-sm text-stone-700">{team.teamName}</div>
+                            <div className="text-[11px] text-stone-400">
+                              {team.totalSamples} 场 · {maskText('REP')} {team.avgRep.toFixed(2)}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="col-span-1 text-center text-stone-300 text-lg">vs</div>
+
+                  <div className="col-span-5 relative">
+                    <label className="text-xs text-stone-400 mb-1.5 block">客队</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="输入球队名或缩写..."
+                        value={match.awayTeam}
+                        onFocus={() => setActiveTeamInput({ matchIdx: idx, side: 'away' })}
+                        onBlur={(event) => releaseTeamFocus(event, idx, 'away')}
+                        onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); dismissHistorySuggestions(idx); setActiveTeamInput(null) } }}
+                        data-team-input={idx}
+                        aria-label={`第${idx + 1}场客队`}
+                        onChange={(event) => {
+                          updateMatch(idx, 'awayTeam', resolveTypingTeamName(event.target.value))
+                          setActiveTeamInput({ matchIdx: idx, side: 'away' })
+                        }}
+                        className="input-glow w-full px-4 py-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400"
+                      />
+                      {match.awayTeam && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-stone-400 pointer-events-none">
+                          {getTeamHint(match.awayTeam)}
+                        </div>
+                      )}
+                    </div>
+                    {awaySuggestions.length > 0 && (
+                      <div className="mt-2 bg-white rounded-xl border border-stone-200 shadow-lg overflow-hidden">
+                        {awaySuggestions.map((team) => (
+                          <button
+                            key={`${team.teamId}-away-${idx}`}
+                            type="button"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => applyTeamSuggestion(idx, 'away', team.teamName)}
+                            className="w-full px-3 py-2 text-left hover:bg-amber-50 transition-colors"
+                          >
+                            <div className="text-sm text-stone-700">{team.teamName}</div>
+                            <div className="text-[11px] text-stone-400">
+                              {team.totalSamples} 场 · {maskText('REP')} {team.avgRep.toFixed(2)}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                )}
+
+                {viewMode === 'post' && flourishesAllowed && (appliedHistory ? (
+                  <div className="history-float-wrap mb-4" data-history-match={idx}
+                      onBlurCapture={(event) => {
+                        if (event.currentTarget.contains(event.relatedTarget) || event.relatedTarget?.dataset.teamInput === String(idx)) return
+                        setActiveTeamInput((current) => current?.matchIdx === idx ? null : current)
+                      }}
+                      onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); dismissHistorySuggestions(idx); setActiveTeamInput(null) } }}>
                     <div className="history-float-panel history-float-enter px-2.5 py-2">
                       <div className="relative z-[1] flex items-start justify-between gap-2">
                         <div className="min-w-0">
@@ -1915,8 +2063,13 @@ export default function NewInvestmentPage() {
                     </div>
                   </div>
                 ) : (
-                  historySuggestions.length > 0 && !isHistorySuggestionDismissed && (
-                    <div className="absolute right-1 top-0 z-30 history-float-wrap">
+                  historySuggestions.length > 0 && !isHistorySuggestionDismissed && activeTeamInput?.matchIdx === idx && (
+                    <div className="history-float-wrap mb-4" data-history-match={idx}
+                      onBlurCapture={(event) => {
+                        if (event.currentTarget.contains(event.relatedTarget) || event.relatedTarget?.dataset.teamInput === String(idx)) return
+                        setActiveTeamInput((current) => current?.matchIdx === idx ? null : current)
+                      }}
+                      onKeyDown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); dismissHistorySuggestions(idx); setActiveTeamInput(null) } }}>
                       <div className="history-float-panel history-float-enter px-2.5 py-2">
                         <div className="relative z-[1] flex items-center justify-between gap-2">
                           <span className="text-[9px] uppercase tracking-[0.11em] text-stone-500/95">历史对阵匹配</span>
@@ -1927,6 +2080,7 @@ export default function NewInvestmentPage() {
                             <button
                               key={historyItem.id}
                               type="button"
+                              onMouseDown={(event) => event.preventDefault()}
                               onClick={() => applyHistoryPrefill(idx, historyItem)}
                               className="history-float-item motion-v2-row w-full text-left rounded-lg border border-white/75 bg-white/72 px-2 py-1.5 hover:border-amber-200/80 hover:bg-amber-50/70"
                             >
@@ -1961,112 +2115,7 @@ export default function NewInvestmentPage() {
                       </div>
                     </div>
                   )
-                )}
-
-                {matchHeader}
-                {viewMode === 'pre' ? (
-                  <PreMatchHero
-                    homeTeam={match.homeTeam}
-                    awayTeam={match.awayTeam}
-                    onTeamChange={(side, value) => {
-                      updateMatch(idx, side === 'home' ? 'homeTeam' : 'awayTeam', resolveTypingTeamName(value))
-                      setActiveTeamInput({ matchIdx: idx, side })
-                    }}
-                    onTeamFocus={(side) => setActiveTeamInput({ matchIdx: idx, side })}
-                    onTeamBlur={() => setActiveTeamInput(null)}
-                    onPickSuggestion={(side, name) => applyTeamSuggestion(idx, side, name)}
-                    activeSide={activeTeamInput?.matchIdx === idx ? activeTeamInput.side : null}
-                    /* 投前不要自动匹配的历史提示：写着队名就好，别在旁边堆 REP 之类的记录。 */
-                    suggestions={{ home: [], away: [] }}
-                    hintFor={() => null}
-                  />
-                ) : (
-                <div className="grid grid-cols-11 gap-3 items-center mb-4">
-                  <div className="col-span-5 relative">
-                    <label className="text-xs text-stone-400 mb-1.5 block">主队</label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="输入球队名或缩写..."
-                        value={match.homeTeam}
-                        onFocus={() => setActiveTeamInput({ matchIdx: idx, side: 'home' })}
-                        onBlur={() => setTimeout(() => setActiveTeamInput(null), 120)}
-                        onChange={(event) => {
-                          updateMatch(idx, 'homeTeam', resolveTypingTeamName(event.target.value))
-                          setActiveTeamInput({ matchIdx: idx, side: 'home' })
-                        }}
-                        className="input-glow w-full px-4 py-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400"
-                      />
-                      {match.homeTeam && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-stone-400 pointer-events-none">
-                          {getTeamHint(match.homeTeam)}
-                        </div>
-                      )}
-                    </div>
-                    {homeSuggestions.length > 0 && (
-                      <div className="absolute top-full mt-1 left-0 right-0 bg-white rounded-xl border border-stone-200 shadow-lg z-20 overflow-hidden">
-                        {homeSuggestions.map((team) => (
-                          <button
-                            key={`${team.teamId}-home-${idx}`}
-                            type="button"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => applyTeamSuggestion(idx, 'home', team.teamName)}
-                            className="w-full px-3 py-2 text-left hover:bg-amber-50 transition-colors"
-                          >
-                            <div className="text-sm text-stone-700">{team.teamName}</div>
-                            <div className="text-[11px] text-stone-400">
-                              {team.totalSamples} 场 · {maskText('REP')} {team.avgRep.toFixed(2)}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="col-span-1 text-center text-stone-300 text-lg">vs</div>
-
-                  <div className="col-span-5 relative">
-                    <label className="text-xs text-stone-400 mb-1.5 block">客队</label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="输入球队名或缩写..."
-                        value={match.awayTeam}
-                        onFocus={() => setActiveTeamInput({ matchIdx: idx, side: 'away' })}
-                        onBlur={() => setTimeout(() => setActiveTeamInput(null), 120)}
-                        onChange={(event) => {
-                          updateMatch(idx, 'awayTeam', resolveTypingTeamName(event.target.value))
-                          setActiveTeamInput({ matchIdx: idx, side: 'away' })
-                        }}
-                        className="input-glow w-full px-4 py-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400"
-                      />
-                      {match.awayTeam && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-stone-400 pointer-events-none">
-                          {getTeamHint(match.awayTeam)}
-                        </div>
-                      )}
-                    </div>
-                    {awaySuggestions.length > 0 && (
-                      <div className="absolute top-full mt-1 left-0 right-0 bg-white rounded-xl border border-stone-200 shadow-lg z-20 overflow-hidden">
-                        {awaySuggestions.map((team) => (
-                          <button
-                            key={`${team.teamId}-away-${idx}`}
-                            type="button"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => applyTeamSuggestion(idx, 'away', team.teamName)}
-                            className="w-full px-3 py-2 text-left hover:bg-amber-50 transition-colors"
-                          >
-                            <div className="text-sm text-stone-700">{team.teamName}</div>
-                            <div className="text-[11px] text-stone-400">
-                              {team.totalSamples} 场 · {maskText('REP')} {team.avgRep.toFixed(2)}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                )}
+                ))}
 
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">

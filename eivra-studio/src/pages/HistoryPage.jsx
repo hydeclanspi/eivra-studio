@@ -951,7 +951,7 @@ export default function HistoryPage() {
         ))}
       </div>
 
-      <div className="glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden">
+      <div data-tour="history.records" data-tour-tag={`${filteredRows.length} RECORDS · TRACEABLE DECISIONS`} className="glow-card bg-white rounded-2xl border border-stone-100 overflow-hidden">
         {layoutMode === 'modern' ? (
         <div className="overflow-x-auto">
           <table className="w-full">

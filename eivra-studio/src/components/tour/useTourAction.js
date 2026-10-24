@@ -6,3 +6,9 @@ export default function useTourAction(name, handler) {
   current.current = handler
   useEffect(() => tourBus.register(name, (payload) => current.current(payload)), [name])
 }
+
+export function useTourReset(name, handler) {
+  const current = useRef(handler)
+  current.current = handler
+  useEffect(() => tourBus.registerReset(name, () => current.current()), [name])
+}

@@ -850,7 +850,7 @@ export default function MetricsPage({ openModal }) {
         </div>
       )}
 
-      <div className="grid grid-cols-4 gap-4 lab-metrics-grid">
+      <div data-tour="dashboard.metrics" data-tour-tag={`${metrics.length} METRIC CARDS · EXPLORE THE EVIDENCE`} className="grid grid-cols-4 gap-4 lab-metrics-grid">
         {metrics.map((metric) => (
           <div
             key={metric.label}

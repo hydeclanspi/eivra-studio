@@ -1,0 +1,51 @@
+/* global document */
+import assert from 'node:assert/strict'
+
+// Run against a local preview or a deployment in a fresh browser context.
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
+const browser = await chromium.launch({ headless: true, ...(process.env.BROWSER_EXECUTABLE ? { executablePath: process.env.BROWSER_EXECUTABLE } : {}) })
+try {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  const url = new URL('/new?tour=0', process.env.TOUR_BASE_URL || 'http://localhost:3000')
+  await page.goto(url.href)
+  await page.getByLabel('主队', { exact: true }).fill('阿森纳')
+  await page.getByLabel('客队', { exact: true }).fill('利物浦')
+  assert.equal(await page.locator('[data-history-match]').count(), 0, 'Pre-match view must not show the legacy popup')
+
+  await page.getByRole('tab', { name: '投后导入', exact: true }).click()
+  assert.equal(await page.locator('[data-history-match]').count(), 0, 'Changing views must not open a suggestion')
+  const home = page.getByLabel('第1场主队', { exact: true })
+  const away = page.getByLabel('第1场客队', { exact: true })
+  await home.focus()
+  await page.waitForSelector('[data-history-match="0"]')
+  await away.focus()
+  await page.waitForTimeout(200)
+  assert.equal(await page.locator('[data-history-match]').count(), 1, 'Old blur callbacks must not clear the new focus')
+  const gap = await page.evaluate(() => document.querySelector('[data-history-match]').getBoundingClientRect().top - document.querySelector('[aria-label="第1场客队"]').getBoundingClientRect().bottom)
+  assert.ok(gap >= 0, 'History panel must appear below the team input')
+  await page.getByRole('heading', { name: '新建投资', exact: true }).click()
+  assert.equal(await page.locator('[data-history-match]').count(), 0, 'Clicking outside must close suggestions')
+
+  await away.focus()
+  await page.locator('.history-float-item').first().click()
+  assert.equal(await page.getByText('历史对阵匹配', { exact: true }).count(), 0)
+  assert.equal(await page.getByText('已套用历史参数', { exact: true }).count(), 1)
+  await page.getByRole('button', { name: '撤回', exact: true }).click()
+  await away.focus()
+  await page.waitForSelector('[data-history-match="0"]')
+  await page.keyboard.press('Escape')
+  assert.equal(await page.locator('[data-history-match]').count(), 0, 'Esc must dismiss suggestions')
+  await home.focus()
+  assert.equal(await page.locator('[data-history-match]').count(), 0, 'Dismissal lasts until the matchup changes')
+  await away.fill('')
+  await away.fill('利物浦')
+  await page.waitForSelector('[data-history-match="0"]')
+  await page.getByTitle('关闭历史匹配浮层').click()
+  assert.equal(await page.locator('[data-history-match]').count(), 0)
+  await page.getByRole('tab', { name: '投前研判', exact: true }).click()
+  assert.equal(await page.locator('[data-history-match]').count(), 0)
+  assert.deepEqual(errors, [])
+  console.log(JSON.stringify({ result: 'PASS', browser: browser.version(), cases: ['view gating', 'fast focus switch', 'normal flow geometry', 'outside click', 'apply and undo', 'Esc', 'remembered dismissal', 'matchup change'], errors }))
+} finally { await browser.close() }

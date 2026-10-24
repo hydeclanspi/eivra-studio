@@ -371,7 +371,7 @@ export default function TeamsPage() {
         </div>
       </div>
 
-      <div ref={teamGridRef} className="team-archive-grid grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div data-tour="history.teams" data-tour-tag={`${teams.length} TEAMS · MATCH HISTORY`} ref={teamGridRef} className="team-archive-grid grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         {teamPagination.items.map((team) => {
           const isSelected = selectedTeam?.name === team.name
           return (

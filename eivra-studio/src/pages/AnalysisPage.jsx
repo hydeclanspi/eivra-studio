@@ -1229,7 +1229,7 @@ export default function AnalysisPage({ openModal }) {
 
       {analysisTab === 'combo' && (
         <div className="space-y-4">
-          <div className="motion-v2-surface glow-card relative overflow-hidden rounded-2xl border border-cyan-100 bg-gradient-to-br from-cyan-50/55 via-sky-50/45 to-violet-50/40 p-6">
+          <div data-tour="dashboard.analysis" data-tour-tag={`STRATEGY EXPLORER · ${deepData.comboRows.length} CONFIGURATIONS`} className="motion-v2-surface glow-card relative overflow-hidden rounded-2xl border border-cyan-100 bg-gradient-to-br from-cyan-50/55 via-sky-50/45 to-violet-50/40 p-6">
             <div className="pointer-events-none absolute -top-16 -right-20 h-48 w-48 rounded-full bg-cyan-200/20 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-violet-200/20 blur-3xl" />
             <div className="relative">

@@ -3,10 +3,11 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { initialTourState, stepId, tourReducer } from '../tour/tourMachine'
-import { STEPS, TRACKS, trackDuration } from '../tour/tourScript'
+import { ENTRY_DELAY_MS, PAGE_OVERVIEW_MS, STEPS, TRACKS, stepOffset, trackDuration } from '../tour/tourScript'
 import { readTourJSON, shouldAutoOffer, tourEligible, writeTourJSON } from '../tour/tourGate'
 import { beamRoute, computeLanes, laserWave, pathClear, sampleLaserSpeed } from '../tour/laneRouting'
-import { delay, tourBus } from '../tour/tourBus'
+import { delay, tourBus, tourCache } from '../tour/tourBus'
+import { waitForInitialPage } from '../../components/tour/tourReady'
 
 describe('tour playback lifecycle', () => {
   const reduce = (events, initial = initialTourState) => events.reduce(tourReducer, initial)
@@ -32,7 +33,7 @@ describe('tour playback lifecycle', () => {
   })
   it('restores only known steps, clamps corrupted times, and waits for explicit resume', () => {
     const s = tourReducer(initialTourState, { type: 'RESTORE', record: { track: 'full', stepId: 'combo.generate', remaining: 999999 } })
-    expect(s.status).toBe('paused'); expect(s.index).toBe(4); expect(s.remaining).toBe(STEPS['combo.generate'].duration)
+    expect(s.status).toBe('paused'); expect(stepId(s)).toBe('combo.generate'); expect(s.remaining).toBe(STEPS['combo.generate'].duration)
     expect(tourReducer(initialTourState, { type: 'RESTORE', record: { stepId: 'removed' } })).toEqual(initialTourState)
   })
 })
@@ -65,10 +66,23 @@ describe('script contract and anchor drift guard', () => {
   const sources = readJSX(sourceRoot)
   const app = fs.readFileSync(path.join(sourceRoot, 'App.jsx'), 'utf8')
   it('keeps both tracks within their editorial duration and concise copy budgets', () => {
-    expect(trackDuration('full')).toBeGreaterThanOrEqual(45000); expect(trackDuration('full')).toBeLessThanOrEqual(65000)
-    expect(trackDuration('short')).toBeGreaterThanOrEqual(25000); expect(trackDuration('short')).toBeLessThanOrEqual(35000)
+    expect(trackDuration('full')).toBeGreaterThanOrEqual(120000); expect(trackDuration('full')).toBeLessThanOrEqual(150000)
+    expect(trackDuration('short')).toBeGreaterThanOrEqual(60000); expect(trackDuration('short')).toBeLessThanOrEqual(80000)
     for (const ids of Object.values(TRACKS)) { expect(new Set(ids).size).toBe(ids.length); ids.forEach((id) => expect(STEPS[id]).toBeTruthy()) }
     for (const step of Object.values(STEPS)) expect([...step.body].length).toBeLessThanOrEqual(60)
+  })
+  it('counts every page overview in the timeline and includes all product areas', () => {
+    const routes = new Set(TRACKS.full.map((id) => STEPS[id].route))
+    for (const route of ['/dashboard', '/dashboard/analysis', '/dashboard/metrics', '/dashboard/report', '/history', '/history/teams']) expect(routes.has(route)).toBe(true)
+    expect(TRACKS.short).toContain('new.postImport')
+    for (const track of Object.keys(TRACKS)) {
+      expect(stepOffset(track, TRACKS[track].length)).toBe(trackDuration(track))
+      TRACKS[track].slice(1).forEach((id, index) => {
+        const previous = TRACKS[track][index]
+        const difference = stepOffset(track, index + 1) - stepOffset(track, index)
+        expect(difference).toBeGreaterThanOrEqual(STEPS[previous].duration + (STEPS[previous].route === STEPS[id].route ? 0 : PAGE_OVERVIEW_MS))
+      })
+    }
   })
   it('keeps every route, action and visible anchor attached to the actual product', () => {
     for (const step of Object.values(STEPS)) {
@@ -112,7 +126,29 @@ describe('real-layout light lanes', () => {
 })
 
 describe('cancellable page actions', () => {
-  afterEach(() => vi.useRealTimers())
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
+  it('waits 8.5 seconds and waits longer for unfinished resources', async () => {
+    vi.useFakeTimers(); vi.stubGlobal('document', { readyState: 'loading', fonts: { status: 'loading' } })
+    const ready = vi.fn(), ctl = new AbortController()
+    const result = waitForInitialPage(ctl.signal, ENTRY_DELAY_MS).then(ready)
+    await vi.advanceTimersByTimeAsync(8499); expect(ready).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1001); expect(ready).not.toHaveBeenCalled()
+    document.readyState = 'complete'; document.fonts.status = 'loaded'
+    await vi.advanceTimersByTimeAsync(100); await result; expect(ready).toHaveBeenCalledOnce()
+  })
+  it('manual start or unmount cancels a pending automatic welcome', async () => {
+    vi.useFakeTimers(); const ctl = new AbortController()
+    const waiting = waitForInitialPage(ctl.signal, ENTRY_DELAY_MS).catch((error) => error.name)
+    ctl.abort(); expect(await waiting).toBe('AbortError'); expect(vi.getTimerCount()).toBe(0)
+  })
+  it('resets mounted page state and unmounted caches on replay or completion', () => {
+    tourCache.set('new.form', { text: 'temporary tour input' }); tourCache.set('combo.result', { count: 20 })
+    const stale = vi.fn(), mounted = vi.fn(() => expect(tourCache.get('new.form')).toBeUndefined())
+    const old = tourBus.registerReset('new', stale), current = tourBus.registerReset('new', mounted)
+    old(); tourBus.reset()
+    expect(stale).not.toHaveBeenCalled(); expect(mounted).toHaveBeenCalledOnce(); expect(tourCache.get('combo.result')).toBeUndefined()
+    current(); tourBus.reset(); expect(mounted).toHaveBeenCalledOnce()
+  })
   it('cancels pending typing before the next state mutation', async () => {
     vi.useFakeTimers(); const mutate = vi.fn(), ctl = new AbortController()
     const off = tourBus.register('test.typing', async ({ signal }) => { await delay(45, signal); mutate(); return { ok: true } })

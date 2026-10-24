@@ -1,4 +1,4 @@
-import useTourAction from '../components/tour/useTourAction'
+import useTourAction, { useTourReset } from '../components/tour/useTourAction'
 import { delay, tourCache } from '../lib/tour/tourBus'
 import { useDemoFlourish } from '../lib/tour/demoChoreography'
 import { brandLocalStorage } from '../lib/brandStorage.js'
@@ -17,6 +17,7 @@ import {
 } from '../lib/atomicParlay'
 import { FragilityHeatmapCard } from '../components/FragilityHeatmapCard'
 import ComboExpandHint from '../components/ComboExpandHint'
+import '../design/portfolioRows.css'
 import ComboOrbReveal from '../components/ComboOrbReveal'
 import PortfolioComposition from '../components/PortfolioComposition'
 import CountUp from '../components/CountUp'
@@ -251,6 +252,14 @@ const classifyConfidenceTier = (conf, thresholds = DEFAULT_CONF_TIER_THRESHOLDS)
 }
 
 const CONF_TIER_LABELS = { tier_1: '强洞察', tier_2: '中洞察', tier_3: '弱洞察', tier_4: '极弱' }
+const formatConfidenceTiers = (summary) => {
+  const counts = new Map()
+  for (const tier of String(summary || '').split('/').filter(Boolean)) {
+    const label = CONF_TIER_LABELS[tier] || tier
+    counts.set(label, (counts.get(label) || 0) + 1)
+  }
+  return [...counts].map(([label, count]) => count > 1 ? `${label} ×${count}` : label).join(' · ')
+}
 const CONF_TIER_TONES = {
   tier_1: 'bg-emerald-100 text-emerald-700',
   tier_2: 'bg-sky-100 text-sky-600',
@@ -4796,8 +4805,8 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
     return { ok: true, reused: recommendations.length > 0 }
   })
 
-  useEffect(() => {
-    if (tourDisplayMode !== 'full' || (!tourSnapshot && !tourGeneration.current)) return
+  const clearTourResult = () => {
+    if (!tourSnapshot && !tourGeneration.current) return
     tourGeneration.current = null
     setRecommendations([])
     setRankingRows([])
@@ -4806,7 +4815,16 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
     setMcSimResult(null)
     setRevealPhase('idle')
     setResultsAnimNonce(0)
+    setSelectedRecommendationIds({})
+    setExpandedComboIdxSet(new Set())
+    setExpandedPortfolioIdxSet(new Set())
     setGenerationSummary({ totalInvest: 0, expectedReturnPercent: 0, candidateCombos: 0, qualifiedCombos: 0, filteredOutCombos: 0, coverageInjectedCombos: 0, uncoveredMatches: 0, legsDistribution: {} })
+  }
+  useTourReset('combo', clearTourResult)
+  useEffect(() => {
+    if (tourDisplayMode === 'full') clearTourResult()
+    // Clear the demo result on a mode transition, not on routine re-renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tourDisplayMode, tourSnapshot])
 
   const handleConfirmChecked = () => {
@@ -6663,7 +6681,7 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
                   return (
                   <div key={item.id}>
                     <div
-                      className={`motion-v2-row motion-v2-selectable relative flex items-center gap-2 pl-3 pr-2.5 py-1.5 rounded-xl cursor-pointer transition-all ${
+                      className={`combo-preview-row motion-v2-row motion-v2-selectable relative rounded-xl cursor-pointer transition-all ${
                         selected ? 'bg-indigo-50/70 border border-indigo-200 shadow-[0_7px_16px_-14px_rgba(79,70,229,0.40)]' : `border ${rowTone.card}`
                       }`}
                     >
@@ -6686,15 +6704,15 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
                             : `0 0 10px ${rowTone.softGlowColor}`,
                         }}
                       />
-                      <span className="text-[10.5px] text-stone-400 font-mono w-7 shrink-0">{comboNo}.</span>
-                      <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${layerDot}`} />
-                      <div className="flex-1 min-w-0" onClick={() => toggleQuickComboExpand(idx)} style={{ fontFamily: COMBO_CN_FONT_STACK }}>
+                      <span className="combo-preview-number text-[10.5px] text-stone-400 font-mono">{comboNo}.</span>
+                      <div className={`combo-preview-dot w-1.5 h-1.5 rounded-full ${layerDot}`} />
+                      <div className="combo-preview-legs min-w-0" onClick={() => toggleQuickComboExpand(idx)} style={{ fontFamily: COMBO_CN_FONT_STACK }}>
                         <div className="flex flex-wrap items-center gap-y-1">
                           {Array.isArray(item.subset) && item.subset.length > 0
                             ? item.subset.map((leg, legIdx) => {
                                 const legEntry = String(leg.entry || '').trim()
                                 return (
-                                  <span key={leg.key || `${leg.homeTeam}-${leg.awayTeam}-${leg.entry}-${legIdx}`} className="inline-flex items-center">
+                                  <span key={leg.key || `${leg.homeTeam}-${leg.awayTeam}-${leg.entry}-${legIdx}`} className="combo-preview-leg inline-flex items-center">
                                     {legIdx > 0 && <ComboLegSeparatorIcon />}
                                     <span className="inline-flex items-center rounded-lg border border-stone-200/80 bg-white/86 px-1.5 py-[1px] shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
                                       <span className="text-[12.5px] leading-tight font-medium text-stone-800">{leg.homeTeam || '-'}</span>
@@ -6710,8 +6728,8 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
                             : item.combo}
                         </div>
                       </div>
-                      <div className="text-right shrink-0 w-[236px] leading-tight" style={{ fontFamily: COMBO_CN_FONT_STACK }}>
-                        <div className="flex items-center justify-end gap-1.5 text-[9px] text-stone-400 whitespace-nowrap">
+                      <div className="combo-preview-meta min-w-0 leading-tight" style={{ fontFamily: COMBO_CN_FONT_STACK }}>
+                        <div className="flex flex-wrap items-center gap-1.5 text-[9px] text-stone-400">
                           <span className="rounded-md border border-stone-200/75 bg-white/78 px-1 py-px">
                             {item.legs || item.subset.length}关
                           </span>
@@ -6719,7 +6737,7 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
                             ×{(Number(item.combinedOdds || item.odds || 0)).toFixed(1)}
                           </span>
                           {item.explain?.confTierSummary && item.explain.confTierSummary !== '--' && (
-                            <span className="rounded-md border border-stone-200/75 bg-white/78 px-1 py-px text-stone-500">{item.explain.confTierSummary}</span>
+                            <span className="rounded-md border border-stone-200/75 bg-white/78 px-1 py-px text-stone-500">{formatConfidenceTiers(item.explain.confTierSummary)}</span>
                           )}
                           {layerTag && (
                             <span className={`px-1 py-px rounded-md border text-[9px] font-medium ${
@@ -6750,7 +6768,7 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
                       </div>
                       <div
                         onClick={(e) => { e.stopPropagation(); toggleRecommendation(item.id) }}
-                        className={`w-3.5 h-3.5 rounded border-2 shrink-0 transition-colors cursor-pointer ${
+                        className={`combo-preview-check w-3.5 h-3.5 rounded border-2 shrink-0 transition-colors cursor-pointer ${
                           selected ? 'bg-indigo-500 border-indigo-500' : 'border-stone-300'
                         }`}
                       >
@@ -7056,7 +7074,7 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
                       </span>
                     )}
                     {item.explain.confTierSummary && item.explain.confTierSummary !== '--' && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-600">置信 {item.explain.confTierSummary}</span>
+                      <span className="px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-600">置信 {formatConfidenceTiers(item.explain.confTierSummary)}</span>
                     )}
                     {item.explain.tierPenalty > 0 && (
                       <span className="px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-600">弱罚 -{item.explain.tierPenalty}</span>

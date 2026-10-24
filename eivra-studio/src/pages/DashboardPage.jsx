@@ -1485,7 +1485,7 @@ export default function DashboardPage({ openModal }) {
         </div>
       )}
 
-      <div className="grid grid-cols-4 gap-4">
+      <div data-tour="dashboard.overview" data-tour-tag="CAPITAL · RETURN · JUDGMENT" className="grid grid-cols-4 gap-4">
         {/* 蓄水池余额 - 单独处理以添加注资按钮 */}
         <div className="motion-v2-surface glow-card bg-white rounded-2xl p-5 border border-stone-100">
           <div className="flex items-center justify-between mb-3">

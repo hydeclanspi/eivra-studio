@@ -1,5 +1,6 @@
 const actions = new Map()
 const cache = new Map()
+const resets = new Map()
 export const abortError = () => new DOMException('Tour cancelled', 'AbortError')
 export function delay(ms, signal) {
   return new Promise((resolve, reject) => {
@@ -12,6 +13,13 @@ export function delay(ms, signal) {
 export const tourCache = { get: (key) => cache.get(key), set: (key, value) => cache.set(key, value), delete: (key) => cache.delete(key), clear: () => cache.clear() }
 export const tourBus = {
   register(name, handler) { actions.set(name, handler); return () => { if (actions.get(name) === handler) actions.delete(name) } },
+  registerReset(name, handler) { resets.set(name, handler); return () => { if (resets.get(name) === handler) resets.delete(name) } },
+  reset() {
+    cache.clear()
+    // Only currently mounted pages need state setters; unmounted pages start
+    // clean because their tour snapshots have just been discarded.
+    for (const handler of resets.values()) handler()
+  },
   async run(name, payload = {}, { signal, timeoutMs = 8000 } = {}) {
     const controller = new AbortController()
     const cancel = () => controller.abort()

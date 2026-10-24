@@ -146,9 +146,9 @@ React 工作台
 
 ### 工作台导览
 
-[播放约一分钟的自动导览](https://hydeclanspi.vercel.app/?tour=1) · [约 30 秒速览](https://hydeclanspi.vercel.app/?tour=short)
+[播放约两分钟的自动导览](https://hydeclanspi.vercel.app/?tour=1) · [约一分钟速览](https://hydeclanspi.vercel.app/?tour=short)
 
-公开 Demo 首访会显示欢迎窗，四秒后自动播放；玻璃主讲人通过字幕、蓝白光束与真实的解析和组合求解，串起判断、配仓、结算、复盘、校准与研究。点击页面或按 Space 暂停接管，Esc 退出，顶栏「导览」可重播。手机默认速览，`?tour=0` 关闭本次会话的导览；Full、`/arsenal` 和设计预览不显示导览。数据标签读取当前演示结果，不构成收益承诺。
+公开 Demo 首访在 New 页面加载至少 8.5 秒后显示欢迎窗，四秒后自动播放；跨页先留出 5 秒浏览整体界面。玻璃小鲸鱼主讲人通过字幕、蓝白光束与真实的解析和组合求解，串起判断、配仓、结算、复盘、校准与研究。点击页面或按 Space 暂停接管，Esc 退出，顶栏「导览」可重播；重播、完成和退出都会清理导览临时输入与结果。手机默认速览，`?tour=0` 关闭本次会话的导览；Full、`/arsenal` 和设计预览不显示导览。数据标签读取当前演示结果，不构成收益承诺。
 
 实现与验证边界见 [Demo 导览维护说明](eivra-studio/docs/demo-tour.md)。
 
