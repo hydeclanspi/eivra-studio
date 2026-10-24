@@ -12,7 +12,7 @@ export const normalizeLiquidGlassMaterialQuality = (value) => (
 
 export const LIQUID_GLASS_THEMES = [
   { key: 'vivid', label: '流光溢彩', description: '多彩流动', preview: 'linear-gradient(135deg, #84b7ec, #b1a0ee 36%, #f4c174 68%, #84d9bd)' },
-  { key: 'hongguo', label: '红果', description: '青橙色场', preview: 'linear-gradient(135deg, #d7e8d4, #74cfc2 30%, #f4f7f8 58%, #edac79)' },
+  { key: 'hongguo', label: '红果', description: '瓷白 · 青釉 · 橙光', composed: true },
   { key: 'daylight', label: '晴光', description: '银白 · 雾青 · 杏暖', composed: true },
   { key: 'moon', label: '月汐', description: '月白 · 冰蓝 · 银灰', composed: true },
   { key: 'sand', label: '暖砂', description: '暖白 · 浅砂 · 亚麻', composed: true },
