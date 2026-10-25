@@ -1431,12 +1431,28 @@ export default function NewInvestmentPage() {
     return { ok: true }
   }
   useTourAction('new.ensureQuickInputParsed', ensureTourInput)
+  useTourAction('new.showTeamRecords', async ({ signal, reduced, focus }) => {
+    if (!isPreview || signal.aborted) return { ok: false, reason: 'not_preview' }
+    const records = await focus?.('new.teamRecords')
+    if (!records || signal.aborted) return { ok: false, reason: 'no_records' }
+    // Bring actual recap notes into each team's independently scrolling list.
+    for (const list of records.querySelectorAll('.pre-dossier-scroll')) {
+      const note = list.querySelector('.pre-record-note.is-post') || list.querySelector('.pre-record-note')
+      const row = note?.closest('.pre-record')
+      if (!row) continue
+      const zoom = Number.parseFloat(getComputedStyle(document.documentElement).zoom) || 1
+      list.scrollTo({ top: Math.max(0, list.scrollTop + (row.getBoundingClientRect().top - list.getBoundingClientRect().top) / zoom - 8), behavior: reduced ? 'instant' : 'smooth' })
+    }
+    await delay(reduced ? 40 : 450, signal)
+    return { ok: true }
+  })
   const activatePostImport = () => {
     setViewMode('post')
     setParlaySize((size) => (size === 1 ? 2 : size))
   }
-  useTourAction('new.showPostImport', async ({ signal, reduced, focus, beforeParse }) => {
+  const showTourPostImport = async ({ signal, reduced, instant, focus, beforeParse }) => {
     if (!isPreview || signal.aborted) return { ok: false, reason: 'not_preview' }
+    if (instant && viewMode === 'post' && quickInputSourceRef.current === DEMO_IMPORT && quickInputResult) return { ok: true, reused: true }
     tourFormOwned.current = true
     setViewMode('post')
     setQuickInputOpen(true)
@@ -1455,7 +1471,9 @@ export default function NewInvestmentPage() {
     setActiveTeamInput(null)
     tourParsedText.current = null
     return { ok: true }
-  })
+  }
+  useTourAction('new.showPostImport', showTourPostImport)
+  useTourAction('new.ensurePostImport', showTourPostImport)
   useEffect(() => {
     if (tourFormOwned.current && quickInputResult) {
       tourCache.set('new.result', quickInputResult)
@@ -1927,7 +1945,7 @@ export default function NewInvestmentPage() {
             )
 
             return (
-              <section key={idx} className="pre-match-section pre-match-section--main relative">
+              <section key={idx} data-tour={idx === 0 && viewMode === 'post' ? "new.importDetails" : undefined} className="pre-match-section pre-match-section--main relative">
                 {matchHeader}
                 {viewMode === 'pre' ? (
                   <PreMatchHero
@@ -2251,6 +2269,7 @@ export default function NewInvestmentPage() {
 
                 {viewMode === 'pre' && (
                   <PreMatchRecords
+                    tourPrimary={idx === 0}
                     homeTeam={match.homeTeam}
                     awayTeam={match.awayTeam}
                     records={heroRecords}

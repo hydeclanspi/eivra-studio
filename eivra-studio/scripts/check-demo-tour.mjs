@@ -39,6 +39,9 @@ try {
         tag: document.querySelector('[data-tour="combo.package"]')?.dataset.tourTag,
         custom: document.querySelector('[data-tour="combo.customResult"]')?.dataset.tourTag,
         imports: document.querySelector('.settle-ai-result-summary')?.textContent,
+        recap: document.querySelector('[data-tour="new.teamRecords"] .pre-record-note.is-post')?.textContent,
+        importFields: [...document.querySelectorAll('[data-tour="new.importDetails"] input')].map((input) => input.value),
+        scroll: document.querySelector('.app-main-scroll')?.scrollTop,
       }
     })
     const key = [state.status, state.step, state.phase].join(':')
@@ -47,6 +50,11 @@ try {
       seen.add(state.step)
       assert.ok(!state.caption?.includes('暂不可用'), `Unavailable step: ${state.step}`)
       if (state.step === 'new.postImport') assert.match(state.imports || '', /2 个组合 · 共 2 场比赛/)
+      if (state.step === 'new.teamRecords') assert.ok(state.recap?.length > 2, 'Show an actual recap note')
+      if (state.step === 'new.importDetails') {
+        assert.deepEqual(state.importFields, ['阿森纳', '利物浦', '2-0', '3.9'])
+        assert.ok(state.scroll > 0, 'Scroll down to the populated import form')
+      }
       if (state.step === 'combo.customResult') assert.match(state.custom || '', /CUSTOM PORTFOLIO/)
       if (state.step === 'combo.generate') {
         assert.match(state.tag || '', /[1-9][0-9]* PLANS · MONTE CARLO [1-9]/)

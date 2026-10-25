@@ -16,8 +16,10 @@ export const ACTS = [
 export const STEPS = {
   'new.quickInput': { act: 0, route: '/new', anchor: 'new.quickInput', action: 'new.ensureQuickInputParsed', duration: 5500, title: '一句话，写下判断', body: '先写下一个判断，一句话就够。球队、比分、赔率、信心、投入，自动归位。' },
   'new.scoreCloud': { act: 0, route: '/new', anchor: 'new.scoreCloud', prepare: 'new.ensureQuickInputParsed', duration: 4500, title: '判断被翻译成概率', body: '进球区间和浓度，生成一张比分概率云。胜平负分布来自你的判断。' },
+  'new.teamRecords': { act: 0, route: '/new', anchor: 'new.teamRecords', prepare: 'new.ensureQuickInputParsed', action: 'new.showTeamRecords', duration: 5000, title: '让过去的复盘，接上这次判断', body: '输入标的，过往记录即刻调出。赛前判断、赛果与投后复盘备注放在一起，接着上一次的思路继续研判。' },
   'new.sizing': { act: 0, route: '/new', anchor: 'new.sizing', prepare: 'new.ensureQuickInputParsed', duration: 4000, title: '信心多大，仓位多大', body: '校准后的信心经分数凯利换算成建议投入，风控上限与可用资金共同约束仓位。' },
   'new.postImport': { act: 0, route: '/new', anchor: 'new.importReview', preAnchor: 'new.postImport', action: 'new.showPostImport', duration: 7500, title: '也可以，一键投后导入', body: '已有记录，粘贴两单文本，自动解析、逐单核对，再一键入档。投后导入，一气呵成。' },
+  'new.importDetails': { act: 0, route: '/new', anchor: 'new.importDetails', prepare: 'new.ensurePostImport', duration: 3500, title: '往下看，记录已经归位', body: '往下核对已填入的比赛、投注项与赔率。策略、信心和备注也能继续调整，确认后再入档。' },
   'combo.candidates': { act: 1, route: '/combo', anchor: 'combo.candidates', duration: 2500, title: '把判断放在一起看', body: '今天的备选，各自带着角色：稳、中信、杠杆。' },
   'combo.generate': { act: 1, route: '/combo', anchor: 'combo.package', preAnchor: 'combo.generateBtn', action: 'combo.ensureGenerated', duration: 7000, title: '现在，一键求解', body: '在效用、覆盖和去重之间权衡，生成组合方案，再用蒙特卡洛模拟评估盈亏分布。' },
   'combo.heatmap': { act: 1, route: '/combo', anchor: 'combo.heatmap', prepare: 'combo.ensureGenerated', duration: 4000, title: '看清隐性关联', body: '热力图标出比赛之间的依赖风险。这是探索性的诊断指数，不代表真实概率。' },
@@ -44,7 +46,7 @@ export const STEPS = {
 }
 export const TRACKS = {
   full: Object.keys(STEPS),
-  short: ['new.quickInput', 'new.scoreCloud', 'new.postImport', 'combo.generate', 'combo.dependencyDetail', 'combo.dependencyEvidence', 'combo.tolerance', 'combo.customize', 'combo.customResult', 'dashboard.overview', 'dashboard.trend', 'seasons.hero', 'history.records', 'console.fit'],
+  short: ['new.quickInput', 'new.scoreCloud', 'new.teamRecords', 'new.postImport', 'new.importDetails', 'combo.generate', 'combo.dependencyDetail', 'combo.dependencyEvidence', 'combo.tolerance', 'combo.customize', 'combo.customResult', 'dashboard.overview', 'dashboard.trend', 'seasons.hero', 'history.records', 'console.fit'],
 }
 export const navAnchor = (route) => `nav.${route.startsWith('/dashboard') ? 'dashboard' : route.startsWith('/history') ? 'history' : route.slice(1)}`
 export const stepOffset = (track, index) => TRACKS[track].slice(0, index).reduce((sum, id, i) => sum + STEPS[id].duration + (TRACKS[track][i + 1] && STEPS[id].route !== STEPS[TRACKS[track][i + 1]].route ? routeBudget(STEPS[TRACKS[track][i + 1]].route) : 0), 0)

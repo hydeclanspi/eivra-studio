@@ -205,7 +205,7 @@ const groupRecords = (rows) => {
   return groups
 }
 
-export function PreMatchRecords({ homeTeam = '', awayTeam = '', records = { home: [], away: [] } }) {
+export function PreMatchRecords({ homeTeam = '', awayTeam = '', records = { home: [], away: [] }, tourPrimary = false }) {
   const [foldOpen, setFoldOpen] = useState({})
   const sides = [
     { side: 'home', team: homeTeam, groups: groupRecords(records.home) },
@@ -217,7 +217,7 @@ export function PreMatchRecords({ homeTeam = '', awayTeam = '', records = { home
   const toggleFold = (key) => setFoldOpen((prev) => ({ ...prev, [key]: !prev[key] }))
   const isEmpty = sides.every((side) => side.total === 0)
   return (
-    <div className={`pre-dossier${isEmpty ? ' is-empty' : ''}`} data-testid="pre-match-records">
+    <div className={`pre-dossier${isEmpty ? ' is-empty' : ''}`} data-testid="pre-match-records" data-tour={tourPrimary ? "new.teamRecords" : undefined}>
       {sides.map(({ side, team, groups, total }) => (
         <div key={side} className={`pre-dossier-side pre-dossier-side--${side}`} data-testid={`pre-dossier-${side}`}>
           <div className="pre-dossier-head">
