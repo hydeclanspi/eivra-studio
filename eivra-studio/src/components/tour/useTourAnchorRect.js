@@ -1,26 +1,25 @@
-import { useEffect, useState } from 'react'
-import { rectOf } from './tourDom'
+import { useLayoutEffect, useState } from 'react'
+import { clipAnchorRect, sameAnchorRect } from '../../lib/tour/anchorGeometry'
+import { findAnchor, rectOf } from './tourDom'
 
-export default function useTourAnchorRect(element) {
-  const [rect, setRect] = useState(null)
-  useEffect(() => {
-    if (!element) { setRect(null); return undefined }
+export default function useTourAnchorRect(name) {
+  const [target, setTarget] = useState({ rect: null, tag: '' })
+  useLayoutEffect(() => {
     let frame
     const update = () => {
-      cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => {
-        const r = rectOf(element)
-        // Keep the hole inside the viewport even for very tall cards.
-        const top = Math.max(72, r.top - 8), bottom = Math.min(window.innerHeight - 12, r.bottom + 8)
-        setRect({ left: Math.max(8, r.left - 8), top, width: Math.min(window.innerWidth - 16, r.width + 16), height: Math.max(0, bottom - top), radius: r.radius })
-      })
+      // ResizeObserver misses position-only layout shifts and transforms.
+      // Re-resolve the logical target after remounts or collapsed variants.
+      // Stable frames do not trigger a React render.
+      const element = name ? findAnchor(name) : null
+      const container = element?.closest('.app-main-scroll')?.getBoundingClientRect()
+      const bounds = { left: 8, top: Math.max(72, container?.top || 0), right: window.innerWidth - 8, bottom: Math.min(window.innerHeight - 12, container?.bottom || window.innerHeight) }
+      const rect = clipAnchorRect(rectOf(element), bounds)
+      const tag = element?.dataset.tourTag || ''
+      setTarget((previous) => sameAnchorRect(previous.rect, rect) && previous.tag === tag ? previous : { rect, tag })
+      if (name) frame = requestAnimationFrame(update)
     }
-    const observer = new ResizeObserver(update)
-    observer.observe(element)
-    window.addEventListener('resize', update)
-    document.addEventListener('scroll', update, true)
     update()
-    return () => { cancelAnimationFrame(frame); observer.disconnect(); window.removeEventListener('resize', update); document.removeEventListener('scroll', update, true) }
-  }, [element])
-  return rect
+    return () => cancelAnimationFrame(frame)
+  }, [name])
+  return target
 }

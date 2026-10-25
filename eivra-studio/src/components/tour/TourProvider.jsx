@@ -2,13 +2,13 @@ import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState }
 import { useLocation, useNavigate } from 'react-router-dom'
 import { getDisplayMode, useDisplayMode } from '../../lib/displayMode'
 import { isDesignPreview } from '../../design/labEditions'
-import { ACTS, DEMO_SENTENCE, ENTRY_DELAY_MS, PAGE_OVERVIEW_MS, ROUTE_LEAD_MS, STEPS, navAnchor } from '../../lib/tour/tourScript'
+import { ACTS, DEMO_SENTENCE, ENTRY_DELAY_MS, overviewDuration, ROUTE_LEAD_MS, STEPS, navAnchor } from '../../lib/tour/tourScript'
 import { initialTourState, stepId, tourReducer } from '../../lib/tour/tourMachine'
 import { readTourRecord, readTourSession, rememberTour, saveTourSession, sessionSuppressed, shouldAutoOffer, suppressTourSession, tourEligible } from '../../lib/tour/tourGate'
 import { delay, tourBus, tourCache } from '../../lib/tour/tourBus'
 import { setTourOnStage, spendDemoFlourishes } from '../../lib/tour/demoChoreography'
 import { beamRoute, computeLanes } from '../../lib/tour/laneRouting'
-import { centerOf, findAnchor, rectOf, scrollToAnchor, visibleCards, waitForAnchor } from './tourDom'
+import { centerOf, findAnchor, rectOf, settleAnchor, visibleCards, waitForAnchor } from './tourDom'
 import { TourContext } from './TourContext'
 import TourStage from './TourStage'
 import TourLauncher from './TourLauncher'
@@ -22,7 +22,6 @@ export default function TourProvider({ children }) {
   const eligible = tourEligible({ pathname: window.location.pathname, mode, design: isDesignPreview(), param, suppressed: sessionSuppressed() })
   const [state, dispatch] = useReducer(tourReducer, initialTourState)
   const [anchor, setAnchor] = useState(null)
-  const [dataTag, setDataTag] = useState('')
   const [notice, setNotice] = useState('')
   const [pointer, setPointer] = useState(null)
   const [reduced, setReduced] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
@@ -49,6 +48,8 @@ export default function TourProvider({ children }) {
     const status = stateRef.current.status === 'finale' ? 'completed' : 'dismissed'
     rememberTour(status); saveTourSession({ status }); dispatch({ type: 'EXIT' })
   }, [stopEffects])
+  const beginSeek = useCallback(() => { stopEffects(); dispatch({ type: 'PHASE', phase: 'scrubbing' }) }, [stopEffects])
+  const seek = useCallback((index) => { stopEffects(); overviewUntil.current = 0; dispatch({ type: 'SEEK', index }) }, [stopEffects])
   const jump = useCallback((type) => { stopEffects(); dispatch({ type }) }, [stopEffects])
 
   useLayoutEffect(() => { setTourOnStage(onStage || (eligible && !bootstrapped.current)) }, [onStage, eligible])
@@ -106,21 +107,18 @@ export default function TourProvider({ children }) {
     const signal = ctl.signal, current = STEPS[stepId(state)]
     const play = (fx) => { if (!reduced && !signal.aborted) light.current?.play(fx) }
     const focus = async (name, scroll = true) => {
-      const element = await waitForAnchor(name, signal)
+      const element = scroll ? await settleAnchor(name, signal, reduced) : await waitForAnchor(name, signal)
       if (!element) { setAnchor(null); return null }
-      if (scroll) { scrollToAnchor(element, reduced); await delay(reduced ? 30 : 460, signal) }
-      setAnchor(element)
+      setAnchor(name)
       const rect = rectOf(element), cards = visibleCards()
       const source = centerOf(document.querySelector('.tour-host-avatar'))
       play({ kind: 'beam', points: beamRoute(source, rect, computeLanes(cards), cards, window.innerWidth < 768), duration: 620 })
       play({ kind: 'scan', rect, duration: 640 })
-      setDataTag(element.dataset.tourTag || '')
       return element
     }
     const click = async (name) => {
-      const target = await waitForAnchor(name, signal, 1000)
+      const target = await settleAnchor(name, signal, reduced)
       if (!target || reduced) return
-      scrollToAnchor(target, reduced); await delay(100, signal)
       const from = centerOf(document.querySelector('.tour-host-avatar')), to = centerOf(target)
       setPointer({ from, to, token: performance.now() }); target.setAttribute('data-tour-arrival', '')
       try {
@@ -136,7 +134,7 @@ export default function TourProvider({ children }) {
       }
     }
     const run = async () => {
-      setNotice(''); setDataTag(''); setAnchor(null)
+      setNotice(''); setAnchor(null)
       const sameRoute = locationRef.current.pathname === current.route || (current.route === '/new' && locationRef.current.pathname === '/')
       if (!sameRoute) {
         dispatch({ type: 'PHASE', phase: 'routing' })
@@ -149,18 +147,19 @@ export default function TourProvider({ children }) {
         const routingStart = performance.now()
         while (locationRef.current.pathname !== current.route && performance.now() - routingStart < 4000) await delay(30, signal)
         document.querySelector('.app-main-scroll')?.scrollTo({ top: 0, behavior: 'instant' })
-        overviewUntil.current = performance.now() + PAGE_OVERVIEW_MS
+        overviewUntil.current = performance.now() + overviewDuration(current.route)
       }
       if (overviewUntil.current > performance.now()) {
         dispatch({ type: 'PHASE', phase: 'settling' })
         await waitForOverviewPaint(signal)
-        // Count the five seconds from the unobscured page's actual paint.
+        // Count the overview from the unobscured page's actual paint.
         // Heavy route rendering must not consume the visitor's reading time.
-        if (!sameRoute) overviewUntil.current = performance.now() + PAGE_OVERVIEW_MS
+        if (!sameRoute) overviewUntil.current = performance.now() + overviewDuration(current.route)
         await delay(Math.max(0, overviewUntil.current - performance.now()), signal)
       }
       const contentBegin = performance.now()
       dispatch({ type: 'PHASE', phase: 'anchoring' })
+      if (current.route === '/combo' && current.prepare && current.prepare !== 'combo.ensureGenerated') await tourBus.run('combo.ensureGenerated', {}, { signal })
       if (current.prepare) await tourBus.run(current.prepare, { text: DEMO_SENTENCE, reduced: true, instant: true }, { signal })
       let target = await focus(current.preAnchor || current.anchor)
       if (current.action) {
@@ -173,9 +172,11 @@ export default function TourProvider({ children }) {
           setNotice('正在求解…')
         }
         if (current.action === 'new.showPostImport') await click('new.postImport')
+        if (current.action === 'combo.ensureGenerated') setAnchor(null)
         // Yield before the synchronous solver so the host and laser layer paint first.
         await delay(40, signal)
-        const outcome = await tourBus.run(current.action, { text: DEMO_SENTENCE, reduced, beforeParse: () => click('new.parse') }, { signal })
+        const outcome = await tourBus.run(current.action, { text: DEMO_SENTENCE, reduced, focus, gesture: click, beforeParse: () => click('new.parse') }, { signal })
+        if (!outcome?.ok) console.warn('[Tour] Action unavailable', current.action, outcome?.reason)
         setNotice(outcome?.ok ? '' : '本段结果暂不可用，可继续探索。')
         target = await focus(outcome?.ok ? current.anchor : (current.preAnchor || current.anchor))
       }
@@ -188,7 +189,7 @@ export default function TourProvider({ children }) {
     })
     return () => { ctl.abort(); renderer?.clear(); setPointer(null) }
     // One cancellable driver per step/resume. Router navigate changes identity
-    // on navigation; depending on it would cancel the five-second overview.
+    // on navigation; depending on it would cancel the page overview.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eligible, state.status, state.index, state.epoch, state.track, reduced])
 
@@ -213,14 +214,6 @@ export default function TourProvider({ children }) {
     save(); window.addEventListener('pagehide', save)
     return () => window.removeEventListener('pagehide', save)
   }, [state.status, state.index, state.track])
-  useEffect(() => {
-    if (!anchor) return undefined
-    const update = () => setDataTag(anchor.dataset.tourTag || '')
-    const observer = new MutationObserver(update)
-    observer.observe(anchor, { attributes: true, attributeFilter: ['data-tour-tag'] })
-    update()
-    return () => observer.disconnect()
-  }, [anchor])
   const openGuide = async () => {
     pause()
     const ctl = new AbortController(); guideController.current = ctl
@@ -231,6 +224,6 @@ export default function TourProvider({ children }) {
   return <TourContext.Provider value={{ eligible, state, start }}>
     {children}
     <TourLauncher mobile />
-    {onStage && <TourStage state={state} step={step} act={ACTS[step.act]} anchor={anchor} dataTag={dataTag} notice={notice} pointer={pointer} reduced={reduced} light={light} start={start} pause={pause} resume={resume} exit={exit} explore={explore} openGuide={openGuide} />}
+    {onStage && <TourStage state={state} step={step} act={ACTS[step.act]} anchor={anchor} notice={notice} pointer={pointer} reduced={reduced} light={light} start={start} seek={seek} beginSeek={beginSeek} pause={pause} resume={resume} exit={exit} explore={explore} openGuide={openGuide} />}
   </TourContext.Provider>
 }

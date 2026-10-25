@@ -1,6 +1,6 @@
 /* global document, window, MutationObserver */
 import assert from 'node:assert/strict'
-import { ENTRY_DELAY_MS, TRACKS, trackDuration } from '../src/lib/tour/tourScript.js'
+import { ENTRY_DELAY_MS, STEPS, TRACKS, overviewDuration, trackDuration } from '../src/lib/tour/tourScript.js'
 
 // Use an already installed Playwright runtime; no product dependency is added.
 // TOUR_BASE_URL=http://localhost:3000 TOUR_TRACK=full node scripts/check-demo-tour.mjs
@@ -37,6 +37,8 @@ try {
         status: stage?.dataset.status, step: stage?.dataset.step, phase: stage?.dataset.phase,
         caption: document.querySelector('.tour-caption')?.textContent,
         tag: document.querySelector('[data-tour="combo.package"]')?.dataset.tourTag,
+        custom: document.querySelector('[data-tour="combo.customResult"]')?.dataset.tourTag,
+        imports: document.querySelector('.settle-ai-result-summary')?.textContent,
       }
     })
     const key = [state.status, state.step, state.phase].join(':')
@@ -44,6 +46,8 @@ try {
     if (state.phase === 'dwelling') {
       seen.add(state.step)
       assert.ok(!state.caption?.includes('暂不可用'), `Unavailable step: ${state.step}`)
+      if (state.step === 'new.postImport') assert.match(state.imports || '', /2 个组合 · 共 2 场比赛/)
+      if (state.step === 'combo.customResult') assert.match(state.custom || '', /CUSTOM PORTFOLIO/)
       if (state.step === 'combo.generate') {
         assert.match(state.tag || '', /[1-9][0-9]* PLANS · MONTE CARLO [1-9]/)
         generated = true
@@ -59,11 +63,10 @@ try {
   const phases = await page.evaluate(() => window.tourPhases)
   for (const overview of phases.filter((event) => event.phase === 'settling')) {
     const focused = phases.find((event) => event.step === overview.step && event.phase === 'anchoring' && event.at > overview.at)
-    assert.ok(focused && focused.at - overview.at >= 4900, `Five-second overview interrupted: ${overview.step}`)
+    assert.ok(focused && focused.at - overview.at >= overviewDuration(STEPS[overview.step].route) - 100, `Page overview interrupted: ${overview.step}`)
     assert.equal(overview.dimmed, false, 'Page overview must be unobscured')
   }
   const overviewCount = phases.filter((event) => event.phase === 'settling').length
-  const { STEPS } = await import('../src/lib/tour/tourScript.js')
   const routeChanges = TRACKS[track].filter((id, i, ids) => i > 0 && STEPS[id].route !== STEPS[ids[i - 1]].route).length
   assert.equal(overviewCount, routeChanges, 'Every new route needs its overview')
   const persistence = await page.evaluate(() => Object.fromEntries(

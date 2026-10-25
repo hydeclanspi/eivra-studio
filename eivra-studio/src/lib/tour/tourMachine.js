@@ -20,6 +20,7 @@ export function tourReducer(state, event) {
     case 'PAUSE': case 'TAKE_OVER': case 'TAB_HIDDEN': case 'ROUTE_EXTERNAL':
       return state.status === 'running' ? { ...state, status: 'paused' } : state
     case 'RESUME': return state.status === 'paused' ? { ...state, status: 'running', phase: 'routing', epoch: state.epoch + 1 } : state
+    case 'SEEK': return ['running', 'paused', 'finale'].includes(state.status) && Number.isInteger(event.index) ? move(Math.max(0, Math.min(TRACKS[state.track].length - 1, event.index))) : state
     case 'NEXT': return ['running', 'paused'].includes(state.status) ? move(state.index + 1) : state
     case 'PREV': return ['running', 'paused'].includes(state.status) ? move(state.index - 1) : state
     case 'EXIT': case 'DISMISS': return { ...state, status: 'done' }

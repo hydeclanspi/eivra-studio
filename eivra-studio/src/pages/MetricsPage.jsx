@@ -872,7 +872,7 @@ export default function MetricsPage({ openModal }) {
         ))}
       </div>
 
-      <div className="mt-8 grid grid-cols-3 gap-6">
+      <div data-tour="dashboard.metricsRisk" className="mt-8 grid grid-cols-3 gap-6">
         <div className="glow-card bg-white rounded-2xl p-6 border border-stone-100">
           <h3 className="font-medium text-stone-700 mb-4 flex items-center gap-2">
             <GlassCardIcon IconComp={Activity} tone="sky" />

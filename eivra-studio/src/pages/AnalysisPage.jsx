@@ -8,6 +8,7 @@ import TimeRangePicker from '../components/TimeRangePicker'
 import { useLabels, usePreviewTextMask } from '../lib/labels'
 import { useModeLabelMap } from '../components/ModeLabel'
 import { useDisplayMode, PREVIEW_MODE } from '../lib/displayMode'
+import useTourAction from '../components/tour/useTourAction'
 
 const PERIOD_LABELS = {
   '1w': '近一周',
@@ -746,6 +747,16 @@ export default function AnalysisPage({ openModal }) {
   // 演示态「时间近因权重」假改写入口：三个权重数字可点击自定义，仅存于本地视图
   // 状态（按层级序号 0/1/2 记忆），绝不写入分析快照或任何持久化数据——纯体验。
   const isPreview = useDisplayMode() === PREVIEW_MODE
+  const showTourTab = async (tab, { signal, gesture }) => {
+    if (!isPreview || signal.aborted) return { ok: false, reason: 'unavailable' }
+    await gesture?.(`dashboard.analysisTab.${tab}`)
+    if (signal.aborted) return { ok: false, reason: 'cancelled' }
+    setAnalysisTab(tab)
+    return { ok: true }
+  }
+  useTourAction('dashboard.showStrategy', (payload) => showTourTab('combo', payload))
+  useTourAction('dashboard.showLeagues', (payload) => showTourTab('league', payload))
+  useTourAction('dashboard.showRecency', (payload) => showTourTab('time', payload))
   const [weightOverrides, setWeightOverrides] = useState({})
   const [editingWeightIdx, setEditingWeightIdx] = useState(null)
   const [editingWeightValue, setEditingWeightValue] = useState('')
@@ -1217,6 +1228,8 @@ export default function AnalysisPage({ openModal }) {
         {ANALYSIS_TABS.map((tab) => (
           <button
             key={tab.id}
+            data-tour={tab.id === 'league' ? "dashboard.analysisTab.league" : tab.id === 'time' ? "dashboard.analysisTab.time" : tab.id === 'combo' ? "dashboard.analysisTab.combo" : undefined}
+            aria-pressed={analysisTab === tab.id}
             onClick={() => setAnalysisTab(tab.id)}
             className={`motion-v2-ghost-btn px-4 py-2 rounded-xl text-sm transition-all btn-hover ${
               analysisTab === tab.id ? 'bg-amber-100 text-amber-700 font-medium' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
@@ -1604,7 +1617,7 @@ export default function AnalysisPage({ openModal }) {
       )}
 
       {analysisTab === 'league' && (
-        <div className="motion-v2-surface glow-card bg-white rounded-2xl p-6 border border-stone-100">
+        <div data-tour="dashboard.analysisLeagues" className="motion-v2-surface glow-card bg-white rounded-2xl p-6 border border-stone-100">
           <h3 className="font-medium text-stone-700 mb-1">联赛表现对比</h3>
           <p className="text-xs text-stone-400 mb-4">点击联赛可展开对应近期投资比赛历史明细</p>
           <div className="space-y-3">
@@ -1821,7 +1834,7 @@ export default function AnalysisPage({ openModal }) {
       )}
 
       {analysisTab === 'time' && (
-        <div className="motion-v2-surface glow-card relative overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-white via-sky-50/32 to-cyan-50/30 p-6">
+        <div data-tour="dashboard.analysisRecency" className="motion-v2-surface glow-card relative overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-white via-sky-50/32 to-cyan-50/30 p-6">
           <div className="pointer-events-none absolute -top-16 -right-12 h-44 w-44 rounded-full bg-sky-200/28 blur-3xl" />
           <div className="pointer-events-none absolute top-24 -left-12 h-36 w-36 rounded-full bg-cyan-200/24 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-16 right-24 h-40 w-40 rounded-full bg-indigo-200/18 blur-3xl" />

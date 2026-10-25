@@ -1,4 +1,5 @@
 import useTourAction, { useTourReset } from '../components/tour/useTourAction'
+import { DEMO_IMPORT } from '../lib/tour/tourScript'
 import { delay, tourCache } from '../lib/tour/tourBus'
 import { useDemoFlourish } from '../lib/tour/demoChoreography'
 import { brandLocalStorage, brandSessionStorage } from '../lib/brandStorage.js'
@@ -19,7 +20,7 @@ import {
   estimateEntryAnchorOdds,
   solveKellyFractionByAtomicDistribution,
 } from '../lib/atomicParlay'
-import { parseNaturalInput } from '../lib/naturalInputParser'
+import { parseNaturalInputOrders } from '../lib/naturalInputOrders'
 import { requestAiInvestmentParse } from '../lib/aiInvestmentClient'
 import { AI_FSE_DEFAULT, AI_PARSE_MAX_TEXT_LENGTH } from '../lib/aiInvestmentSchema'
 import { formatStructuredQuickInput } from '../lib/quickInputPresentation'
@@ -1359,7 +1360,7 @@ export default function NewInvestmentPage() {
     setQuickInputResult(null)
 
     if (isPreview) {
-      const result = parseNaturalInput(text)
+      const result = parseNaturalInputOrders(text)
       applyQuickInputResult(result)
       setQuickInputPhase('local')
       return
@@ -1390,7 +1391,7 @@ export default function NewInvestmentPage() {
         invalid_token: '登录状态已失效',
         text_too_long: '输入内容过长',
       }[error?.reason] || 'AI 暂时不可用'
-      const localResult = parseNaturalInput(text)
+      const localResult = parseNaturalInputOrders(text)
       applyQuickInputResult({
         ...localResult,
         diagnostics: [
@@ -1434,10 +1435,25 @@ export default function NewInvestmentPage() {
     setViewMode('post')
     setParlaySize((size) => (size === 1 ? 2 : size))
   }
-  useTourAction('new.showPostImport', async (payload) => {
-    const result = await ensureTourInput({ ...payload, instant: true })
-    if (!result.ok || payload.signal.aborted) return result
-    activatePostImport()
+  useTourAction('new.showPostImport', async ({ signal, reduced, focus, beforeParse }) => {
+    if (!isPreview || signal.aborted) return { ok: false, reason: 'not_preview' }
+    tourFormOwned.current = true
+    setViewMode('post')
+    setQuickInputOpen(true)
+    setQuickInputResult(null)
+    setQuickInputPhase('idle')
+    setQuickInputText('')
+    await focus?.('new.quickInput')
+    if (signal.aborted) return { ok: false, reason: 'cancelled' }
+    // A real two-order paste, followed by the same local parser as manual input.
+    setQuickInputText(DEMO_IMPORT)
+    await delay(reduced ? 40 : 700, signal)
+    await beforeParse?.()
+    if (signal.aborted) return { ok: false, reason: 'cancelled' }
+    await handleQuickInput(DEMO_IMPORT)
+    setHistoryFloatDismissed({ 0: true })
+    setActiveTeamInput(null)
+    tourParsedText.current = null
     return { ok: true }
   })
   useEffect(() => {
@@ -1716,7 +1732,7 @@ export default function NewInvestmentPage() {
                   </div>
                 </div>
               )}
-              <div className="flex flex-wrap items-center gap-2">
+              <div data-tour="new.importReview" data-tour-tag={`${quickInputComboCount} ORDERS · REVIEW BEFORE ARCHIVE`} className="flex flex-wrap items-center gap-2">
                 {!quickInputHasStructuredResult && (
                   <button
                     type="button"

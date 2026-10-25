@@ -1,8 +1,10 @@
 export const TOUR_VERSION = 2
-export const ENTRY_DELAY_MS = 8500
-export const PAGE_OVERVIEW_MS = 5000
+export const ENTRY_DELAY_MS = 3000
+export const PAGE_OVERVIEW_MS = 3000
 export const ROUTE_LEAD_MS = 420
-export const ROUTE_BUDGET_MS = ROUTE_LEAD_MS + PAGE_OVERVIEW_MS
+export const overviewDuration = (route) => route.startsWith('/history') ? 2000 : PAGE_OVERVIEW_MS
+export const routeBudget = (route) => ROUTE_LEAD_MS + overviewDuration(route)
+export const DEMO_IMPORT = '1. 阿森纳2-0利物浦 odds 3.9 conf 0.71 140块\n2. 巴萨3-3皇马 odds 7.5 conf 0.45 20块'
 export const DEMO_SENTENCE = '阿森纳2-0利物浦 odds 3.9 conf 0.71 140块'
 
 export const ACTS = [
@@ -10,19 +12,29 @@ export const ACTS = [
   ['04', '复盘', 'REVIEW'], ['05', '校准', 'CALIBRATE'], ['06', '研究', 'RESEARCH'],
 ]
 
-// Content budgets exclude the five-second overview after each route change.
+// Content budgets exclude the short overview after each route change.
 export const STEPS = {
   'new.quickInput': { act: 0, route: '/new', anchor: 'new.quickInput', action: 'new.ensureQuickInputParsed', duration: 5500, title: '一句话，写下判断', body: '先写下一个判断，一句话就够。球队、比分、赔率、信心、投入，自动归位。' },
   'new.scoreCloud': { act: 0, route: '/new', anchor: 'new.scoreCloud', prepare: 'new.ensureQuickInputParsed', duration: 4500, title: '判断被翻译成概率', body: '进球区间和浓度，生成一张比分概率云。胜平负分布来自你的判断。' },
   'new.sizing': { act: 0, route: '/new', anchor: 'new.sizing', prepare: 'new.ensureQuickInputParsed', duration: 4000, title: '信心多大，仓位多大', body: '校准后的信心经分数凯利换算成建议投入，风控上限与可用资金共同约束仓位。' },
-  'new.postImport': { act: 0, route: '/new', anchor: 'new.quickInput', preAnchor: 'new.postImport', action: 'new.showPostImport', duration: 5000, title: '也可以，一键投后导入', body: '已有的记录，也可以一键投后导入。粘贴文本、批量解析，核对后再入档。' },
+  'new.postImport': { act: 0, route: '/new', anchor: 'new.importReview', preAnchor: 'new.postImport', action: 'new.showPostImport', duration: 7500, title: '也可以，一键投后导入', body: '已有记录，粘贴两单文本，自动解析、逐单核对，再一键入档。投后导入，一气呵成。' },
   'combo.candidates': { act: 1, route: '/combo', anchor: 'combo.candidates', duration: 2500, title: '把判断放在一起看', body: '今天的备选，各自带着角色：稳、中信、杠杆。' },
   'combo.generate': { act: 1, route: '/combo', anchor: 'combo.package', preAnchor: 'combo.generateBtn', action: 'combo.ensureGenerated', duration: 7000, title: '现在，一键求解', body: '在效用、覆盖和去重之间权衡，生成组合方案，再用蒙特卡洛模拟评估盈亏分布。' },
   'combo.heatmap': { act: 1, route: '/combo', anchor: 'combo.heatmap', prepare: 'combo.ensureGenerated', duration: 4000, title: '看清隐性关联', body: '热力图标出比赛之间的依赖风险。这是探索性的诊断指数，不代表真实概率。' },
+  'combo.dependencyDetail': { act: 1, route: '/combo', anchor: 'combo.dependencyDetail', preAnchor: 'combo.dependencyCell', prepare: 'combo.ensureGenerated', action: 'combo.inspectDependency', duration: 5000, title: '点开一对比赛，看风险从哪来', body: '点开矩阵中的一对比赛：共振评分、样本与共同失败记录，都能展开查看。' },
+  'combo.dependencyEvidence': { act: 1, route: '/combo', anchor: 'combo.dependencyEvidence', prepare: 'combo.inspectDependency', duration: 4500, title: '继续往下，看证据', body: '往下对照市场隐含值与历史共同失败率，再看 Premium 和 MSI 代理指数分摊。' },
+  'combo.tolerance': { act: 1, route: '/combo', anchor: 'combo.tolerance', preAnchor: 'combo.portfolioExpand', prepare: 'combo.ensureGenerated', action: 'combo.showTolerance', duration: 5000, title: '风险，可以变成自己的约束', body: '展开组合包，容错矩阵回答：一场失利时，哪些比赛还能在其他组合里存活。' },
+  'combo.customize': { act: 1, route: '/combo', anchor: 'combo.tolerance', prepare: 'combo.showTolerance', action: 'combo.customizeTolerance', duration: 6500, title: '亲手编辑依赖关系', body: '点格子要求降低依赖，也能撤销修改、放开约束。容错偏好可以交给求解器重新计算。' },
+  'combo.customResult': { act: 1, route: '/combo', anchor: 'combo.customResult', preAnchor: 'combo.recompute', prepare: 'combo.prepareCustomTolerance', action: 'combo.recomputeTolerance', duration: 6000, title: '让求解器回应你的偏好', body: '放开一项约束后重新求解，定制组合包置顶。编辑、验证、重算，形成可交互的配仓过程。' },
   'settle.quick': { act: 2, route: '/settle', anchor: 'settle.quick', duration: 4500, title: '赛后，一句话结算', body: '比赛结束，一句话结算。结果回流，成为下一次校准的证据。' },
   'dashboard.overview': { act: 3, route: '/dashboard', anchor: 'dashboard.overview', duration: 4500, title: '先看全局，再看细节', body: 'Dashboard 把资金、收益和判断质量放在一起。先看全局，再沿着线索往下探索。' },
-  'dashboard.analysis': { act: 3, route: '/dashboard/analysis', anchor: 'dashboard.analysis', duration: 4500, title: '找到自己的优势领域', body: '深度分析从策略组合、联赛与信心区间中寻找优势，也把样本量与不确定性放在眼前。' },
+  'dashboard.trend': { act: 3, route: '/dashboard', anchor: 'dashboard.trend', duration: 4000, title: '沿着趋势往下看', body: '往下看判断质量的走势和逐笔变化，再对照资金曲线，让当期概览连上历史轨迹。' },
+  'dashboard.advantage': { act: 3, route: '/dashboard', anchor: 'dashboard.advantage', duration: 3500, title: '从全局走到优势', body: '继续看优势领域，把表现拆到更具体的策略和比赛类型。' },
+  'dashboard.analysis': { act: 3, route: '/dashboard/analysis', anchor: 'dashboard.analysis', prepare: 'dashboard.showStrategy', duration: 4500, title: '找到自己的优势领域', body: '深度分析从策略组合、联赛与信心区间中寻找优势，也把样本量与不确定性放在眼前。' },
+  'dashboard.analysisLeagues': { act: 3, route: '/dashboard/analysis', anchor: 'dashboard.analysisLeagues', preAnchor: 'dashboard.analysisTab.league', action: 'dashboard.showLeagues', duration: 4000, title: '把优势放回具体联赛', body: '切到联赛表现，看收益、命中与样本量，找到优势成立的范围。' },
+  'dashboard.analysisRecency': { act: 3, route: '/dashboard/analysis', anchor: 'dashboard.analysisRecency', preAnchor: 'dashboard.analysisTab.time', action: 'dashboard.showRecency', duration: 3500, title: '最近的判断，也有不同权重', body: '时间近因机制展示新旧样本如何参与判断，让表现变化有迹可循。' },
   'dashboard.metrics': { act: 3, route: '/dashboard/metrics', anchor: 'dashboard.metrics', duration: 4500, title: '指标，也能展开看', body: '数据总览把关键指标铺成卡片。点开任一张，继续看计算口径与背后的证据。' },
+  'dashboard.metricsRisk': { act: 3, route: '/dashboard/metrics', anchor: 'dashboard.metricsRisk', duration: 3500, title: '收益之外，也看风险', body: '指标下面还有近期趋势和风险：回撤、波动与效率，放在一起读。' },
   'seasons.hero': { act: 3, route: '/dashboard/report', anchor: 'seasons.hero', duration: 4500, title: '每个周期，一份战报', body: '净值、命中和回撤，汇成一页。回看一个研究周期的全貌。（演示数据）' },
   'seasons.split': { act: 3, route: '/dashboard/report', anchor: 'seasons.split', duration: 4500, title: '看清结果来自哪里', body: '按联赛、注额、策略和周次拆开，看清结果来自哪里。' },
   'history.records': { act: 3, route: '/history', anchor: 'history.records', duration: 3000, title: '每一次判断，都能回看', body: 'History 留下每次判断、结果与盈亏。筛选、展开，回到当时的记录。' },
@@ -32,12 +44,20 @@ export const STEPS = {
 }
 export const TRACKS = {
   full: Object.keys(STEPS),
-  short: ['new.quickInput', 'new.scoreCloud', 'new.postImport', 'combo.generate', 'dashboard.overview', 'seasons.hero', 'history.records', 'console.fit'],
+  short: ['new.quickInput', 'new.scoreCloud', 'new.postImport', 'combo.generate', 'combo.dependencyDetail', 'combo.dependencyEvidence', 'combo.tolerance', 'combo.customize', 'combo.customResult', 'dashboard.overview', 'dashboard.trend', 'seasons.hero', 'history.records', 'console.fit'],
 }
 export const navAnchor = (route) => `nav.${route.startsWith('/dashboard') ? 'dashboard' : route.startsWith('/history') ? 'history' : route.slice(1)}`
-export const stepOffset = (track, index) => TRACKS[track].slice(0, index).reduce((sum, id, i) => sum + STEPS[id].duration + (TRACKS[track][i + 1] && STEPS[id].route !== STEPS[TRACKS[track][i + 1]].route ? ROUTE_BUDGET_MS : 0), 0)
-export const trackDuration = (track) => TRACKS[track].reduce((sum, id, i, ids) => sum + STEPS[id].duration + (i && STEPS[ids[i - 1]].route !== STEPS[id].route ? ROUTE_BUDGET_MS : 0), 0)
+export const stepOffset = (track, index) => TRACKS[track].slice(0, index).reduce((sum, id, i) => sum + STEPS[id].duration + (TRACKS[track][i + 1] && STEPS[id].route !== STEPS[TRACKS[track][i + 1]].route ? routeBudget(STEPS[TRACKS[track][i + 1]].route) : 0), 0)
+export const trackDuration = (track) => TRACKS[track].reduce((sum, id, i, ids) => sum + STEPS[id].duration + (i && STEPS[ids[i - 1]].route !== STEPS[id].route ? routeBudget(STEPS[id].route) : 0), 0)
 export const trackLabel = (track) => {
   const seconds = Math.round(trackDuration(track) / 10000) * 10
   return `约 ${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`
+}
+
+// Seek lands at a chapter boundary and re-establishes its real UI state.
+export function stepAtProgress(track, progress) {
+  const ids = TRACKS[track]
+  const elapsed = Math.max(0, Math.min(1, Number(progress) || 0)) * trackDuration(track)
+  for (let i = ids.length - 1; i >= 0; i--) if (elapsed >= stepOffset(track, i)) return i
+  return 0
 }

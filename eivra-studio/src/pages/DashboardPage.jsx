@@ -1820,7 +1820,7 @@ export default function DashboardPage({ openModal }) {
         </div>
       </div>
 
-      <div className="motion-v2-surface glow-card bg-white rounded-2xl p-6 border border-stone-100">
+      <div data-tour="dashboard.trend" className="motion-v2-surface glow-card bg-white rounded-2xl p-6 border border-stone-100">
         <div className="flex items-center justify-between mb-4">
           <div className="relative">
             <button
@@ -2002,7 +2002,7 @@ export default function DashboardPage({ openModal }) {
 
       <CapitalCurveReveal investments={capitalInvestments} compact />
 
-      <div onClick={openAdvantageModal} className="motion-v2-surface glow-card bg-white rounded-2xl p-5 border border-stone-100 cursor-pointer">
+      <div data-tour="dashboard.advantage" onClick={openAdvantageModal} className="motion-v2-surface glow-card bg-white rounded-2xl p-5 border border-stone-100 cursor-pointer">
         <h3 className="font-medium text-stone-700 mb-1">优势领域识别</h3>
         <p className="text-[10px] text-stone-400 mb-3">以球队为切片，自动识别 ROI 与命中率长期领先的组合</p>
         <div className="grid grid-cols-3 gap-3">

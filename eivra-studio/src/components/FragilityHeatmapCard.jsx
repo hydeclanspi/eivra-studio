@@ -1,3 +1,5 @@
+import useTourAction from './tour/useTourAction'
+import { isPreviewMode } from '../lib/displayMode'
 import { useEffect, useMemo, useState } from 'react'
 import { Activity, TrendingUp, X } from 'lucide-react'
 import { assessComboFragility, getOddsBand, getDependencyHistory } from '../lib/analytics'
@@ -317,6 +319,15 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
     : '\u2014'
   const highRiskCount = displayFragilityMatrix.filter(m => m.displayScore > 40).length
 
+  const tourPair = availableScores.slice().sort((a, b) => b.score - a.score)[0] || displayFragilityMatrix[0]
+  useTourAction('combo.inspectDependency', async ({ signal, gesture }) => {
+    if (!isPreviewMode() || !tourPair || signal.aborted) return { ok: false, reason: 'no_pair' }
+    await gesture?.('combo.dependencyCell')
+    if (signal.aborted) return { ok: false, reason: 'cancelled' }
+    onSelectPair?.(tourPair)
+    return { ok: true }
+  })
+
   // ─── 空状态 ───
   if (matches.length < 2) {
     return (
@@ -434,7 +445,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
     const bandB = matchB?.odds ? getOddsBand(matchB.odds) : null
 
     return (
-      <div className="mx-6 mb-6 mt-1">
+      <div data-tour="combo.dependencyDetail" data-tour-tag="PAIR EVIDENCE · EXPLORATORY INDEX" className="mx-6 mb-6 mt-1">
         {/* 面板外框 — 玻璃质感 */}
         <div className="relative overflow-hidden rounded-2xl border border-stone-200/60 bg-gradient-to-br from-white via-stone-50/40 to-sky-50/30 backdrop-blur-sm">
           {/* 背景装饰 */}
@@ -605,7 +616,7 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
 
             {/* 第二行：概率分析模块 — 左=Market Implied (内部分割含 Partial Miss 明细) | 右=Co-failure Rate */}
             {(Number.isFinite(pFailA) || Number.isFinite(premiumValue)) && (
-              <div className="mt-2.5 grid grid-cols-2 gap-2.5">
+              <div data-tour="combo.dependencyEvidence" data-tour-tag="OBSERVED / EXPECTED · PREMIUM · MSI" className="mt-2.5 grid grid-cols-2 gap-2.5">
                 {/* 左半：Market Implied + Partial Miss 内部分割 */}
                 {Number.isFinite(pFailA) && Number.isFinite(pFailB) && (
                   <div className="rounded-xl bg-gradient-to-br from-sky-50/50 via-white to-cyan-50/30 border border-sky-100/60 p-3.5">
@@ -944,6 +955,8 @@ export function FragilityHeatmapCard({ matches = [], expandedPair = null, onSele
                     return (
                       <td key={`cell-${rowIdx}-${colIdx}`} className="p-1">
                         <button
+                          data-tour={pairData === tourPair ? "combo.dependencyCell" : undefined}
+                          aria-label={`查看 ${formatTeamName(matches[rowIdx], rowIdx)} 与 ${formatTeamName(matches[colIdx], colIdx)} 的依赖风险详情`}
                           onClick={() => onSelectPair?.(pairData)}
                           className={`relative w-full h-14 rounded-lg border backdrop-blur-[2px] flex flex-col items-center justify-center transition-all duration-200 cursor-pointer overflow-hidden
                             ${cellStyle.bg} ${cellStyle.border} ${cellStyle.text} ${cellStyle.glow}

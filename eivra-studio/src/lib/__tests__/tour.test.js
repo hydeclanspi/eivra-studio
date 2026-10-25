@@ -3,10 +3,12 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { initialTourState, stepId, tourReducer } from '../tour/tourMachine'
-import { ENTRY_DELAY_MS, PAGE_OVERVIEW_MS, STEPS, TRACKS, stepOffset, trackDuration } from '../tour/tourScript'
+import { ENTRY_DELAY_MS, DEMO_IMPORT, overviewDuration, routeBudget, STEPS, TRACKS, stepAtProgress, stepOffset, trackDuration } from '../tour/tourScript'
 import { readTourJSON, shouldAutoOffer, tourEligible, writeTourJSON } from '../tour/tourGate'
 import { beamRoute, computeLanes, laserWave, pathClear, sampleLaserSpeed } from '../tour/laneRouting'
 import { delay, tourBus, tourCache } from '../tour/tourBus'
+import { clipAnchorRect, sameAnchorRect } from '../tour/anchorGeometry'
+import { parseNaturalInputOrders } from '../naturalInputOrders'
 import { waitForInitialPage } from '../../components/tour/tourReady'
 
 describe('tour playback lifecycle', () => {
@@ -66,8 +68,8 @@ describe('script contract and anchor drift guard', () => {
   const sources = readJSX(sourceRoot)
   const app = fs.readFileSync(path.join(sourceRoot, 'App.jsx'), 'utf8')
   it('keeps both tracks within their editorial duration and concise copy budgets', () => {
-    expect(trackDuration('full')).toBeGreaterThanOrEqual(120000); expect(trackDuration('full')).toBeLessThanOrEqual(150000)
-    expect(trackDuration('short')).toBeGreaterThanOrEqual(60000); expect(trackDuration('short')).toBeLessThanOrEqual(80000)
+    expect(trackDuration('full')).toBeGreaterThanOrEqual(120000); expect(trackDuration('full')).toBeLessThanOrEqual(165000)
+    expect(trackDuration('short')).toBeGreaterThanOrEqual(60000); expect(trackDuration('short')).toBeLessThanOrEqual(95000)
     for (const ids of Object.values(TRACKS)) { expect(new Set(ids).size).toBe(ids.length); ids.forEach((id) => expect(STEPS[id]).toBeTruthy()) }
     for (const step of Object.values(STEPS)) expect([...step.body].length).toBeLessThanOrEqual(60)
   })
@@ -80,14 +82,14 @@ describe('script contract and anchor drift guard', () => {
       TRACKS[track].slice(1).forEach((id, index) => {
         const previous = TRACKS[track][index]
         const difference = stepOffset(track, index + 1) - stepOffset(track, index)
-        expect(difference).toBeGreaterThanOrEqual(STEPS[previous].duration + (STEPS[previous].route === STEPS[id].route ? 0 : PAGE_OVERVIEW_MS))
+        expect(difference).toBe(STEPS[previous].duration + (STEPS[previous].route === STEPS[id].route ? 0 : routeBudget(STEPS[id].route)))
       })
     }
   })
   it('keeps every route, action and visible anchor attached to the actual product', () => {
     for (const step of Object.values(STEPS)) {
       expect(app, step.route).toContain(`path="${step.route}"`)
-      for (const name of [step.anchor, step.preAnchor].filter(Boolean)) expect(sources, name).toContain(`data-tour="${name}"`)
+      for (const name of [step.anchor, step.preAnchor].filter(Boolean)) expect(sources.includes(`data-tour="${name}"`) || new RegExp(`data-tour=\\{[^\\n]*"${name.replaceAll('.', '\\.')}"`).test(sources), name).toBe(true)
       for (const action of [step.action, step.prepare].filter(Boolean)) expect(sources, action).toContain(`useTourAction('${action}'`)
     }
     expect(sources).toContain('data-tour="brand.logo"')
@@ -127,11 +129,11 @@ describe('real-layout light lanes', () => {
 
 describe('cancellable page actions', () => {
   afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
-  it('waits 8.5 seconds and waits longer for unfinished resources', async () => {
+  it('waits three seconds and waits longer for unfinished resources', async () => {
     vi.useFakeTimers(); vi.stubGlobal('document', { readyState: 'loading', fonts: { status: 'loading' } })
     const ready = vi.fn(), ctl = new AbortController()
     const result = waitForInitialPage(ctl.signal, ENTRY_DELAY_MS).then(ready)
-    await vi.advanceTimersByTimeAsync(8499); expect(ready).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(2999); expect(ready).not.toHaveBeenCalled()
     await vi.advanceTimersByTimeAsync(1001); expect(ready).not.toHaveBeenCalled()
     document.readyState = 'complete'; document.fonts.status = 'loaded'
     await vi.advanceTimersByTimeAsync(100); await result; expect(ready).toHaveBeenCalledOnce()
@@ -164,5 +166,53 @@ describe('cancellable page actions', () => {
     const current = tourBus.register('test.mount', () => ({ ok: true }))
     old(); expect(await tourBus.run('test.mount')).toEqual({ ok: true }); current()
     expect(vi.getTimerCount()).toBe(0)
+  })
+})
+
+describe('tour navigation and live geometry', () => {
+  it('uses three-second page introductions and two-second history introductions', () => {
+    expect(ENTRY_DELAY_MS).toBe(3000)
+    for (const route of ['/new', '/combo', '/dashboard', '/params']) expect(overviewDuration(route)).toBe(3000)
+    for (const route of ['/history', '/history/teams']) expect(overviewDuration(route)).toBe(2000)
+  })
+  it('seeks across route boundaries and replays an action from a clean phase', () => {
+    for (const track of Object.keys(TRACKS)) {
+      const ids = TRACKS[track]
+      for (let index = 0; index < ids.length; index++) {
+        const progress = (stepOffset(track, index) + 10) / trackDuration(track)
+        expect(stepAtProgress(track, progress)).toBe(index)
+        const moved = tourReducer({ ...initialTourState, status: 'running', track, phase: 'acting', index: ids.length - 1, remaining: 100 }, { type: 'SEEK', index })
+        expect(moved).toMatchObject({ index, phase: 'routing', remaining: null, status: 'running' })
+        expect(moved.epoch).toBe(1)
+      }
+      expect(stepAtProgress(track, -1)).toBe(0)
+      expect(stepAtProgress(track, 2)).toBe(ids.length - 1)
+    }
+  })
+  it('parses the import demonstration as two distinct orders with their own amounts', () => {
+    const result = parseNaturalInputOrders(DEMO_IMPORT)
+    expect(result.combos).toHaveLength(2)
+    expect(result.combos.map((combo) => combo.actualInput)).toEqual([140, 20])
+    expect(result.combos.map((combo) => combo.matches.length)).toEqual([1, 1])
+  })
+  it('does not split decimal odds or unnumbered multi-match inputs into orders', () => {
+    expect(parseNaturalInputOrders('阿森纳2-0利物浦 odds 3.9 conf 0.71 140块').combos).toBeUndefined()
+    const result = parseNaturalInputOrders('1. 阿森纳2-0利物浦 odds 3.9 140块\n2. 无法识别')
+    expect(result.combos).toHaveLength(2)
+    expect(result.diagnostics.some((d) => d.level === 'error' && d.message.startsWith('第 2 单'))).toBe(true)
+  })
+  it('clips both edges and hides targets outside the visible scroll area', () => {
+    const bounds = { left: 8, right: 392, top: 72, bottom: 780 }
+    const r = { left: 340, right: 700, top: 60, bottom: 900, width: 360, height: 840, radius: 18 }
+    expect(clipAnchorRect(r, bounds)).toEqual({ left: 332, top: 72, width: 60, height: 708, radius: 18 })
+    expect(clipAnchorRect({ ...r, top: 900 }, bounds)).toBe(null)
+    expect(clipAnchorRect({ ...r, bottom: 60 }, bounds)).toBe(null)
+    expect(clipAnchorRect(null, bounds)).toBe(null)
+  })
+  it('detects position-only motion even when dimensions do not change', () => {
+    const r = { left: 10, top: 100, width: 360, height: 300, radius: 18 }
+    expect(sameAnchorRect(r, { ...r, top: 150 })).toBe(false)
+    expect(sameAnchorRect(r, { ...r, left: 10.1 })).toBe(true)
+    expect(sameAnchorRect(r, null)).toBe(false)
   })
 })

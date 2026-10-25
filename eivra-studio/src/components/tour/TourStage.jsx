@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ExternalLink, Pause, Play, RotateCcw, X } from 'lucide-react'
-import { STEPS, TRACKS, stepOffset, trackDuration, trackLabel } from '../../lib/tour/tourScript'
+import { STEPS, TRACKS, stepOffset, stepAtProgress, trackDuration, trackLabel } from '../../lib/tour/tourScript'
 import { createLightRenderer } from '../../lib/tour/lightRenderer'
 import { centerOf, findAnchor } from './tourDom'
 import useTourAnchorRect from './useTourAnchorRect'
@@ -9,12 +9,13 @@ import HostAvatar from './HostAvatar'
 
 const time = (n) => `${String(Math.floor(n / 60000)).padStart(2, '0')}:${String(Math.floor(n / 1000) % 60).padStart(2, '0')}`
 const overlaps = (a, b) => b && a.left < b.left + b.width + 16 && a.left + a.width + 16 > b.left && a.top < b.top + b.height + 16 && a.top + a.height + 16 > b.top
-export default function TourStage({ state, step, act, anchor, dataTag, notice, pointer, reduced, light, start, pause, resume, exit, explore, openGuide }) {
+export default function TourStage({ state, step, act, anchor, notice, pointer, reduced, light, start, seek, beginSeek, pause, resume, exit, explore, openGuide }) {
   const canvas = useRef(null), host = useRef(null), previousFocus = useRef(document.activeElement), closeTimer = useRef(null)
   const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight })
   const [countdown, setCountdown] = useState(4000), [hovered, setHovered] = useState(false)
   const [dock, setDock] = useState(0), [returning, setReturning] = useState(false), [opening, setOpening] = useState(!reduced)
-  const rect = useTourAnchorRect(anchor)
+  const { rect, tag: dataTag } = useTourAnchorRect(anchor)
+  const [scrub, setScrub] = useState(null)
   const paused = state.status === 'paused', welcome = state.status === 'offered', finale = state.status === 'finale'
   const reveal = state.status === 'running' && step.act === 4 && state.phase === 'dwelling' && state.remaining < 1600
   const stage = welcome || finale || reveal
@@ -77,13 +78,15 @@ export default function TourStage({ state, step, act, anchor, dataTag, notice, p
   const ids = TRACKS[state.track], total = trackDuration(state.track)
   const before = stepOffset(state.track, state.index)
   const elapsed = finale ? total : before + (state.remaining == null ? 0 : step.duration - Math.min(step.duration, state.remaining))
-  const body = notice || step.body
+  const progress = scrub ?? elapsed / total
+  const commitSeek = (value) => { setScrub(null); seek(stepAtProgress(state.track, Number(value))) }
+  const body = scrub == null ? (notice || step.body) : `回到：${STEPS[ids[stepAtProgress(state.track, scrub)]].title}`
   const avatarState = finale ? 'success' : state.phase === 'acting' && step.act === 1 ? 'think' : state.status === 'running' && !pill ? 'speak' : 'idle'
   return createPortal(<div className="tour-stage" style={{ zoom: 1 / (Number.parseFloat(getComputedStyle(document.documentElement).zoom) || 1) }} data-status={state.status} data-step={ids[state.index]} data-phase={state.phase} data-reduced={reduced ? 'true' : undefined}>
     {!paused && !returning && <div className="tour-intercept" aria-hidden="true" onClick={welcome ? close : pause} onWheel={welcome ? undefined : pause} />}
     {!paused && !overview && !returning && <div className={`tour-veil${rect && !stage ? ' has-target' : ''}`} aria-hidden="true" style={rect && !stage ? { left: rect.left, top: rect.top, width: rect.width, height: rect.height, borderRadius: rect.radius } : undefined} />}
     <canvas className="tour-light" ref={canvas} aria-hidden="true" />
-    {rect && !paused && !stage && !returning && <div className="tour-reticle" aria-hidden="true" style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height, borderRadius: rect.radius }}>
+    {rect && !paused && !stage && !returning && <div className="tour-reticle" data-target={anchor} aria-hidden="true" style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height, borderRadius: rect.radius }}>
       <i /><i /><i /><i />
       {dataTag && <span key={dataTag} className="tour-tag" style={{ maxWidth: Math.min(viewport.width - rect.left - 24, 520), top: rect.top < 110 ? 8 : -31 }}><b />{dataTag}</span>}
     </div>}
@@ -91,7 +94,7 @@ export default function TourStage({ state, step, act, anchor, dataTag, notice, p
       <div className="tour-host-avatar"><HostAvatar act={finale ? 6 : step.act + 1} state={avatarState} eyes={form === 'stage' || form === 'talk'} /></div>
       <div className="tour-host-content" key={`${form}-${welcome}-${finale}-${reveal}`}>
         {form === 'pill' && <div className="tour-pill-content">
-          {paused ? <><button className="tour-resume" onClick={resume}>导览已暂停 <Play size={12} /> 继续</button><button className="tour-icon" onClick={() => start(state.track)} aria-label="从头开始导览" title="从头开始导览"><RotateCcw size={13} /></button></> : <span>{overview ? '先看一眼这个页面' : `→ ${act[0]} · ${act[1]}`}<small>{overview ? '5s · OVERVIEW' : act[2]}</small></span>}
+          {paused ? <><button className="tour-resume" onClick={resume}>导览已暂停 <Play size={12} /> 继续</button><button className="tour-icon" onClick={() => start(state.track)} aria-label="从头开始导览" title="从头开始导览"><RotateCcw size={13} /></button></> : <span>{overview ? '先看一眼这个页面' : `→ ${act[0]} · ${act[1]}`}<small>{overview ? 'OVERVIEW' : act[2]}</small></span>}
           <button className="tour-icon" onClick={close} aria-label="退出导览"><X size={13} /></button>
         </div>}
         {form === 'stage' && <div className="tour-stage-copy">
@@ -112,10 +115,10 @@ export default function TourStage({ state, step, act, anchor, dataTag, notice, p
         </div>}
         {form === 'talk' && <>
           <span className="tour-signature">EIVRA</span>
-          <div className="tour-meta"><span><em>{act[0]}</em>{act[1]}</span><time>{time(elapsed)} / {time(total)}</time><button className="tour-icon" onClick={pause} aria-label="暂停导览"><Pause size={12} /></button><button className="tour-icon" onClick={close} aria-label="退出导览"><X size={13} /></button></div>
+          <div className="tour-meta"><span><em>{act[0]}</em>{act[1]}</span><time>{time(progress * total)} / {time(total)}</time><button className="tour-icon" onClick={pause} aria-label="暂停导览"><Pause size={12} /></button><button className="tour-icon" onClick={close} aria-label="退出导览"><X size={13} /></button></div>
           <div className="tour-caption" aria-live="polite" aria-atomic="true"><span className="sr-only">{body}</span><span aria-hidden="true" key={`${ids[state.index]}-${body}`}>{[...body].map((char, i) => <span className="tour-char" key={i} style={{ animationDelay: `${reduced ? 0 : i * 42 + (step.act === 5 && i > 6 ? 600 : 0)}ms` }}>{char}</span>)}</span></div>
           {step.act === 5 && <button className="tour-guide" onClick={openGuide}>打开完整指南 ↗</button>}
-          <div className="tour-timeline" role="progressbar" aria-label="导览进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(elapsed / total * 100)}><b style={{ transform: `scaleX(${elapsed / total})` }} />{ids.map((id, i) => i && STEPS[id].act !== STEPS[ids[i - 1]].act ? <i key={id} style={{ left: `${stepOffset(state.track, i) / total * 100}%` }} /> : null)}</div>
+          <div className="tour-timeline"><b style={{ transform: `scaleX(${progress})` }} /><input type="range" min="0" max="1" step="0.001" value={progress} aria-label="导览进度，拖动跳转片段" aria-valuetext={`${time(progress * total)}，${STEPS[ids[stepAtProgress(state.track, progress)]].title}`} title="拖动回看或跳转片段" onPointerDown={() => { setScrub(progress); beginSeek() }} onChange={(event) => setScrub(Number(event.target.value))} onPointerUp={(event) => commitSeek(event.currentTarget.value)} onPointerCancel={() => commitSeek(elapsed / total)} onKeyDown={(event) => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) beginSeek() }} onKeyUp={(event) => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) commitSeek(event.currentTarget.value) }} onBlur={(event) => { if (scrub != null) commitSeek(event.currentTarget.value) }} />{ids.map((id, i) => i && STEPS[id].act !== STEPS[ids[i - 1]].act ? <i key={id} style={{ left: `${stepOffset(state.track, i) / total * 100}%` }} /> : null)}</div>
         </>}
       </div>
     </section>

@@ -1,3 +1,4 @@
+import { buildMatrixCandidatePool } from '../lib/portfolioCandidatePool'
 import useTourAction, { useTourReset } from '../components/tour/useTourAction'
 import { delay, tourCache } from '../lib/tour/tourBus'
 import { useDemoFlourish } from '../lib/tour/demoChoreography'
@@ -2519,7 +2520,7 @@ const solvePortfolioByDirectedMatrixRequirements = (
   const mandatorySupportRows = hardRequirements
     .map((constraint) => allRows.find((row) => comboSatisfiesDirectedConstraint(row, constraint)))
     .filter(Boolean)
-  const pool = dedupeRankedBySignature([...mandatorySupportRows, ...allRows]).slice(0, poolCap)
+  const pool = buildMatrixCandidatePool({ incumbent: resolvedOptions.incumbent || [], supporters: mandatorySupportRows, ranked: allRows, limit: poolCap, signature: (row) => buildSubsetSignature(row?.subset || []) })
   if (pool.length < minSize) return null
 
   const positiveConstraints = hardRequirements
@@ -4179,6 +4180,8 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
   const drawdownExceeded = adoptPreview.ready && adoptPreview.worstDrawdownPct > maxWorstDrawdownAlertPct
 
   const riskProbeRows = useMemo(() => {
+    // The closed probe must not run five full solvers during page entry.
+    if (!showRiskProbe) return []
     const prefs = [30, 40, 50, 60, 70]
     // Use precision allocation inside probe to surface risk-sensitivity
     // instead of being flattened by 10-rmb bucket rounding.
@@ -4230,7 +4233,7 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
       ...row,
       best: Boolean(best && row.riskPref === best.riskPref),
     }))
-  }, [calibrationContext, comboStrategy, comboStructure, qualityFilter, riskCap, rolePreference, selectedMatches, systemConfig, comboRetrospective, solverMode])
+  }, [showRiskProbe, calibrationContext, comboStrategy, comboStructure, qualityFilter, riskCap, rolePreference, selectedMatches, systemConfig, comboRetrospective, solverMode])
 
   const matchExposure = useMemo(() => {
     const map = new Map()
@@ -4818,6 +4821,10 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
     setSelectedRecommendationIds({})
     setExpandedComboIdxSet(new Set())
     setExpandedPortfolioIdxSet(new Set())
+    setExpandedFragilityPair(null)
+    setFtCellOverrides({})
+    setFtDirtyPortfolios(new Set())
+    setFtConflictResolution(null)
     setGenerationSummary({ totalInvest: 0, expectedReturnPercent: 0, candidateCombos: 0, qualifiedCombos: 0, filteredOutCombos: 0, coverageInjectedCombos: 0, uncoveredMatches: 0, legsDistribution: {} })
   }
   useTourReset('combo', clearTourResult)
@@ -4965,6 +4972,43 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
     setFtConflictResolution(null)
   }
 
+  const tourAllocation = portfolioAllocations[0]
+  const tourSets = (tourAllocation?.combos || []).map((combo) => new Set((combo.subset || []).map((leg) => leg.key || `${leg.homeTeam}-${leg.awayTeam}`)))
+  const tourKeys = [...new Set(tourSets.flatMap((set) => [...set]))]
+  const tourCells = tourKeys.flatMap((row) => tourKeys.filter((col) => col !== row).map((col) => ({ row, col, survives: tourSets.some((set) => set.has(col) && !set.has(row)) })))
+  const tourDecouple = tourCells.find((cell) => !cell.survives)
+  const tourRelease = tourCells.find((cell) => cell.survives)
+  const showTourTolerance = async ({ signal, gesture }) => {
+    if (!isPreviewMode() || !tourAllocation || signal.aborted) return { ok: false, reason: 'no_portfolio' }
+    if (!expandedPortfolioIdxSet.has(0)) await gesture?.('combo.portfolioExpand')
+    if (signal.aborted) return { ok: false, reason: 'cancelled' }
+    setExpandedPortfolioIdxSet(new Set([0]))
+    setFtCellOverrides({})
+    setFtDirtyPortfolios(new Set())
+    return { ok: true }
+  }
+  useTourAction('combo.showTolerance', showTourTolerance)
+  useTourAction('combo.customizeTolerance', async ({ signal, gesture, reduced }) => {
+    if (!isPreviewMode() || !tourAllocation || signal.aborted) return { ok: false, reason: 'no_portfolio' }
+    const key = String(tourAllocation.portfolioKey || 'portfolio-1')
+    const cell = tourDecouple || tourRelease
+    if (!cell) return { ok: false, reason: 'no_relationship' }
+    await gesture?.('combo.editDependency')
+    if (signal.aborted) return { ok: false, reason: 'cancelled' }
+    handleFtCellToggle(key, cell.row, cell.col, cell.survives)
+    await delay(reduced ? 80 : 850, signal)
+    // Click again to demonstrate undo, then release an existing requirement.
+    await gesture?.('combo.editDependency')
+    if (signal.aborted) return { ok: false, reason: 'cancelled' }
+    handleFtCellToggle(key, cell.row, cell.col, cell.survives)
+    if (tourRelease) {
+      await gesture?.('combo.releaseDependency')
+      if (signal.aborted) return { ok: false, reason: 'cancelled' }
+      handleFtCellToggle(key, tourRelease.row, tourRelease.col, true)
+    }
+    return { ok: true }
+  })
+
   // Fault tolerance matrix: row-level "reduce dependency" — marks ALL red cells in this row as desired-green
   const handleFtRowReduce = (portfolioKeyInput, rowKey, ftMatches, comboMatchSets) => {
     const portfolioKey = String(portfolioKeyInput || '').trim()
@@ -4997,19 +5041,19 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
   // the actual effect of matrix customization instead of a stale pre-regeneration snapshot.
   // IMPORTANT: regeneration starts from selected-match candidate space (full model pipeline),
   // not from current recommendation rows.
-  const handleFtConfirmRegenerate = (portfolioKeyInput, overrideInput = null) => {
+  const handleFtConfirmRegenerate = (portfolioKeyInput, overrideInput = null, { silent = false } = {}) => {
     const portfolioKey = String(portfolioKeyInput || '').trim()
-    if (!portfolioKey) return
+    if (!portfolioKey) return { ok: false, reason: 'missing_portfolio_key' }
     const overrides = overrideInput && typeof overrideInput === 'object'
       ? overrideInput
       : ftCellOverrides[portfolioKey] || {}
     const entries = Object.entries(overrides)
-    if (entries.length === 0) return
+    if (entries.length === 0) return { ok: false, reason: 'no_edits' }
     const baseAlloc = portfolioAllocations.find((row) => String(row?.portfolioKey || '').trim() === portfolioKey)
     const baseCombos = Array.isArray(baseAlloc?.combos) ? baseAlloc.combos.filter(Boolean) : []
     if (baseCombos.length < 2) {
-      window.alert('当前组合包规模过小，无法基于容错矩阵重算。')
-      return
+      if (!silent) window.alert('当前组合包规模过小，无法基于容错矩阵重算。')
+      return { ok: false, reason: 'portfolio_too_small' }
     }
     const matrixProfile = buildDirectedMatrixRequirementsFromPortfolio(baseCombos, overrides)
     const keyLabelMap = buildMatrixShortLabelMap(selectedMatches)
@@ -5050,14 +5094,14 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
             selectedPairKeys: [options[0].pairKey],
           })
       } else {
-        window.alert(
+        if (!silent) window.alert(
           `当前矩阵逻辑自相矛盾（不是候选空间问题）。\n` +
           `你要求「${prettyKey(first.fromKey)}翻车时${prettyKey(first.toKey)}可存活」，` +
           `但其它未翻转关系推出：${chainText}。\n` +
           `这会强制得到「${prettyKey(first.toKey)} ⊆ ${prettyKey(first.fromKey)}」，与该要求冲突。`,
         )
       }
-      return
+      return { ok: false, reason: 'contradictory_constraints' }
     }
     setFtConflictResolution(null)
     const coverageTargetKeys = selectedMatches.map((m) => getPortfolioCoverageKey(m))
@@ -5103,8 +5147,8 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
     )
     const displayGenerated = generated || wideGenerated
     if (!displayGenerated) {
-      window.alert('当前容错矩阵在候选空间中无可行解。请减少翻转项后重试。')
-      return
+      if (!silent) window.alert('当前容错矩阵在候选空间中无可行解。请减少翻转项后重试。')
+      return { ok: false, reason: 'generation_failed' }
     }
     const displayRecommendationsRaw = (displayGenerated.recommendations || []).slice(0, RECOMMENDATION_OUTPUT_COUNT)
     const wideRowsRaw =
@@ -5131,6 +5175,7 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
         minSize: 2,
         maxSize: Math.min(5, selectedMatches.length),
         poolCap: 40,
+        incumbent: stableBaseCombos,
         coverageTargetKeys,
         hyperparams: calibrationContext?.comboHyperparams || null,
         overlapTuning,
@@ -5152,10 +5197,10 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
           })),
           selectedPairKeys: [`${relaxReqs[0].fromKey}|${relaxReqs[0].toKey}`],
         })
-        return
+        return { ok: false, reason: 'needs_relaxation' }
       }
-      window.alert('当前容错矩阵在候选空间中无可行解。请减少翻转项后重试。')
-      return
+      if (!silent) window.alert('当前容错矩阵在候选空间中无可行解。请减少翻转项后重试。')
+      return { ok: false, reason: 'candidate_infeasible' }
     }
 
     const positiveConstraints = parseDirectedDecouplingConstraints(matrixProfile.strictTruePairs)
@@ -5169,8 +5214,8 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
         positiveConstraints,
       ) || solved.scoredRow
     if (!customRow) {
-      window.alert('定制组合包构建失败，请稍后重试。')
-      return
+      if (!silent) window.alert('定制组合包构建失败，请稍后重试。')
+      return { ok: false, reason: 'custom_build_failed' }
     }
 
     setRecommendations(mergedRecommendations)
@@ -5218,7 +5263,25 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
     setFtCellOverrides({})
     setFtDirtyPortfolios(new Set())
     setFtConflictResolution(null)
+    return { ok: true }
   }
+
+
+  useTourAction('combo.prepareCustomTolerance', async ({ signal }) => {
+    const result = await showTourTolerance({ signal })
+    if (!result.ok || !tourRelease || signal.aborted) return { ok: false, reason: 'no_relationship' }
+    const key = String(tourAllocation.portfolioKey || 'portfolio-1')
+    setFtCellOverrides({ [key]: { [`${tourRelease.row}|${tourRelease.col}`]: 'release' } })
+    setFtDirtyPortfolios(new Set([key]))
+    return { ok: true }
+  })
+  useTourAction('combo.recomputeTolerance', async ({ signal, gesture }) => {
+    if (!isPreviewMode() || !tourAllocation || !tourRelease || signal.aborted) return { ok: false, reason: 'not_ready' }
+    await gesture?.('combo.recompute')
+    await delay(40, signal)
+    const key = String(tourAllocation.portfolioKey || 'portfolio-1')
+    return handleFtConfirmRegenerate(key, { [`${tourRelease.row}|${tourRelease.col}`]: 'release' }, { silent: true }) || { ok: false, reason: 'no_solution' }
+  })
 
   const handleFtConflictOptionToggle = (pairKey) => {
     setFtConflictResolution((prev) => {
@@ -6307,8 +6370,9 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
                     : `理论${Number(alloc.totalTheoreticalWeightPct || 0).toFixed(1)}%`
 
                   return (
-                  <div key={allocKey}>
+                  <div key={allocKey} data-tour={aIdx === 0 ? "combo.customResult" : undefined} data-tour-tag={alloc.pinned ? "CUSTOM PORTFOLIO · RECOMPUTED" : undefined}>
                     <div
+                      data-tour={aIdx === 0 ? "combo.portfolioExpand" : undefined}
                       onClick={() => togglePortfolioExpand(aIdx)}
                       className="motion-v2-row flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white/70 border border-indigo-100/60 cursor-pointer hover:bg-white transition-all"
                     >
@@ -6475,7 +6539,7 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
                           const overridesForThis = ftCellOverrides[allocKey] || {}
                           const isDirty = ftDirtyPortfolios.has(allocKey) && Object.keys(overridesForThis).length > 0
                           return (
-                            <div className="px-4 pb-2">
+                            <div data-tour={aIdx === 0 ? "combo.tolerance" : undefined} data-tour-tag={`${Object.keys(overridesForThis).length} EDITS · DIRECTED CONSTRAINTS`} className="px-4 pb-2">
                               <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-[0.1em] mb-2">容错依赖矩阵</p>
                               <div className="overflow-x-auto rounded-xl" style={{ background: 'rgba(255,255,255,0.5)' }}>
                                 <table className="w-full text-[11px] border-collapse">
@@ -6509,6 +6573,8 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
                                           return (
                                             <td key={colMatch.key} className="py-1.5 px-1.5 text-center">
                                               <button
+                                                data-tour={aIdx === 0 && rowMatch.key === (tourDecouple || tourRelease)?.row && colMatch.key === (tourDecouple || tourRelease)?.col ? "combo.editDependency" : aIdx === 0 && rowMatch.key === tourRelease?.row && colMatch.key === tourRelease?.col ? "combo.releaseDependency" : undefined}
+                                                aria-label={`${rowMatch.shortLabel} 失利时，${colMatch.shortLabel}${displayGreen ? '可存活' : '依赖此场'}，点击修改`}
                                                 onClick={() => handleFtCellToggle(allocKey, rowMatch.key, colMatch.key, survives)}
                                                 className="ft-cell-btn inline-flex items-center justify-center w-5 h-5 rounded-md cursor-pointer transition-all duration-200 ease-out hover:scale-110 active:scale-95"
                                                 style={{ background: displayGreen ? 'rgba(236,253,245,1)' : isFlipped ? 'rgba(236,253,245,0.7)' : 'rgba(255,241,242,1)', border: isFlipped ? '1.5px solid rgba(99,102,241,0.35)' : '1px solid transparent' }}
@@ -6543,6 +6609,7 @@ export default function ComboPage({ openModal, inspirationLayout = false }) {
                               </div>
                               {isDirty && (
                                 <button
+                                  data-tour={aIdx === 0 ? "combo.recompute" : undefined}
                                   onClick={() => handleFtConfirmRegenerate(allocKey)}
                                   className="w-full mt-2 py-1.5 rounded-xl text-[11px] font-medium transition-all duration-200"
                                   style={{

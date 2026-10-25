@@ -35,6 +35,7 @@ export const tourBus = {
       ])
     } catch (error) {
       if (signal?.aborted) throw abortError()
+      if (error.name !== 'AbortError') console.warn('[Tour] Action failed', name, error)
       return { ok: false, reason: error.name === 'AbortError' ? 'timeout' : 'action_failed' }
     } finally { clearTimeout(timeout); signal?.removeEventListener('abort', cancel); controller.abort() }
   },
