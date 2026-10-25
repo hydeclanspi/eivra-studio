@@ -15,10 +15,9 @@ export async function waitForOverviewPaint(signal) {
 
 export async function waitForInitialPage(signal, minimumMs) {
   const started = performance.now()
-  await delay(minimumMs, signal)
-  // Slow images/fonts may still be loading after the minimum reading window.
-  // A blocked third-party resource must not prevent the tour forever.
-  while ((document.readyState !== 'complete' || document.fonts?.status === 'loading') && performance.now() - started < minimumMs + 15000) {
+  // Start the reading window after load, with a cap for blocked resources.
+  while ((document.readyState !== 'complete' || document.fonts?.status === 'loading') && performance.now() - started < 15000) {
     await delay(100, signal)
   }
+  await delay(minimumMs, signal)
 }

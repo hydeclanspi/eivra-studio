@@ -1454,14 +1454,14 @@ export default function NewInvestmentPage() {
     if (!isPreview || signal.aborted) return { ok: false, reason: 'not_preview' }
     if (instant && viewMode === 'post' && quickInputSourceRef.current === DEMO_IMPORT && quickInputResult) return { ok: true, reused: true }
     tourFormOwned.current = true
-    setViewMode('post')
+    activatePostImport()
     setQuickInputOpen(true)
     setQuickInputResult(null)
     setQuickInputPhase('idle')
     setQuickInputText('')
     await focus?.('new.quickInput')
     if (signal.aborted) return { ok: false, reason: 'cancelled' }
-    // A real two-order paste, followed by the same local parser as manual input.
+    // A two-match combination, using the same defaults and parser as manual import.
     setQuickInputText(DEMO_IMPORT)
     await delay(reduced ? 40 : 700, signal)
     await beforeParse?.()
@@ -1750,7 +1750,7 @@ export default function NewInvestmentPage() {
                   </div>
                 </div>
               )}
-              <div data-tour="new.importReview" data-tour-tag={`${quickInputComboCount} ORDERS · REVIEW BEFORE ARCHIVE`} className="flex flex-wrap items-center gap-2">
+              <div data-tour="new.importReview" data-tour-tag={`${quickInputComboCount} ${quickInputComboCount === 1 ? 'ORDER' : 'ORDERS'} · ${quickInputMatchCount} MATCHES`} className="flex flex-wrap items-center gap-2">
                 {!quickInputHasStructuredResult && (
                   <button
                     type="button"
@@ -1913,7 +1913,7 @@ export default function NewInvestmentPage() {
 
       <div className="pre-sheet-plain">
         <div className="pre-match-split">
-          <div className="pre-match-split__main motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100">
+          <div data-tour={viewMode === 'post' ? "new.importDetails" : undefined} className="pre-match-split__main motion-v2-surface glow-card bg-white rounded-2xl border border-stone-100">
           {matches.map((match, idx) => {
             const homeSuggestions =
               activeTeamInput?.matchIdx === idx && activeTeamInput?.side === 'home' ? getTeamSuggestions(match.homeTeam) : []
@@ -1945,7 +1945,7 @@ export default function NewInvestmentPage() {
             )
 
             return (
-              <section key={idx} data-tour={idx === 0 && viewMode === 'post' ? "new.importDetails" : undefined} className="pre-match-section pre-match-section--main relative">
+              <section key={idx} className="pre-match-section pre-match-section--main relative">
                 {matchHeader}
                 {viewMode === 'pre' ? (
                   <PreMatchHero

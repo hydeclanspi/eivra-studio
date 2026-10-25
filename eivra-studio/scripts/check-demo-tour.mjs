@@ -49,10 +49,10 @@ try {
     if (state.phase === 'dwelling') {
       seen.add(state.step)
       assert.ok(!state.caption?.includes('暂不可用'), `Unavailable step: ${state.step}`)
-      if (state.step === 'new.postImport') assert.match(state.imports || '', /2 个组合 · 共 2 场比赛/)
+      if (state.step === 'new.postImport') assert.match(state.imports || '', /1 个组合 · 共 2 场比赛/)
       if (state.step === 'new.teamRecords') assert.ok(state.recap?.length > 2, 'Show an actual recap note')
       if (state.step === 'new.importDetails') {
-        assert.deepEqual(state.importFields, ['阿森纳', '利物浦', '2-0', '3.9'])
+        assert.deepEqual(state.importFields, ['阿森纳', '利物浦', '2-0', '3.9', '巴塞罗那', '皇马', '3-3', '7.5'])
         assert.ok(state.scroll > 0, 'Scroll down to the populated import form')
       }
       if (state.step === 'combo.customResult') assert.match(state.custom || '', /CUSTOM PORTFOLIO/)

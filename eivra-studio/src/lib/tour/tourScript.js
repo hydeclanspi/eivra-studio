@@ -1,10 +1,10 @@
 export const TOUR_VERSION = 2
-export const ENTRY_DELAY_MS = 3000
+export const ENTRY_DELAY_MS = 6500
 export const PAGE_OVERVIEW_MS = 3000
 export const ROUTE_LEAD_MS = 420
 export const overviewDuration = (route) => route.startsWith('/history') ? 2000 : PAGE_OVERVIEW_MS
 export const routeBudget = (route) => ROUTE_LEAD_MS + overviewDuration(route)
-export const DEMO_IMPORT = '1. 阿森纳2-0利物浦 odds 3.9 conf 0.71 140块\n2. 巴萨3-3皇马 odds 7.5 conf 0.45 20块'
+export const DEMO_IMPORT = '阿森纳2-0利物浦 odds 3.9 conf 0.71\n巴萨3-3皇马 odds 7.5 conf 0.45\n投入140块'
 export const DEMO_SENTENCE = '阿森纳2-0利物浦 odds 3.9 conf 0.71 140块'
 
 export const ACTS = [
@@ -18,7 +18,7 @@ export const STEPS = {
   'new.scoreCloud': { act: 0, route: '/new', anchor: 'new.scoreCloud', prepare: 'new.ensureQuickInputParsed', duration: 4500, title: '判断被翻译成概率', body: '进球区间和浓度，生成一张比分概率云。胜平负分布来自你的判断。' },
   'new.teamRecords': { act: 0, route: '/new', anchor: 'new.teamRecords', prepare: 'new.ensureQuickInputParsed', action: 'new.showTeamRecords', duration: 5000, title: '让过去的复盘，接上这次判断', body: '输入标的，过往记录即刻调出。赛前判断、赛果与投后复盘备注放在一起，接着上一次的思路继续研判。' },
   'new.sizing': { act: 0, route: '/new', anchor: 'new.sizing', prepare: 'new.ensureQuickInputParsed', duration: 4000, title: '信心多大，仓位多大', body: '校准后的信心经分数凯利换算成建议投入，风控上限与可用资金共同约束仓位。' },
-  'new.postImport': { act: 0, route: '/new', anchor: 'new.importReview', preAnchor: 'new.postImport', action: 'new.showPostImport', duration: 7500, title: '也可以，一键投后导入', body: '已有记录，粘贴两单文本，自动解析、逐单核对，再一键入档。投后导入，一气呵成。' },
+  'new.postImport': { act: 0, route: '/new', anchor: 'new.importReview', preAnchor: 'new.postImport', action: 'new.showPostImport', duration: 7500, title: '也可以，一键投后导入', body: '已有记录，两场比赛一起粘贴，自动填入同一组合。核对后再一键入档，投后导入，一气呵成。' },
   'new.importDetails': { act: 0, route: '/new', anchor: 'new.importDetails', prepare: 'new.ensurePostImport', duration: 3500, title: '往下看，记录已经归位', body: '往下核对已填入的比赛、投注项与赔率。策略、信心和备注也能继续调整，确认后再入档。' },
   'combo.candidates': { act: 1, route: '/combo', anchor: 'combo.candidates', duration: 2500, title: '把判断放在一起看', body: '今天的备选，各自带着角色：稳、中信、杠杆。' },
   'combo.generate': { act: 1, route: '/combo', anchor: 'combo.package', preAnchor: 'combo.generateBtn', action: 'combo.ensureGenerated', duration: 7000, title: '现在，一键求解', body: '在效用、覆盖和去重之间权衡，生成组合方案，再用蒙特卡洛模拟评估盈亏分布。' },
@@ -42,11 +42,12 @@ export const STEPS = {
   'history.records': { act: 3, route: '/history', anchor: 'history.records', duration: 3000, title: '每一次判断，都能回看', body: 'History 留下每次判断、结果与盈亏。筛选、展开，回到当时的记录。' },
   'history.teams': { act: 3, route: '/history/teams', anchor: 'history.teams', duration: 3500, title: '球队，也有自己的档案', body: '球队档案把分散的交手与判断记录聚在一起，方便逐场回看。' },
   'console.fit': { act: 4, route: '/params', anchor: 'console.fit', duration: 6100, title: 'Intuition, calibrated.', body: '系统一直在检验自己：赛前预期，对照赛后实际。追踪拟合、误差与稳定性。' },
+  'console.scan': { act: 4, route: '/params', preAnchor: 'console.top', anchor: 'console.bottom', action: 'console.scanPage', duration: 6500, title: '从上到下，看完整个 Console', body: '从资金与风控，到模型校准、回溯与数据管理。沿着页面往下，快速看完 Console 的完整结构。' },
   'quants.workspaces': { act: 5, route: '/quants', anchor: 'quants.workspaces', duration: 5100, title: '还有一件事。', body: '还有一件事。Quants 把直觉写成规则，冻结版本，做回放和影子观察。' },
 }
 export const TRACKS = {
   full: Object.keys(STEPS),
-  short: ['new.quickInput', 'new.scoreCloud', 'new.teamRecords', 'new.postImport', 'new.importDetails', 'combo.generate', 'combo.dependencyDetail', 'combo.dependencyEvidence', 'combo.tolerance', 'combo.customize', 'combo.customResult', 'dashboard.overview', 'dashboard.trend', 'seasons.hero', 'history.records', 'console.fit'],
+  short: ['new.quickInput', 'new.scoreCloud', 'new.teamRecords', 'new.postImport', 'new.importDetails', 'combo.generate', 'combo.dependencyDetail', 'combo.dependencyEvidence', 'combo.tolerance', 'combo.customize', 'combo.customResult', 'dashboard.overview', 'dashboard.trend', 'seasons.hero', 'history.records', 'console.fit', 'console.scan'],
 }
 export const navAnchor = (route) => `nav.${route.startsWith('/dashboard') ? 'dashboard' : route.startsWith('/history') ? 'history' : route.slice(1)}`
 export const stepOffset = (track, index) => TRACKS[track].slice(0, index).reduce((sum, id, i) => sum + STEPS[id].duration + (TRACKS[track][i + 1] && STEPS[id].route !== STEPS[TRACKS[track][i + 1]].route ? routeBudget(STEPS[TRACKS[track][i + 1]].route) : 0), 0)

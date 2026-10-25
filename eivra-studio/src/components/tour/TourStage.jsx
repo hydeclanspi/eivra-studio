@@ -13,18 +13,18 @@ export default function TourStage({ state, step, act, anchor, notice, pointer, r
   const canvas = useRef(null), host = useRef(null), previousFocus = useRef(document.activeElement), closeTimer = useRef(null)
   const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight })
   const [countdown, setCountdown] = useState(4000), [hovered, setHovered] = useState(false)
-  const [dock, setDock] = useState(0), [returning, setReturning] = useState(false), [opening, setOpening] = useState(!reduced)
+  const [dock, setDock] = useState(0), [returning, setReturning] = useState(false), [opening, setOpening] = useState(!reduced && state.status !== 'offered')
   const { rect, tag: dataTag } = useTourAnchorRect(anchor)
   const [scrub, setScrub] = useState(null)
   const paused = state.status === 'paused', welcome = state.status === 'offered', finale = state.status === 'finale'
-  const reveal = state.status === 'running' && step.act === 4 && state.phase === 'dwelling' && state.remaining < 1600
+  const reveal = state.status === 'running' && step.anchor === 'console.bottom' && state.phase === 'dwelling' && state.remaining < 1600
   const stage = welcome || finale || reveal
   const overview = state.status === 'running' && state.phase === 'settling'
   const pill = paused || (!stage && (state.phase === 'routing' || overview))
   const form = returning || opening ? 'dot' : stage ? 'stage' : pill ? 'pill' : 'talk'
   const mobile = viewport.width < 768
-  const width = form === 'dot' ? 46 : mobile ? Math.min(viewport.width - 32, 500) : form === 'stage' ? 500 : form === 'pill' ? (paused ? 310 : 270) : 384
-  const height = form === 'dot' ? 46 : form === 'stage' ? (finale ? 360 : reveal ? 260 : mobile ? 372 : 350) : form === 'pill' ? 52 : mobile ? 154 : 164
+  const width = form === 'dot' ? 46 : mobile ? Math.min(viewport.width - 32, 500) : form === 'stage' ? (welcome ? 540 : 500) : form === 'pill' ? (paused ? 310 : 270) : 384
+  const height = form === 'dot' ? 46 : form === 'stage' ? (finale ? 360 : reveal ? 260 : mobile ? 480 : 456) : form === 'pill' ? 52 : mobile ? 154 : 164
   const positions = [
     { left: viewport.width - width - 24, top: viewport.height - height - 24 },
     { left: 24, top: viewport.height - height - 24 },
@@ -90,7 +90,7 @@ export default function TourStage({ state, step, act, anchor, notice, pointer, r
       <i /><i /><i /><i />
       {dataTag && <span key={dataTag} className="tour-tag" style={{ maxWidth: Math.min(viewport.width - rect.left - 24, 520), top: rect.top < 110 ? 8 : -31 }}><b />{dataTag}</span>}
     </div>}
-    <section ref={host} tabIndex={-1} className={`tour-host tour-host--${form}`} data-speaking={avatarState === 'speak'} role="dialog" aria-modal="false" aria-label={paused ? '导览已暂停' : 'Eivra 产品导览'} style={{ ...position, width, height }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onFocus={(event) => { if (event.target !== event.currentTarget) setHovered(true) }} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setHovered(false) }}>
+    <section ref={host} tabIndex={-1} className={`tour-host tour-host--${form}${welcome ? ' tour-host--welcome' : ''}`} data-speaking={avatarState === 'speak'} role="dialog" aria-modal="false" aria-label={paused ? '导览已暂停' : 'Eivra 产品导览'} style={{ ...position, width, height }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onFocus={(event) => { if (event.target !== event.currentTarget) setHovered(true) }} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setHovered(false) }}>
       <div className="tour-host-avatar"><HostAvatar act={finale ? 6 : step.act + 1} state={avatarState} eyes={form === 'stage' || form === 'talk'} /></div>
       <div className="tour-host-content" key={`${form}-${welcome}-${finale}-${reveal}`}>
         {form === 'pill' && <div className="tour-pill-content">
@@ -98,9 +98,17 @@ export default function TourStage({ state, step, act, anchor, notice, pointer, r
           <button className="tour-icon" onClick={close} aria-label="退出导览"><X size={13} /></button>
         </div>}
         {form === 'stage' && <div className="tour-stage-copy">
-          <span className="tour-eyebrow">EIVRA STUDIO · DEMO</span>
-          <h2 className={finale ? '' : 'tour-brand-line'}>{finale ? '一个闭环，持续校准' : 'Intuition, calibrated.'}</h2>
-          {welcome && <p>把主观判断变成可检验的预测、可控的仓位、可复盘的证据。<br />接下来{trackLabel(state.track)}，带你走一圈。</p>}
+          <span className="tour-eyebrow">EIVRA STUDIO · {welcome ? 'A GUIDED JOURNEY' : 'DEMO'}</span>
+          <h2 className={welcome || finale ? '' : 'tour-brand-line'}>{welcome ? '从一个判断，到一套闭环' : finale ? '一个闭环，持续校准' : 'Intuition, calibrated.'}</h2>
+          {welcome && <>
+            <p className="tour-welcome-brand">Intuition, calibrated.</p>
+            <div className="tour-loop" aria-label="判断、配仓、结算、复盘、校准的闭环">{['判断', '配仓', '结算', '复盘', '校准'].map((label, i) => <span key={label} style={{ '--i': i }}>{label}{i < 4 && <b>→</b>}</span>)}<i>↺</i></div>
+            <div className="tour-preview-features">
+              <div><span>01 / RECALL</span><strong>让复盘接上判断</strong><small>一键调出过往备注</small></div>
+              <div><span>02 / REFINE</span><strong>把依赖变成选择</strong><small>查看风险 · 定制组合</small></div>
+              <div><span>03 / CALIBRATE</span><strong>让结果校准直觉</strong><small>从战报走到模型检验</small></div>
+            </div>
+          </>}
           {reveal && <p>赛前预期，对照赛后实际。</p>}
           {finale && <>
             <div className="tour-loop" aria-label="判断、配仓、结算、复盘、校准的闭环">{['判断', '配仓', '结算', '复盘', '校准'].map((label, i) => <span key={label} style={{ '--i': i }}>{label}{i < 4 && <b>→</b>}</span>)}<i>↺</i></div>

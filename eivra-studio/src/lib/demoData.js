@@ -481,7 +481,7 @@ const MARQUEE_FIXTURES = {
     home: '阿森纳', away: '利物浦', entry: '主胜', odds: 2.45,
     conf: 0.58, mode: '常规',
     tysHome: 'M', tysAway: 'H', fid: 0.5, fseHome: 0.64, fseAway: 0.68,
-    note: '伦敦德比红军客场',
+    note: '利物浦连续三年在主队主场不胜',
   },
   mancityChelsea: {
     home: '曼城', away: '切尔西', entry: '主胜', odds: 1.85,
@@ -569,7 +569,7 @@ const buildMarqueeSettled = () => {
   // 巴萨 vs 皇马 → 客胜 (INCORRECT — Real Madrid stole the derby)
   // 拜仁 vs 巴黎 → 主胜 (correct)
   const arsenalLiverpoolOutcome = {
-    results: '2-1', isCorrect: true, matchRating: 0.66, postNote: '萨利巴关键解围',
+    results: '2-1', isCorrect: true, matchRating: 0.66, postNote: '维尔茨意外红牌',
   }
   const mancityChelseaOutcome = {
     results: '3-1', isCorrect: true, matchRating: 0.72, postNote: '哈兰德梅开二度',
@@ -894,7 +894,7 @@ export const getDemoSystemConfig = () => ({
   // 二者被那 3 条待结算行隔开，呈现「分开来、止盈在上、注资在下」。把原始
   // 本金 600 拆成「原始 300 + 注资 300」，故 initialCapital 维持 600、不影响
   // 其它口径与资金曲线。
-  // 止盈后立即划拨 900 开启「世界杯26周期」，并配入 15 条已结算演示记录，
+  // 止盈后立即划拨 900 开启「新赛季  欧冠联赛阶段」，并配入 15 条已结算演示记录，
   // 让战报默认打开时能够完整展示净值、分项、结果序列与分页明细。
   capitalInjections: [
     {
@@ -925,8 +925,8 @@ export const getDemoSystemConfig = () => ({
   cycleTitles: [
     {
       id: 'cycle_stl_demo_20260110',
-      title: '世界杯26周期',
-      name: '世界杯26周期',
+      title: '新赛季  欧冠联赛阶段',
+      name: '新赛季  欧冠联赛阶段',
       created_at: '2026-01-10T12:00:00.000Z',
       updated_at: '2026-01-10T12:00:00.000Z',
     },

@@ -43,14 +43,16 @@ describe('tour playback lifecycle', () => {
 describe('demo eligibility and persistence', () => {
   it.each([
     { pathname: '/arsenal' }, { pathname: '/arsenal/new' }, { pathname: '/design2609' },
-    { design: true }, { mode: 'full' }, { param: '0' }, { suppressed: true },
+    { design: true }, { mode: 'full' }, { param: '0' },
   ])('does not offer a tour in excluded context %j', (overrides) => {
     expect(tourEligible({ pathname: '/', mode: 'preview', ...overrides })).toBe(false)
   })
-  it('offers only on first home visit; replay remains eligible elsewhere', () => {
-    expect(shouldAutoOffer('/new', null)).toBe(true)
+  it('offers on every idle home visit, without interrupting playback', () => {
+    expect(shouldAutoOffer('/new')).toBe(true)
     expect(shouldAutoOffer('/dashboard/report', null)).toBe(false)
-    expect(shouldAutoOffer('/', { status: 'dismissed' })).toBe(false)
+    expect(shouldAutoOffer('/', 'done')).toBe(true)
+    for (const status of ['offered', 'running', 'paused', 'finale']) expect(shouldAutoOffer('/new', status)).toBe(false)
+    expect(tourReducer({ ...initialTourState, status: 'done', index: 8 }, { type: 'OFFER' })).toMatchObject({ status: 'offered', index: 0 })
     expect(tourEligible({ pathname: '/combo', mode: 'preview' })).toBe(true)
   })
   it('tolerates denied storage, malformed JSON and outdated versions', () => {
@@ -133,17 +135,19 @@ describe('real-layout light lanes', () => {
 
 describe('cancellable page actions', () => {
   afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
-  it('waits three seconds and waits longer for unfinished resources', async () => {
+  it('waits 6.5 seconds after unfinished resources become ready', async () => {
     vi.useFakeTimers(); vi.stubGlobal('document', { readyState: 'loading', fonts: { status: 'loading' } })
     const ready = vi.fn(), ctl = new AbortController()
     const result = waitForInitialPage(ctl.signal, ENTRY_DELAY_MS).then(ready)
     await vi.advanceTimersByTimeAsync(2999); expect(ready).not.toHaveBeenCalled()
     await vi.advanceTimersByTimeAsync(1001); expect(ready).not.toHaveBeenCalled()
     document.readyState = 'complete'; document.fonts.status = 'loaded'
-    await vi.advanceTimersByTimeAsync(100); await result; expect(ready).toHaveBeenCalledOnce()
+    await vi.advanceTimersByTimeAsync(100); expect(ready).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(6499); expect(ready).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1); await result; expect(ready).toHaveBeenCalledOnce()
   })
   it('manual start or unmount cancels a pending automatic welcome', async () => {
-    vi.useFakeTimers(); const ctl = new AbortController()
+    vi.useFakeTimers(); vi.stubGlobal('document', { readyState: 'complete' }); const ctl = new AbortController()
     const waiting = waitForInitialPage(ctl.signal, ENTRY_DELAY_MS).catch((error) => error.name)
     ctl.abort(); expect(await waiting).toBe('AbortError'); expect(vi.getTimerCount()).toBe(0)
   })
@@ -175,7 +179,7 @@ describe('cancellable page actions', () => {
 
 describe('tour navigation and live geometry', () => {
   it('uses three-second page introductions and two-second history introductions', () => {
-    expect(ENTRY_DELAY_MS).toBe(3000)
+    expect(ENTRY_DELAY_MS).toBe(6500)
     for (const route of ['/new', '/combo', '/dashboard', '/params']) expect(overviewDuration(route)).toBe(3000)
     for (const route of ['/history', '/history/teams']) expect(overviewDuration(route)).toBe(2000)
   })
@@ -193,11 +197,18 @@ describe('tour navigation and live geometry', () => {
       expect(stepAtProgress(track, 2)).toBe(ids.length - 1)
     }
   })
-  it('parses the import demonstration as two distinct orders with their own amounts', () => {
-    const result = parseNaturalInputOrders(DEMO_IMPORT)
+  it('still supports numbered independent orders with their own amounts', () => {
+    const result = parseNaturalInputOrders('1. 阿森纳2-0利物浦 odds 3.9 conf 0.71 140块\n2. 巴萨3-3皇马 odds 7.5 conf 0.45 20块')
     expect(result.combos).toHaveLength(2)
     expect(result.combos.map((combo) => combo.actualInput)).toEqual([140, 20])
     expect(result.combos.map((combo) => combo.matches.length)).toEqual([1, 1])
+  })
+  it('imports the demonstration as one combination with two matches', () => {
+    const result = parseNaturalInputOrders(DEMO_IMPORT)
+    expect(result.combos).toBeUndefined()
+    expect(result.matches).toHaveLength(2)
+    expect(result.actualInput).toBe(140)
+    expect(result.matches.map((match) => match.entries[0].odds)).toEqual(['3.9', '7.5'])
   })
   it('does not split decimal odds or unnumbered multi-match inputs into orders', () => {
     expect(parseNaturalInputOrders('阿森纳2-0利物浦 odds 3.9 conf 0.71 140块').combos).toBeUndefined()

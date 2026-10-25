@@ -74,6 +74,8 @@ import AdaptiveLoopDiagram from '../components/AdaptiveLoopDiagram'
 import WalkForwardStrip from '../components/WalkForwardStrip'
 import KellyModeCard from '../components/KellyModeCard'
 import ExplainHover from '../components/ExplainHover'
+import useTourAction from '../components/tour/useTourAction'
+import { delay } from '../lib/tour/tourBus'
 
 const TYS_BASE_FACTORS = {
   S: 1.08,
@@ -2863,6 +2865,21 @@ function BackgroundQualityConfirmation({ onClose, onConfirm }) {
 }
 
 export default function ParamsPage({ openModal, previewLayoutMode }) {
+  useTourAction('console.scanPage', async ({ signal, reduced }) => {
+    const scroll = document.querySelector('.app-main-scroll')
+    if (!isPreviewMode() || !scroll) return { ok: false, reason: 'unavailable' }
+    const duration = reduced ? 0 : 4700
+    const started = performance.now()
+    // Follow the live content height: analytics may finish during this pass.
+    do {
+      const p = duration ? Math.min(1, (performance.now() - started) / duration) : 1
+      const eased = p * p * (3 - 2 * p)
+      scroll.scrollTo({ top: (scroll.scrollHeight - scroll.clientHeight) * eased, behavior: 'instant' })
+      if (p === 1) break
+      await delay(16, signal)
+    } while (!signal.aborted)
+    return { ok: !signal.aborted }
+  })
   const labels = useLabels()
   const maskText = usePreviewTextMask()
   const maskMode = useModeLabelMap()
@@ -4358,7 +4375,7 @@ export default function ParamsPage({ openModal, previewLayoutMode }) {
       {isPreviewMode() && !isDesignPreview() && <ConsoleAnchorRail />}
       {/* demo/preview 专属：覆盖右半区的光标星点拖尾（fixed 全屏 canvas，pointer-events:none） */}
       {liquidGlassQuality === 'full' && isPreviewMode() && !isDesignPreview() && <ConsoleCursorTrail />}
-      <div className="mb-6">
+      <div data-tour="console.top" className="mb-6">
         <div className="mb-2.5">
           <span className="inline-flex max-w-[460px] rounded-r-xl rounded-l-none border border-sky-200/90 bg-gradient-to-r from-sky-100/75 via-cyan-50/85 to-blue-100/75 px-3 py-1.5 text-[10.5px] font-semibold leading-4 tracking-[0.03em] text-sky-700/90 backdrop-blur-md">
             (calibration and tracking) quant engine for predictive sports positioning
@@ -6234,7 +6251,7 @@ export default function ParamsPage({ openModal, previewLayoutMode }) {
         </div>
       </div>
 
-      <div className="glow-card rounded-2xl border border-sky-100/85 bg-[linear-gradient(160deg,rgba(248,252,255,0.94),rgba(255,255,255,0.94)_50%,rgba(241,249,255,0.88))] p-4 mb-9 sm:p-5 shadow-[0_18px_34px_-30px_rgba(56,189,248,0.38),inset_0_1px_0_rgba(255,255,255,0.9)]">
+      <div data-tour="console.bottom" className="glow-card rounded-2xl border border-sky-100/85 bg-[linear-gradient(160deg,rgba(248,252,255,0.94),rgba(255,255,255,0.94)_50%,rgba(241,249,255,0.88))] p-4 mb-9 sm:p-5 shadow-[0_18px_34px_-30px_rgba(56,189,248,0.38),inset_0_1px_0_rgba(255,255,255,0.9)]">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3 className="font-medium text-stone-700 flex items-center gap-2">

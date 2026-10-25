@@ -4,7 +4,7 @@ import { getDisplayMode, useDisplayMode } from '../../lib/displayMode'
 import { isDesignPreview } from '../../design/labEditions'
 import { ACTS, DEMO_SENTENCE, ENTRY_DELAY_MS, overviewDuration, ROUTE_LEAD_MS, STEPS, navAnchor } from '../../lib/tour/tourScript'
 import { initialTourState, stepId, tourReducer } from '../../lib/tour/tourMachine'
-import { readTourRecord, readTourSession, rememberTour, saveTourSession, sessionSuppressed, shouldAutoOffer, suppressTourSession, tourEligible } from '../../lib/tour/tourGate'
+import { readTourSession, rememberTour, saveTourSession, shouldAutoOffer, tourEligible } from '../../lib/tour/tourGate'
 import { delay, tourBus, tourCache } from '../../lib/tour/tourBus'
 import { setTourOnStage, spendDemoFlourishes } from '../../lib/tour/demoChoreography'
 import { beamRoute, computeLanes } from '../../lib/tour/laneRouting'
@@ -19,7 +19,7 @@ const defaultTrack = () => window.innerWidth < 768 ? 'short' : 'full'
 export default function TourProvider({ children }) {
   const location = useLocation(), navigate = useNavigate(), mode = useDisplayMode()
   const param = new URLSearchParams(location.search).get('tour')
-  const eligible = tourEligible({ pathname: window.location.pathname, mode, design: isDesignPreview(), param, suppressed: sessionSuppressed() })
+  const eligible = tourEligible({ pathname: window.location.pathname, mode, design: isDesignPreview(), param })
   const [state, dispatch] = useReducer(tourReducer, initialTourState)
   const [anchor, setAnchor] = useState(null)
   const [notice, setNotice] = useState('')
@@ -55,26 +55,34 @@ export default function TourProvider({ children }) {
   useLayoutEffect(() => { setTourOnStage(onStage || (eligible && !bootstrapped.current)) }, [onStage, eligible])
   useEffect(() => () => { setTourOnStage(false); controller.current?.abort(); guideController.current?.abort() }, [])
   useEffect(() => {
-    if (param === '0') suppressTourSession()
     if (!eligible) {
-      stopEffects(); guideController.current?.abort(); tourCache.clear()
+      bootController.current?.abort(); stopEffects(); guideController.current?.abort(); tourCache.clear()
       if (['running', 'paused'].includes(stateRef.current.status)) saveTourSession({ status: 'dismissed' })
       dispatch({ type: 'DISABLE' }); setTourOnStage(false)
       return undefined
     }
-    if (bootstrapped.current) return undefined
+    // A visit is a router entry, not a playback status change. Exiting this
+    // welcome does not re-arm it; returning home does. Tour navigation never
+    // interrupts running/paused playback, including a rewind back to New.
+    if (['offered', 'running', 'paused', 'finale'].includes(stateRef.current.status)) return undefined
+    const homeVisit = shouldAutoOffer(location.pathname, stateRef.current.status)
+    const explicitStart = !bootstrapped.current && ['1', 'short', 'dev'].includes(param)
+    const saved = !bootstrapped.current && !homeVisit ? readTourSession() : null
+    if (!homeVisit && !explicitStart && !['running', 'paused'].includes(saved?.status)) {
+      bootstrapped.current = true; setTourOnStage(false)
+      return undefined
+    }
     const ctl = new AbortController(); bootController.current = ctl
+    setTourOnStage(true)
     waitForInitialPage(ctl.signal, ENTRY_DELAY_MS).then(() => {
-      if (bootstrapped.current) return
+      if (ctl.signal.aborted) return
       bootstrapped.current = true
-      const saved = readTourSession()
-      if (['running', 'paused'].includes(saved?.status)) dispatch({ type: 'RESTORE', record: saved })
-      else if (['1', 'short', 'dev'].includes(param)) start(param === 'short' ? 'short' : defaultTrack())
-      else if (shouldAutoOffer(locationRef.current.pathname, readTourRecord())) dispatch({ type: 'OFFER', track: defaultTrack() })
-      else setTourOnStage(false)
+      if (explicitStart) start(param === 'short' ? 'short' : defaultTrack())
+      else if (homeVisit) dispatch({ type: 'OFFER', track: defaultTrack() })
+      else dispatch({ type: 'RESTORE', record: saved })
     }).catch(() => { /* Navigation or a manual start cancelled the welcome. */ })
     return () => ctl.abort()
-  }, [eligible, param, start, stopEffects])
+  }, [eligible, location.key, location.pathname, param, start, stopEffects])
   useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)')
     const update = () => setReduced(media.matches)
@@ -172,13 +180,13 @@ export default function TourProvider({ children }) {
           setNotice('正在求解…')
         }
         if (current.action === 'new.showPostImport') await click('new.postImport')
-        if (current.action === 'combo.ensureGenerated') setAnchor(null)
+        if (['combo.ensureGenerated', 'console.scanPage'].includes(current.action)) setAnchor(null)
         // Yield before the synchronous solver so the host and laser layer paint first.
         await delay(40, signal)
         const outcome = await tourBus.run(current.action, { text: DEMO_SENTENCE, reduced, focus, gesture: click, beforeParse: () => click('new.parse') }, { signal })
         if (!outcome?.ok) console.warn('[Tour] Action unavailable', current.action, outcome?.reason)
         setNotice(outcome?.ok ? '' : '本段结果暂不可用，可继续探索。')
-        target = await focus(outcome?.ok ? current.anchor : (current.preAnchor || current.anchor))
+        target = await focus(outcome?.ok ? current.anchor : (current.preAnchor || current.anchor), current.action !== 'console.scanPage')
       }
       if (!target) setNotice('此区域暂不可用，继续为你介绍。')
       const elapsed = performance.now() - contentBegin

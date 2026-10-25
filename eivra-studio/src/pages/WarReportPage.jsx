@@ -38,6 +38,12 @@ import { isPreviewMode } from '../lib/displayMode'
  * 让周期数据本身成为主角，只用少量系统蓝提示交互与状态。
  */
 
+// The sample campaign is Season 3; ledger boundaries and metrics stay derived.
+const presentPeriod = (period) => {
+  if (!period || !isPreviewMode() || period.id !== 'cycle_stl_demo_20260110') return period
+  return { ...period, ordinal: 3, name: `S3 ${period.title}` }
+}
+
 const LEDGER_PAGE_SIZE = 10
 const DETAIL_PAGE_SIZE = 7
 
@@ -1135,13 +1141,19 @@ export default function WarReportPage() {
   }, [])
 
   // dataVersion 是手动刷新触发器，故意作为依赖。
+  const { periods, currentId } = useMemo(() => {
+    const result = getCyclePeriods()
+    return { ...result, periods: result.periods.map(presentPeriod) }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const { periods, currentId } = useMemo(() => getCyclePeriods(), [dataVersion])
+  }, [dataVersion])
 
   const activeId = selectedId && periods.some((p) => p.id === selectedId) ? selectedId : currentId
 
+  const report = useMemo(() => {
+    const result = getWarReport(activeId)
+    return result ? { ...result, period: presentPeriod(result.period) } : result
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const report = useMemo(() => getWarReport(activeId), [activeId, dataVersion])
+  }, [activeId, dataVersion])
   const activeMetricDetail = useMemo(
     () => report && activeMetricId ? buildMetricDetail(activeMetricId, report) : null,
     [activeMetricId, report],
