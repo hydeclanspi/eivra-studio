@@ -3,9 +3,9 @@
  *
  * Hand-curated synthetic dataset: a historical base plus a populated report
  * cycle (2025-09-01 → 2026-02-11), spanning all six strategy modes, parlay
- * sizes from 1 to 5 legs, and a realistic ~55% hit rate with a gently
- * positive ROI trajectory and one mild drawdown phase to make the
- * dashboard charts read naturally.
+ * sizes from 1 to 5 legs. Monetary amounts are synthetic examples,
+ * with mostly small stakes, occasional larger stakes and multiplier payouts.
+ * They are not evidence of achievable investment performance.
  *
  * Implementation note: instead of hand-typing 40 JSON records we
  * generate them deterministically from a seeded PRNG. This keeps the
@@ -73,10 +73,8 @@ const RESULT_ENTRIES = {
 }
 
 // ── Seeded PRNG (Mulberry32) ───────────────────────────────────────
-// Seed chosen for the demo capital curve's *shape*: early gain →
-// oscillating mid-section drawdown (bottoming near +100) → strong
-// recovery climb to ~+960. Front-mid 震荡起伏 yet overall up-and-right,
-// while keeping ROI≈152% / hit≈33% in line with the rest of the demo.
+// Keep the seed and RNG draw count stable when adjusting monetary amounts:
+// fixtures, dates, parameters and outcomes must remain unchanged.
 const SEED = 2510
 const createRng = (seed) => {
   let t = seed >>> 0
@@ -264,30 +262,23 @@ const buildInvestment = (index, dateIso) => {
   const combinedOdds = roundOdds(matches.reduce((acc, m) => acc * m.odds, 1))
   const isWin = matches.every((m) => m.is_correct)
 
-  // Stake sizing: skew toward 8-18 yuan with hard caps that scale
-  // inversely with combined odds so a single high-variance combo can
-  // never produce a hundreds-of-yuan profit outlier.
+  // Mostly tens of yuan, occasionally over 100. Size by leg count and
+  // odds, never by whether the synthetic bet happened to win or lose.
   let inputs
   if (parlaySize === 1) {
-    inputs = Math.round(randRange(10, 22))
+    inputs = Math.round(randRange(25, 115))
   } else if (parlaySize === 2) {
-    inputs = Math.round(randRange(7, 16))
+    inputs = Math.round(randRange(20, 80))
   } else if (parlaySize === 3) {
-    inputs = Math.round(randRange(4, 11))
+    inputs = Math.round(randRange(20, 60))
   } else if (parlaySize === 4) {
-    inputs = Math.round(randRange(3, 7))
+    inputs = Math.round(randRange(15, 40))
   } else {
-    inputs = Math.round(randRange(2, 5))
+    inputs = Math.round(randRange(10, 25))
   }
-  // Hard cap by combined-odds tier — maximum possible profit per
-  // investment stays roughly within [-25, +55] yuan range so no
-  // single combo dominates the dashboard trajectory.
-  if (combinedOdds >= 50) inputs = Math.min(inputs, 1)
-  else if (combinedOdds >= 25) inputs = Math.min(inputs, 2)
-  else if (combinedOdds >= 12) inputs = Math.min(inputs, 4)
-  else if (combinedOdds >= 6) inputs = Math.min(inputs, 7)
-  else if (combinedOdds >= 3.5) inputs = Math.min(inputs, 12)
-  inputs = Math.max(1, inputs)
+  // High-multiplier combinations retain smaller stakes, while a win can
+  // naturally pay three figures instead of being capped at a tiny profit.
+  inputs = Math.max(1, Math.min(inputs, Math.floor(650 / combinedOdds)))
 
   const expectedRating = round2(
     matches.reduce((acc, m) => acc + m.conf, 0) / matches.length * 0.85,
@@ -327,13 +318,13 @@ const buildShowcaseSamples = () => {
     id: 'demo_inv_showcase_a',
     created_at: '2025-11-04T19:30:00.000Z',
     parlay_size: 1,
-    inputs: 14,
-    suggested_amount: 14,
+    inputs: 35,
+    suggested_amount: 35,
     expected_rating: 0.62,
     combined_odds: 5.20,
     status: 'win',
-    revenues: 72.80,
-    profit: 58.80,
+    revenues: 182,
+    profit: 147,
     actual_rating: 0.72,
     rep: null,
     remarks: 'High Conf-Surplus signal: model conviction far above market implied',
@@ -367,13 +358,13 @@ const buildShowcaseSamples = () => {
     id: 'demo_inv_showcase_b',
     created_at: '2025-11-18T20:00:00.000Z',
     parlay_size: 3,
-    inputs: 12,
-    suggested_amount: 12,
+    inputs: 45,
+    suggested_amount: 45,
     expected_rating: 0.58,
-    combined_odds: 8.96,
+    combined_odds: 6.74,
     status: 'lose',
     revenues: 0,
-    profit: -12,
+    profit: -45,
     actual_rating: 0.41,
     rep: 1.4,
     remarks: 'Anchor leg failed — fragility heatmap flagged this dependency',
@@ -413,13 +404,13 @@ const buildShowcaseSamples = () => {
     id: 'demo_inv_showcase_c',
     created_at: '2025-12-09T19:15:00.000Z',
     parlay_size: 4,
-    inputs: 4,
-    suggested_amount: 4,
+    inputs: 12,
+    suggested_amount: 12,
     expected_rating: 0.55,
-    combined_odds: 18.40,
+    combined_odds: 15.86,
     status: 'win',
-    revenues: 73.60,
-    profit: 69.60,
+    revenues: 190.32,
+    profit: 178.32,
     actual_rating: 0.64,
     rep: null,
     remarks: 'Fault-tolerant coverage survived — covering layer paid off',
@@ -587,13 +578,13 @@ const buildMarqueeSettled = () => {
     id: 'demo_inv_marquee_4leg',
     created_at: dateIso,
     parlay_size: 4,
-    inputs: 6,
-    suggested_amount: 6,
+    inputs: 45,
+    suggested_amount: 45,
     expected_rating: 0.60,
     combined_odds: roundOdds(2.45 * 1.85 * 2.80 * 2.20),
     status: 'lose',
     revenues: 0,
-    profit: -6,
+    profit: -45,
     actual_rating: round2((0.66 + 0.72 + 0.22 + 0.70) / 4),
     rep: 1.4,
     remarks: '四中三 · 巴萨翻车导致全军覆没 · 锚定失败典型案例',
@@ -606,18 +597,19 @@ const buildMarqueeSettled = () => {
   }
 
   // #2 — 2-leg English: both hit → win
-  const englishWinPnL = roundOdds(12 * (2.45 * 1.85) - 12)
+  const englishOdds = roundOdds(2.45 * 1.85)
+  const englishRevenue = round2(35 * englishOdds)
   const twoLegEnglish = {
     id: 'demo_inv_marquee_2leg_eng',
     created_at: dateIso,
     parlay_size: 2,
-    inputs: 12,
-    suggested_amount: 12,
+    inputs: 35,
+    suggested_amount: 35,
     expected_rating: 0.63,
-    combined_odds: roundOdds(2.45 * 1.85),
+    combined_odds: englishOdds,
     status: 'win',
-    revenues: roundOdds(12 * 2.45 * 1.85),
-    profit: englishWinPnL,
+    revenues: englishRevenue,
+    profit: round2(englishRevenue - 35),
     actual_rating: 0.69,
     rep: null,
     remarks: '英超双串完美收割 · 主场优势叠加',
@@ -632,13 +624,13 @@ const buildMarqueeSettled = () => {
     id: 'demo_inv_marquee_2leg_eu',
     created_at: dateIso,
     parlay_size: 2,
-    inputs: 8,
-    suggested_amount: 8,
+    inputs: 65,
+    suggested_amount: 65,
     expected_rating: 0.57,
     combined_odds: roundOdds(2.80 * 2.20),
     status: 'lose',
     revenues: 0,
-    profit: -8,
+    profit: -65,
     actual_rating: round2((0.22 + 0.70) / 2),
     rep: 1.4,
     remarks: '欧陆经典 · 拜仁赢球 / 巴萨被绝杀 · 串联失败',
@@ -731,26 +723,25 @@ const buildPendingPresets = () => {
 const buildCurrentCycleReportDemo = () => {
   const specs = [
     ['2026-01-12T19:30:00.000Z', 38, 1.95, true],
-    ['2026-01-14T20:00:00.000Z', 64, 2.10, false],
+    ['2026-01-14T20:00:00.000Z', 45, 2.10, false],
     ['2026-01-16T19:45:00.000Z', 46, 2.15, true],
-    ['2026-01-18T18:30:00.000Z', 112, 1.72, true],
-    ['2026-01-21T20:15:00.000Z', 88, 2.25, false],
+    ['2026-01-18T18:30:00.000Z', 160, 1.72, true],
+    ['2026-01-21T20:15:00.000Z', 68, 2.25, false],
     ['2026-01-23T19:30:00.000Z', 156, 2.05, true],
     ['2026-01-25T17:45:00.000Z', 72, 1.84, true],
-    ['2026-01-28T20:00:00.000Z', 215, 1.78, false],
+    ['2026-01-28T20:00:00.000Z', 115, 1.78, false],
     ['2026-01-30T19:30:00.000Z', 128, 2.22, true],
-    ['2026-02-01T18:00:00.000Z', 184, 1.92, false],
-    ['2026-02-03T20:00:00.000Z', 42, 2.55, true],
+    ['2026-02-01T18:00:00.000Z', 54, 1.92, false],
+    ['2026-02-03T20:00:00.000Z', 85, 2.55, true],
     ['2026-02-05T19:45:00.000Z', 96, 1.76, true],
-    ['2026-02-07T18:30:00.000Z', 265, 1.88, false],
+    ['2026-02-07T18:30:00.000Z', 78, 1.88, false],
     ['2026-02-09T20:15:00.000Z', 138, 2.15, true],
-    ['2026-02-11T19:30:00.000Z', 325, 1.68, true],
+    ['2026-02-11T19:30:00.000Z', 195, 1.68, true],
   ]
 
-  return specs.map(([dateIso, inputs, combinedOdds, isWin], index) => {
+  return specs.map(([dateIso, inputs, targetOdds, isWin], index) => {
     const investment = buildInvestment(900 + index, dateIso)
-    const revenues = isWin ? round2(inputs * combinedOdds) : 0
-    const legOdds = roundOdds(combinedOdds ** (1 / Math.max(1, investment.matches.length)))
+    const legOdds = roundOdds(targetOdds ** (1 / Math.max(1, investment.matches.length)))
     const matches = investment.matches.map((match, matchIndex) => ({
       ...match,
       odds: legOdds,
@@ -758,6 +749,9 @@ const buildCurrentCycleReportDemo = () => {
       is_correct: isWin ? true : matchIndex !== 0,
       match_rating: isWin ? round2(randRange(0.58, 0.76)) : round2(randRange(0.18, 0.48)),
     }))
+    // The stored total must match the rounded legs shown in expanded History.
+    const combinedOdds = roundOdds(matches.reduce((product, match) => product * match.odds, 1))
+    const revenues = isWin ? round2(inputs * combinedOdds) : 0
 
     return {
       ...investment,
@@ -870,7 +864,11 @@ export const getDemoTeamProfiles = () => {
   return JSON.parse(JSON.stringify(teamProfiles))
 }
 
-export const getDemoSystemConfig = () => ({
+export const getDemoSystemConfig = () => {
+  const closedProfit = round2(ensureBundle().investments
+    .filter((row) => row.status !== 'pending' && row.created_at <= '2026-01-10T12:00:00.000Z')
+    .reduce((sum, row) => sum + row.profit, 0))
+  return ({
   initialCapital: 1500,
   riskCapRatio: 0.12,
   defaultOdds: 2.5,
@@ -892,8 +890,8 @@ export const getDemoSystemConfig = () => ({
   //   · 周期止盈结算（01-10）—— 排在最顶端（第 1 行）
   //   · 注资 +300（01-04 12:00）—— 排在 3 条「待结算」行之下（第 5 行）
   // 二者被那 3 条待结算行隔开，呈现「分开来、止盈在上、注资在下」。把原始
-  // 本金 600 拆成「原始 300 + 注资 300」，故 initialCapital 维持 600、不影响
-  // 其它口径与资金曲线。
+  // 首期本金 600 = 原始 300 + 注资 300；另含新周期划拨 900，initialCapital 合计 1500。
+  // 结算盈亏与结算前余额由同一份演示账本推导，金额调整后仍与历史明细一致。
   // 止盈后立即划拨 900 开启「新赛季  欧冠联赛阶段」，并配入 15 条已结算演示记录，
   // 让战报默认打开时能够完整展示净值、分项、结果序列与分页明细。
   capitalInjections: [
@@ -914,8 +912,8 @@ export const getDemoSystemConfig = () => ({
     {
       id: 'stl_demo_20260110',
       type: 'take_profit',
-      realizedProfit: 960,
-      poolBefore: 1560,
+      realizedProfit: closedProfit,
+      poolBefore: round2(600 + closedProfit),
       cycleBase: 600,
       newCapital: 900,
       linkedInjectionId: 'inj_demo_20260110_allocation',
@@ -968,11 +966,12 @@ export const getDemoSystemConfig = () => ({
   },
   pageAmbientThemes: {},
   __demo: true,
-})
+  })
+}
 
 export const getDemoAccessLogs = () => []
 
-export const DEMO_BUNDLE_REVISION = `war-report-showcase-v2-${SEED.toString(36)}`
+export const DEMO_BUNDLE_REVISION = `demo-stakes-v3-${SEED.toString(36)}`
 
 // Diagnostic helper — exposed for the console so the user can sanity
 // check the generated distribution while crafting the bundle.

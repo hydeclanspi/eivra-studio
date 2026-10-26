@@ -876,7 +876,12 @@ export default function HistoryPage() {
     <div className="page-shell page-content-wide" onClick={() => setNotePopup(null)}>
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-semibold text-stone-800 font-display">历史记录</h2>
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-2xl font-semibold text-stone-800 font-display">历史记录</h2>
+            {isPreviewMode() && <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800" aria-label="当前为测试数据">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden="true" />测试数据
+            </span>}
+          </div>
           <p className="text-stone-400 text-sm mt-1">共 {totalCount} 条投资记录</p>
         </div>
         <div className="flex w-full md:w-auto flex-col sm:flex-row items-stretch sm:items-center gap-3">

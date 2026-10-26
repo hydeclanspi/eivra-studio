@@ -56,6 +56,7 @@ try {
         assert.ok(state.scroll > 0, 'Scroll down to the populated import form')
       }
       if (state.step === 'combo.customResult') assert.match(state.custom || '', /CUSTOM PORTFOLIO/)
+      if (state.step === 'quants.replay') assert.equal(await page.locator('[data-tour="quants.replay"]').count(), 1)
       if (state.step === 'combo.generate') {
         assert.match(state.tag || '', /[1-9][0-9]* PLANS · MONTE CARLO [1-9]/)
         generated = true
@@ -65,6 +66,7 @@ try {
     await page.waitForTimeout(100)
   }
   assert.ok(completed, 'Tour must reach its finale')
+  assert.equal(new URL(page.url()).pathname, '/new', 'Finale returns to the New page')
   assert.deepEqual([...seen], TRACKS[track])
   assert.ok(generated, 'Tour must produce a real portfolio result')
   assert.deepEqual(errors, [])

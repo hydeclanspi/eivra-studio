@@ -17,7 +17,7 @@ export default function TourStage({ state, step, act, anchor, notice, pointer, r
   const { rect, tag: dataTag } = useTourAnchorRect(anchor)
   const [scrub, setScrub] = useState(null)
   const paused = state.status === 'paused', welcome = state.status === 'offered', finale = state.status === 'finale'
-  const reveal = state.status === 'running' && step.anchor === 'console.bottom' && state.phase === 'dwelling' && state.remaining < 1600
+  const reveal = state.status === 'running' && step.anchor === 'new.return' && state.phase === 'dwelling' && state.remaining < 1600
   const stage = welcome || finale || reveal
   const overview = state.status === 'running' && state.phase === 'settling'
   const pill = paused || (!stage && (state.phase === 'routing' || overview))
@@ -109,7 +109,7 @@ export default function TourStage({ state, step, act, anchor, notice, pointer, r
               <div><span>03 / CALIBRATE</span><strong>让结果校准直觉</strong><small>从战报走到模型检验</small></div>
             </div>
           </>}
-          {reveal && <p>赛前预期，对照赛后实际。</p>}
+          {reveal && <p>{step.body}</p>}
           {finale && <>
             <div className="tour-loop" aria-label="判断、配仓、结算、复盘、校准的闭环">{['判断', '配仓', '结算', '复盘', '校准'].map((label, i) => <span key={label} style={{ '--i': i }}>{label}{i < 4 && <b>→</b>}</span>)}<i>↺</i></div>
             <div className="tour-explore">{[['总览', '/dashboard'], ['深度分析', '/dashboard/analysis'], ['历史记录', '/history'], ['球队档案', '/history/teams']].map(([label, route]) => <button key={route} onClick={() => explore(route)}>{label} ↗</button>)}</div>
@@ -124,8 +124,8 @@ export default function TourStage({ state, step, act, anchor, notice, pointer, r
         {form === 'talk' && <>
           <span className="tour-signature">EIVRA</span>
           <div className="tour-meta"><span><em>{act[0]}</em>{act[1]}</span><time>{time(progress * total)} / {time(total)}</time><button className="tour-icon" onClick={pause} aria-label="暂停导览"><Pause size={12} /></button><button className="tour-icon" onClick={close} aria-label="退出导览"><X size={13} /></button></div>
-          <div className="tour-caption" aria-live="polite" aria-atomic="true"><span className="sr-only">{body}</span><span aria-hidden="true" key={`${ids[state.index]}-${body}`}>{[...body].map((char, i) => <span className="tour-char" key={i} style={{ animationDelay: `${reduced ? 0 : i * 42 + (step.act === 5 && i > 6 ? 600 : 0)}ms` }}>{char}</span>)}</span></div>
-          {step.act === 5 && <button className="tour-guide" onClick={openGuide}>打开完整指南 ↗</button>}
+          <div className="tour-caption" aria-live="polite" aria-atomic="true"><span className="sr-only">{body}</span><span aria-hidden="true" key={`${ids[state.index]}-${body}`}>{[...body].map((char, i) => <span className="tour-char" key={i} style={{ animationDelay: `${reduced ? 0 : i * 42 + (step.route === '/quants' && i > 6 ? 600 : 0)}ms` }}>{char}</span>)}</span></div>
+          {step.route === '/quants' && <button className="tour-guide" onClick={openGuide}>打开完整指南 ↗</button>}
           <div className="tour-timeline"><b style={{ transform: `scaleX(${progress})` }} /><input type="range" min="0" max="1" step="0.001" value={progress} aria-label="导览进度，拖动跳转片段" aria-valuetext={`${time(progress * total)}，${STEPS[ids[stepAtProgress(state.track, progress)]].title}`} title="拖动回看或跳转片段" onPointerDown={() => { setScrub(progress); beginSeek() }} onChange={(event) => setScrub(Number(event.target.value))} onPointerUp={(event) => commitSeek(event.currentTarget.value)} onPointerCancel={() => commitSeek(elapsed / total)} onKeyDown={(event) => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) beginSeek() }} onKeyUp={(event) => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) commitSeek(event.currentTarget.value) }} onBlur={(event) => { if (scrub != null) commitSeek(event.currentTarget.value) }} />{ids.map((id, i) => i && STEPS[id].act !== STEPS[ids[i - 1]].act ? <i key={id} style={{ left: `${stepOffset(state.track, i) / total * 100}%` }} /> : null)}</div>
         </>}
       </div>

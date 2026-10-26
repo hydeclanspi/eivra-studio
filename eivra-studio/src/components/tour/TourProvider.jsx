@@ -143,6 +143,7 @@ export default function TourProvider({ children }) {
     }
     const run = async () => {
       setNotice(''); setAnchor(null)
+      if (current.reset) tourBus.reset()
       const sameRoute = locationRef.current.pathname === current.route || (current.route === '/new' && locationRef.current.pathname === '/')
       if (!sameRoute) {
         dispatch({ type: 'PHASE', phase: 'routing' })

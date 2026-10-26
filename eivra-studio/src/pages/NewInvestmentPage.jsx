@@ -1898,7 +1898,7 @@ export default function NewInvestmentPage() {
     }} className="page-shell page-content-fluid motion-v2-scope lab-new-page" data-investment-view={viewMode}>
       <div className="mb-8 lab-page-heading flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-semibold text-stone-800 font-display">新建投资</h2>
+          <h2 data-tour="new.return" className="text-2xl font-semibold text-stone-800 font-display">新建投资</h2>
           <p className="text-stone-400 text-sm mt-1.5 leading-relaxed">
             {viewMode === 'pre'
               ? '投前研判 · 登记我对这场的观点：两队 → Entries → 进球区间与浓度 → 比分云图'

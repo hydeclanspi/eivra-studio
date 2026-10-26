@@ -108,7 +108,7 @@ export default function QuantValidationWorkspace({ spec, resultsIndex, evidence,
   const fields = kind === 'parameter_walk_forward'
     ? [['trainDays', '训练窗 · 天', 7, 3650], ['testDays', '后窗 · 天', 1, 365], ['minTrainingSamples', '候选最低训练场数', 1, 10000]]
     : [['decisionLeadMinutes', '开赛前决策 · 分钟', 1, 43200], ['maxQuoteAgeMinutes', '报价最长时效 · 分钟', 1, 10080]]
-  return <div className="quant-research">
+  return <div data-tour="quants.replay" data-tour-tag="FROZEN RULES · REPLAY · EVIDENCE" className="quant-research">
     <section className="qr-surface"><div className="qr-section-heading"><div><span className="qr-eyebrow">CONTROLLED RESEARCH</span><h3>扩大研究，保留每一次选择。</h3><p>先声明候选和时间协议，再显式运行。所有结果都保存为独立实验，不自动寻找“最佳收益”。</p></div><GitBranch size={20} /></div>
       <div className="qr-actions"><button className={`qr-button ${kind === 'parameter_walk_forward' ? 'qr-button-primary' : ''}`} aria-pressed={kind === 'parameter_walk_forward'} onClick={() => setKind('parameter_walk_forward')}><FlaskConical size={15} />参数批次与滚动观察</button><button className={`qr-button ${kind === 'historical_price_replay' ? 'qr-button-primary' : ''}`} aria-pressed={kind === 'historical_price_replay'} onClick={() => setKind('historical_price_replay')}><History size={15} />真实历史价格回放</button></div>
       <p className="qr-note">当前规则：{mask(ruleName(spec))} · 每场 {number(Number(spec.stakePerMatch))} 单位。球队、市场、比分及概率来源沿用上方策略编辑器。</p>

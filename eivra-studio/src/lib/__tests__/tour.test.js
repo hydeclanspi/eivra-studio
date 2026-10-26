@@ -70,8 +70,8 @@ describe('script contract and anchor drift guard', () => {
   const sources = readJSX(sourceRoot)
   const app = fs.readFileSync(path.join(sourceRoot, 'App.jsx'), 'utf8')
   it('keeps both tracks within their editorial duration and concise copy budgets', () => {
-    expect(trackDuration('full')).toBeGreaterThanOrEqual(120000); expect(trackDuration('full')).toBeLessThanOrEqual(175000)
-    expect(trackDuration('short')).toBeGreaterThanOrEqual(60000); expect(trackDuration('short')).toBeLessThanOrEqual(105000)
+    expect(trackDuration('full')).toBeGreaterThanOrEqual(120000); expect(trackDuration('full')).toBeLessThanOrEqual(195000)
+    expect(trackDuration('short')).toBeGreaterThanOrEqual(60000); expect(trackDuration('short')).toBeLessThanOrEqual(135000)
     for (const ids of Object.values(TRACKS)) { expect(new Set(ids).size).toBe(ids.length); ids.forEach((id) => expect(STEPS[id]).toBeTruthy()) }
     for (const step of Object.values(STEPS)) expect([...step.body].length).toBeLessThanOrEqual(60)
   })
@@ -82,6 +82,11 @@ describe('script contract and anchor drift guard', () => {
     for (const ids of Object.values(TRACKS)) {
       expect(ids[ids.indexOf('new.scoreCloud') + 1]).toBe('new.teamRecords')
       expect(ids[ids.indexOf('new.postImport') + 1]).toBe('new.importDetails')
+      expect(ids.indexOf('quants.workspaces')).toBeGreaterThan(ids.indexOf('seasons.hero'))
+      expect(ids[ids.indexOf('quants.workspaces') + 1]).toBe('quants.replay')
+      expect(ids[ids.indexOf('quants.replay') + 1]).toBe('history.records')
+      expect(ids.slice(-2)).toEqual(['console.scan', 'new.return'])
+      expect(STEPS[ids.at(-1)]).toMatchObject({ route: '/new', reset: true })
     }
     for (const track of Object.keys(TRACKS)) {
       expect(stepOffset(track, TRACKS[track].length)).toBe(trackDuration(track))
