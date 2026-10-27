@@ -25,7 +25,7 @@
 
 | 日期 | 记录 |
 | --- | --- |
-| 2026-10-27 | [首页就绪、三工作区导览与状态标识](audits/2026-10-27-demo-readiness-workspaces.md) |
+| 2026-10-27 | [当前页导览与模拟标识](audits/2026-10-27-page-tour-entry.md) · [首页就绪、三工作区导览与状态标识](audits/2026-10-27-demo-readiness-workspaces.md) |
 | 2026-10-26 | [研究顺序与测试账本](audits/2026-10-26-research-tour-demo-ledger.md) |
 | 2026-10-25 | [开场与两场导入](audits/2026-10-25-demo-welcome-polish.md) · [依赖深挖与进度回拖](audits/2026-10-25-demo-tour-deep-dive.md) |
 | 2026-10-24 | [首轮导览修订](audits/2026-10-24-demo-tour-refinement.md) |
