@@ -1252,8 +1252,8 @@ export default function AnalysisPage({ openModal }) {
                   <h3 className="font-medium text-stone-700">最优组合发现</h3>
                   <p className="text-[11px] text-stone-400 mt-1">Top 档位策略 · 点击查看该配置的近期记录</p>
                 </div>
-                <div className="flex items-center gap-2">
-                  {isPreview && <PreviewStatus>仅为数据模拟，无足够样本</PreviewStatus>}
+                <div className="flex items-center gap-10">
+                  {isPreview && <PreviewStatus compact>仅为数据模拟，无足够样本</PreviewStatus>}
                   <span className="inline-flex shrink-0 items-center rounded-full border border-cyan-200 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-cyan-700">
                     TOP {deepData.comboRows.length}
                   </span>

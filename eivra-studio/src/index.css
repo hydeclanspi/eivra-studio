@@ -3392,6 +3392,13 @@ button.pm-toggle-full:focus-visible {
   will-change: auto;
 }
 
+.pm-status-badge--compact {
+  padding: 3px 8px;
+  gap: 5px;
+  font-size: 9.5px;
+  letter-spacing: .15px;
+}
+
 @keyframes pmLiveDotPulse {
   0%, 100% { opacity: 0.78; transform: scale(1); }
   50% { opacity: 1; transform: scale(1.15); }
