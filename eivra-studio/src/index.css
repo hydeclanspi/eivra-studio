@@ -3359,7 +3359,7 @@
   line-height: 1;
 }
 
-.pm-toggle-full:hover {
+button.pm-toggle-full:hover {
   transform: translateY(-1px) scale(1.035);
   background: linear-gradient(135deg, #f7fcff 0%, #d4eefe 60%, #a5d8fa 100%);
   border-color: rgba(56, 189, 248, 0.58);
@@ -3370,16 +3370,26 @@
     0 10px 24px -10px rgba(56, 189, 248, 0.4);
 }
 
-.pm-toggle-full:active {
+button.pm-toggle-full:active {
   transform: translateY(0) scale(0.98);
   transition-duration: 120ms;
 }
 
-.pm-toggle-full:focus-visible {
+button.pm-toggle-full:focus-visible {
   outline: none;
   box-shadow:
     0 0 0 2px rgba(56, 189, 248, 0.22),
     0 0 0 4px rgba(56, 189, 248, 0.32);
+}
+
+.pm-status-badge {
+  margin-left: 0;
+  padding: 5px 10px;
+  font-size: 11px;
+  letter-spacing: .25px;
+  white-space: nowrap;
+  cursor: default;
+  will-change: auto;
 }
 
 @keyframes pmLiveDotPulse {

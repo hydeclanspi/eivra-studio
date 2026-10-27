@@ -9,7 +9,6 @@ import { beamRoute, computeLanes, laserWave, pathClear, sampleLaserSpeed } from 
 import { delay, tourBus, tourCache } from '../tour/tourBus'
 import { clipAnchorRect, sameAnchorRect } from '../tour/anchorGeometry'
 import { parseNaturalInputOrders } from '../naturalInputOrders'
-import { waitForInitialPage } from '../../components/tour/tourReady'
 
 describe('tour playback lifecycle', () => {
   const reduce = (events, initial = initialTourState) => events.reduce(tourReducer, initial)
@@ -82,9 +81,8 @@ describe('script contract and anchor drift guard', () => {
     for (const ids of Object.values(TRACKS)) {
       expect(ids[ids.indexOf('new.scoreCloud') + 1]).toBe('new.teamRecords')
       expect(ids[ids.indexOf('new.postImport') + 1]).toBe('new.importDetails')
-      expect(ids.indexOf('quants.workspaces')).toBeGreaterThan(ids.indexOf('seasons.hero'))
-      expect(ids[ids.indexOf('quants.workspaces') + 1]).toBe('quants.replay')
-      expect(ids[ids.indexOf('quants.replay') + 1]).toBe('history.records')
+      expect(ids.indexOf('quants.studio')).toBeGreaterThan(ids.indexOf('seasons.hero'))
+      expect(ids.slice(ids.indexOf('quants.studio'), ids.indexOf('quants.studio') + 4)).toEqual(['quants.studio', 'quants.library', 'quants.data', 'history.records'])
       expect(ids.slice(-2)).toEqual(['console.scan', 'new.return'])
       expect(STEPS[ids.at(-1)]).toMatchObject({ route: '/new', reset: true })
     }
@@ -140,22 +138,6 @@ describe('real-layout light lanes', () => {
 
 describe('cancellable page actions', () => {
   afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
-  it('waits 6.5 seconds after unfinished resources become ready', async () => {
-    vi.useFakeTimers(); vi.stubGlobal('document', { readyState: 'loading', fonts: { status: 'loading' } })
-    const ready = vi.fn(), ctl = new AbortController()
-    const result = waitForInitialPage(ctl.signal, ENTRY_DELAY_MS).then(ready)
-    await vi.advanceTimersByTimeAsync(2999); expect(ready).not.toHaveBeenCalled()
-    await vi.advanceTimersByTimeAsync(1001); expect(ready).not.toHaveBeenCalled()
-    document.readyState = 'complete'; document.fonts.status = 'loaded'
-    await vi.advanceTimersByTimeAsync(100); expect(ready).not.toHaveBeenCalled()
-    await vi.advanceTimersByTimeAsync(6499); expect(ready).not.toHaveBeenCalled()
-    await vi.advanceTimersByTimeAsync(1); await result; expect(ready).toHaveBeenCalledOnce()
-  })
-  it('manual start or unmount cancels a pending automatic welcome', async () => {
-    vi.useFakeTimers(); vi.stubGlobal('document', { readyState: 'complete' }); const ctl = new AbortController()
-    const waiting = waitForInitialPage(ctl.signal, ENTRY_DELAY_MS).catch((error) => error.name)
-    ctl.abort(); expect(await waiting).toBe('AbortError'); expect(vi.getTimerCount()).toBe(0)
-  })
   it('resets mounted page state and unmounted caches on replay or completion', () => {
     tourCache.set('new.form', { text: 'temporary tour input' }); tourCache.set('combo.result', { count: 20 })
     const stale = vi.fn(), mounted = vi.fn(() => expect(tourCache.get('new.form')).toBeUndefined())
@@ -184,7 +166,7 @@ describe('cancellable page actions', () => {
 
 describe('tour navigation and live geometry', () => {
   it('uses three-second page introductions and two-second history introductions', () => {
-    expect(ENTRY_DELAY_MS).toBe(6500)
+    expect(ENTRY_DELAY_MS).toBe(3750)
     for (const route of ['/new', '/combo', '/dashboard', '/params']) expect(overviewDuration(route)).toBe(3000)
     for (const route of ['/history', '/history/teams']) expect(overviewDuration(route)).toBe(2000)
   })

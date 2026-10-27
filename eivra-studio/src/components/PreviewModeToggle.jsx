@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { FULL_MODE, isOwnerRoute, lockToPreview, useDisplayMode } from '../lib/displayMode'
 import UnlockModal from './UnlockModal'
+import { LiveStatusContent } from './LiveStatus'
 
 /**
  * PreviewModeToggle — the topbar capsule that swaps between
@@ -41,10 +42,7 @@ export default function PreviewModeToggle({ previewOnly = false }) {
         aria-label={previewOnly ? 'Demo preview' : ownerRoute ? 'Full data mode' : mode === FULL_MODE ? 'Lock to preview mode' : 'Unlock full mode'}
       >
         {mode === FULL_MODE ? (
-          <>
-            <span className="pm-toggle-live-dot" aria-hidden="true" />
-            <span className="pm-toggle-live-text">Live</span>
-          </>
+          <LiveStatusContent />
         ) : (
           <>
             <span className="pm-toggle-preview-dot" aria-hidden="true" />

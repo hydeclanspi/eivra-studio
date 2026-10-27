@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { deleteInvestment, getInvestments, saveInvestment, setInvestmentArchived, updateInvestment } from '../lib/localData'
 import { useLabels } from '../lib/labels'
 import { isPreviewMode } from '../lib/displayMode'
+import LiveStatus from '../components/LiveStatus'
 
 // 演示态首屏「秀一下」：进入历史记录页 0.9s 后，自动展开最近一条记录（与 Settle
 // 页同理），复用 History 的重力展开动画（展卷高度过渡 + 内容重力 Q 弹）——只展开不收回。
@@ -878,9 +879,7 @@ export default function HistoryPage() {
         <div>
           <div className="flex flex-wrap items-center gap-3">
             <h2 className="text-2xl font-semibold text-stone-800 font-display">历史记录</h2>
-            {isPreviewMode() && <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800" aria-label="当前为测试数据">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden="true" />测试数据
-            </span>}
+            {isPreviewMode() && <LiveStatus label="当前为 beta 测试数据">beta 测试数据</LiveStatus>}
           </div>
           <p className="text-stone-400 text-sm mt-1">共 {totalCount} 条投资记录</p>
         </div>

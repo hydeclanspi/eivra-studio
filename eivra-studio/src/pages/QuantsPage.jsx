@@ -579,15 +579,23 @@ export default function QuantsPage() {
   const [forwardCount, setForwardCount] = useState(readForwardCount)
   const [observationVersionId, setObservationVersionId] = useState(null)
   const [labMode, setLabMode] = useState('single')
-  useTourAction('quants.showResearch', () => {
-    setActiveTab('home')
-    return { ok: true }
-  })
-  useTourAction('quants.showReplay', async ({ gesture, signal }) => {
+  useTourAction('quants.showStudio', async ({ gesture, signal }) => {
     await gesture?.('quants.labTab')
     if (signal.aborted) return { ok: false, reason: 'cancelled' }
     setActiveTab('lab')
-    setLabMode('validation')
+    setLabMode('single')
+    return { ok: true }
+  })
+  useTourAction('quants.showLibrary', async ({ gesture, signal }) => {
+    await gesture?.('quants.libraryTab')
+    if (signal.aborted) return { ok: false, reason: 'cancelled' }
+    setActiveTab('library')
+    return { ok: true }
+  })
+  useTourAction('quants.showData', async ({ gesture, signal }) => {
+    await gesture?.('quants.dataTab')
+    if (signal.aborted) return { ok: false, reason: 'cancelled' }
+    setActiveTab('data')
     return { ok: true }
   })
   const researchStore = researchState.store
@@ -1116,7 +1124,7 @@ export default function QuantsPage() {
           { id: 'library', label: '策略库', tone: 'library', Icon: Library },
           { id: 'shelf', label: '影子观察', tone: 'shelf', Icon: Radar },
           { id: 'data', label: '数据中心', tone: 'data', Icon: Database },
-        ].map((tab) => <button key={tab.id} type="button" data-tour={tab.id === 'lab' ? "quants.labTab" : undefined} data-tone={tab.tone} aria-current={activeTab === tab.id ? 'page' : undefined} onClick={() => setActiveTab(tab.id)}><tab.Icon size={14} strokeWidth={1.8} />{tab.label}</button>)}
+        ].map((tab) => <button key={tab.id} type="button" data-tour={tab.id === 'lab' ? "quants.labTab" : tab.id === 'library' ? "quants.libraryTab" : tab.id === 'data' ? "quants.dataTab" : undefined} data-tone={tab.tone} aria-current={activeTab === tab.id ? 'page' : undefined} onClick={() => setActiveTab(tab.id)}><tab.Icon size={14} strokeWidth={1.8} />{tab.label}</button>)}
       </nav>
       {(researchState.error || researchNotice.text) && <div role={researchState.error || researchNotice.error ? 'alert' : 'status'} className={`qr-page-notice ${researchState.error || researchNotice.error ? 'is-error' : ''}`}>{researchState.error || researchNotice.text}</div>}
       {activeTab === 'home' && <ResearchDesk store={researchStore} onStart={handleStartResearch} onOpenRun={handleOpenRun} onNavigate={setActiveTab} shadowCount={forwardCount} resultCount={resultsStatus.count} />}

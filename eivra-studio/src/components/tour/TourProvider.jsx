@@ -74,7 +74,7 @@ export default function TourProvider({ children }) {
     }
     const ctl = new AbortController(); bootController.current = ctl
     setTourOnStage(true)
-    waitForInitialPage(ctl.signal, ENTRY_DELAY_MS).then(() => {
+    waitForInitialPage(ctl.signal, ENTRY_DELAY_MS, homeVisit ? '[data-tour-page="new"]' : '.app-main-scroll .page-shell').then(() => {
       if (ctl.signal.aborted) return
       bootstrapped.current = true
       if (explicitStart) start(param === 'short' ? 'short' : defaultTrack())

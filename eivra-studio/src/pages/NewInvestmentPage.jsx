@@ -539,6 +539,7 @@ export default function NewInvestmentPage() {
     () => capRecommendedStake(Number.MAX_SAFE_INTEGER, poolCapital, systemConfig.riskCapRatio),
     [poolCapital, systemConfig.riskCapRatio],
   )
+  const [calibrationReady, setCalibrationReady] = useState(false)
   const [calibrationContext, setCalibrationContext] = useState(() =>
     getPredictionCalibrationContext({ detail: 'lite' }),
   )
@@ -576,12 +577,13 @@ export default function NewInvestmentPage() {
     let idleId = null
     let timeoutId = null
 
+    setCalibrationReady(false)
     setCalibrationContext(getPredictionCalibrationContext({ detail: 'lite' }))
 
     const hydrateFull = () => {
       if (cancelled) return
       const fullContext = getPredictionCalibrationContext({ detail: 'full', includeWeightSuggestions: false })
-      if (!cancelled) setCalibrationContext(fullContext)
+      if (!cancelled) { setCalibrationContext(fullContext); setCalibrationReady(true) }
     }
 
     if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
@@ -1895,7 +1897,7 @@ export default function NewInvestmentPage() {
       // During a tour, even paused edits belong to this disposable demo.
       // Replay/completion restores the pre-existing draft without saving them.
       for (const key of ['new.parsed', 'new.result']) tourCache.delete(key)
-    }} className="page-shell page-content-fluid motion-v2-scope lab-new-page" data-investment-view={viewMode}>
+    }} className="page-shell page-content-fluid motion-v2-scope lab-new-page" data-investment-view={viewMode} data-tour-page="new" data-tour-ready={calibrationReady ? 'true' : 'false'}>
       <div className="mb-8 lab-page-heading flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 data-tour="new.return" className="text-2xl font-semibold text-stone-800 font-display">新建投资</h2>

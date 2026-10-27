@@ -1,5 +1,5 @@
 export const TOUR_VERSION = 2
-export const ENTRY_DELAY_MS = 6500
+export const ENTRY_DELAY_MS = 3750
 export const PAGE_OVERVIEW_MS = 3000
 export const ROUTE_LEAD_MS = 420
 export const overviewDuration = (route) => route.startsWith('/history') ? 2000 : PAGE_OVERVIEW_MS
@@ -40,8 +40,9 @@ export const STEPS = {
   'dashboard.metricsRisk': { act: 3, route: '/dashboard/metrics', anchor: 'dashboard.metricsRisk', duration: 3500, title: '收益之外，也看风险', body: '指标下面还有近期趋势和风险：回撤、波动与效率，放在一起读。' },
   'seasons.hero': { act: 3, route: '/dashboard/report', anchor: 'seasons.hero', duration: 4500, title: '每个周期，一份战报', body: '净值、命中和回撤，汇成一页。回看一个研究周期的全貌。（演示数据）' },
   'seasons.split': { act: 3, route: '/dashboard/report', anchor: 'seasons.split', duration: 4500, title: '看清结果来自哪里', body: '按联赛、注额、策略和周次拆开，看清结果来自哪里。' },
-  'quants.workspaces': { act: 4, route: '/quants', anchor: 'quants.workspaces', prepare: 'quants.showResearch', duration: 6500, title: '把直觉，变成可复现的研究', body: 'Quants 从一个假设出发：写清规则与失效条件，保存每次实验。研究台、策略库与影子观察，让想法有迹可循。' },
-  'quants.replay': { act: 4, route: '/quants', anchor: 'quants.replay', preAnchor: 'quants.labTab', action: 'quants.showReplay', duration: 6500, title: '每一次尝试，都留下证据', body: '冻结规则后，比较参数、做滚动验证与历史价格回放，再向前积累影子样本。保留版本和证据，持续检验策略。' },
+  'quants.studio': { act: 4, route: '/quants', anchor: 'quants.studio', preAnchor: 'quants.labTab', action: 'quants.showStudio', duration: 6000, title: '实验工作室，把直觉写成规则', body: '在实验工作室写下假设与失效条件，配置规则和评估范围。单次实验、参数比较与滚动验证，让每次尝试可以复查。' },
+  'quants.library': { act: 4, route: '/quants', anchor: 'quants.library', preAnchor: 'quants.libraryTab', action: 'quants.showLibrary', duration: 5500, title: '策略库，保留每一次演进', body: '策略库按版本保存规则，连同实验输入、结果与研究结论一起归档。比较不同尝试，复现旧版本，再决定下一步。' },
+  'quants.data': { act: 4, route: '/quants', anchor: 'quants.data', preAnchor: 'quants.dataTab', action: 'quants.showData', duration: 5500, title: '数据中心，让证据决定边界', body: '数据中心汇集赛果、历史报价与采集记录，检查覆盖和时间依据。先看数据能回答什么，再选择研究与回放方式。' },
   'history.records': { act: 5, route: '/history', anchor: 'history.records', duration: 3000, title: '每一次判断，都能回看', body: 'History 留下每次判断、结果与盈亏。筛选、展开，回到当时的记录。' },
   'history.teams': { act: 5, route: '/history/teams', anchor: 'history.teams', duration: 3500, title: '球队，也有自己的档案', body: '球队档案把分散的交手与判断记录聚在一起，方便逐场回看。' },
   'console.fit': { act: 6, route: '/params', anchor: 'console.fit', duration: 6100, title: 'Intuition, calibrated.', body: '系统一直在检验自己：赛前预期，对照赛后实际。追踪拟合、误差与稳定性。' },
@@ -50,7 +51,7 @@ export const STEPS = {
 }
 export const TRACKS = {
   full: Object.keys(STEPS),
-  short: ['new.quickInput', 'new.scoreCloud', 'new.teamRecords', 'new.postImport', 'new.importDetails', 'combo.generate', 'combo.dependencyDetail', 'combo.dependencyEvidence', 'combo.tolerance', 'combo.customize', 'combo.customResult', 'dashboard.overview', 'dashboard.trend', 'seasons.hero', 'quants.workspaces', 'quants.replay', 'history.records', 'console.fit', 'console.scan', 'new.return'],
+  short: ['new.quickInput', 'new.scoreCloud', 'new.teamRecords', 'new.postImport', 'new.importDetails', 'combo.generate', 'combo.dependencyDetail', 'combo.dependencyEvidence', 'combo.tolerance', 'combo.customize', 'combo.customResult', 'dashboard.overview', 'dashboard.trend', 'seasons.hero', 'quants.studio', 'quants.library', 'quants.data', 'history.records', 'console.fit', 'console.scan', 'new.return'],
 }
 export const navAnchor = (route) => `nav.${route.startsWith('/dashboard') ? 'dashboard' : route.startsWith('/history') ? 'history' : route.slice(1)}`
 export const stepOffset = (track, index) => TRACKS[track].slice(0, index).reduce((sum, id, i) => sum + STEPS[id].duration + (TRACKS[track][i + 1] && STEPS[id].route !== STEPS[TRACKS[track][i + 1]].route ? routeBudget(STEPS[TRACKS[track][i + 1]].route) : 0), 0)

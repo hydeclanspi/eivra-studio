@@ -41,7 +41,7 @@ import { isPreviewMode } from '../lib/displayMode'
 // The sample campaign is Season 3; ledger boundaries and metrics stay derived.
 const presentPeriod = (period) => {
   if (!period || !isPreviewMode() || period.id !== 'cycle_stl_demo_20260110') return period
-  return { ...period, ordinal: 3, name: `S3 ${period.title}` }
+  return { ...period, ordinal: 3, name: `(S3) ${period.title}` }
 }
 
 const LEDGER_PAGE_SIZE = 10
