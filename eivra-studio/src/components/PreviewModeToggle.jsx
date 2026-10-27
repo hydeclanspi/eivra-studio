@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { FULL_MODE, isOwnerRoute, lockToPreview, useDisplayMode } from '../lib/displayMode'
 import UnlockModal from './UnlockModal'
 import { LiveStatusContent } from './LiveStatus'
+import { PreviewStatusContent } from './PreviewStatus'
 
 /**
  * PreviewModeToggle — the topbar capsule that swaps between
@@ -45,8 +46,7 @@ export default function PreviewModeToggle({ previewOnly = false }) {
           <LiveStatusContent />
         ) : (
           <>
-            <span className="pm-toggle-preview-dot" aria-hidden="true" />
-            <span className="pm-toggle-preview-text">demo · preview</span>
+            <PreviewStatusContent />
             {!previewOnly && <span className="pm-toggle-preview-hint" aria-hidden="true">unlock</span>}
           </>
         )}

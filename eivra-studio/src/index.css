@@ -3288,7 +3288,7 @@
     margin-left 200ms ease;
 }
 
-.pm-toggle-preview:hover {
+button.pm-toggle-preview:hover {
   transform: translateY(-0.5px) scale(1.025);
   background:
     linear-gradient(135deg, #f8fdfa 0%, #d0f0dc 60%, #b3e4c5 100%);
@@ -3300,26 +3300,26 @@
     0 6px 16px -10px rgba(16, 185, 129, 0.26);
 }
 
-.pm-toggle-preview:hover::before {
+button.pm-toggle-preview:hover::before {
   animation: pmPreviewSweep 900ms cubic-bezier(0.2, 0.9, 0.2, 1) 1;
 }
 
-.pm-toggle-preview:hover .pm-toggle-preview-hint {
+button.pm-toggle-preview:hover .pm-toggle-preview-hint {
   max-width: 52px;
   margin-left: 3px;
   opacity: 0.72;
 }
 
-.pm-toggle-preview:hover .pm-toggle-preview-dot {
+button.pm-toggle-preview:hover .pm-toggle-preview-dot {
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.18);
 }
 
-.pm-toggle-preview:active {
+button.pm-toggle-preview:active {
   transform: translateY(0) scale(0.98);
   transition-duration: 120ms;
 }
 
-.pm-toggle-preview:focus-visible {
+button.pm-toggle-preview:focus-visible {
   outline: none;
   box-shadow:
     0 0 0 2px rgba(16, 185, 129, 0.2),

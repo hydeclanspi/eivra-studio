@@ -8,7 +8,11 @@ export function tourReducer(state, event) {
     : { ...state, status: 'running', index: Math.max(0, index), phase: 'routing', remaining: null, epoch: state.epoch + 1 }
   switch (event.type) {
     case 'OFFER': return ['idle', 'done'].includes(state.status) ? { ...initialTourState, status: 'offered', track: event.track || 'full', epoch: state.epoch + 1 } : state
-    case 'START': return { ...initialTourState, status: 'running', track: event.track in TRACKS ? event.track : 'full', epoch: state.epoch + 1 }
+    case 'START': {
+      const track = event.track in TRACKS ? event.track : 'full'
+      const index = Math.max(0, TRACKS[track].indexOf(event.stepId))
+      return { ...initialTourState, status: 'running', track, index, epoch: state.epoch + 1 }
+    }
     case 'RESTORE': {
       const track = event.record.track in TRACKS ? event.record.track : 'full'
       const index = TRACKS[track].indexOf(event.record.stepId)

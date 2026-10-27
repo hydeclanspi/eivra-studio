@@ -54,6 +54,20 @@ export const TRACKS = {
   short: ['new.quickInput', 'new.scoreCloud', 'new.teamRecords', 'new.postImport', 'new.importDetails', 'combo.generate', 'combo.dependencyDetail', 'combo.dependencyEvidence', 'combo.tolerance', 'combo.customize', 'combo.customResult', 'dashboard.overview', 'dashboard.trend', 'seasons.hero', 'quants.studio', 'quants.library', 'quants.data', 'history.records', 'console.fit', 'console.scan', 'new.return'],
 }
 export const navAnchor = (route) => `nav.${route.startsWith('/dashboard') ? 'dashboard' : route.startsWith('/history') ? 'history' : route.slice(1)}`
+
+// A compact track omits some pages. Fall back to the full track so a launch
+// from those pages still explains the page the visitor is looking at.
+export function tourEntryForPage(pathname, preferredTrack = 'full') {
+  const path = pathname.replace(/\/+$/, '') || '/'
+  const route = path === '/' ? '/new' : path === '/dashboard/quants' ? '/quants' : path
+  const preferred = preferredTrack in TRACKS ? preferredTrack : 'full'
+  for (const track of new Set([preferred, 'full'])) {
+    const stepId = TRACKS[track].find((id) => STEPS[id].route === route)
+    if (stepId) return { track, stepId }
+  }
+  return null
+}
+
 export const stepOffset = (track, index) => TRACKS[track].slice(0, index).reduce((sum, id, i) => sum + STEPS[id].duration + (TRACKS[track][i + 1] && STEPS[id].route !== STEPS[TRACKS[track][i + 1]].route ? routeBudget(STEPS[TRACKS[track][i + 1]].route) : 0), 0)
 export const trackDuration = (track) => TRACKS[track].reduce((sum, id, i, ids) => sum + STEPS[id].duration + (i && STEPS[ids[i - 1]].route !== STEPS[id].route ? routeBudget(STEPS[id].route) : 0), 0)
 export const trackLabel = (track) => {

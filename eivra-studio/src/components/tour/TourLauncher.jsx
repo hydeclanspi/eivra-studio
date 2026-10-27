@@ -10,7 +10,7 @@ export default function TourLauncher({ mobile = false }) {
     window.addEventListener('resize', resize)
     return () => window.removeEventListener('resize', resize)
   }, [])
-  if (!tour?.eligible || mobile !== narrow) return null
-  const button = <button type="button" data-tour="topbar.tourLauncher" className={`tour-launcher${mobile ? ' tour-launcher--mobile' : ''}`} onClick={() => tour.start()} aria-label="播放产品导览"><Play size={11} fill="currentColor" /><span>导览</span></button>
+  if (!tour?.eligible || !tour.pageAvailable || mobile !== narrow) return null
+  const button = <button type="button" data-tour="topbar.tourLauncher" className={`tour-launcher${mobile ? ' tour-launcher--mobile' : ''}`} onClick={tour.startHere} aria-label="播放当前页面导览" title="从当前页面开始导览"><Play size={11} fill="currentColor" /><span>导览</span></button>
   return mobile ? createPortal(button, document.body) : button
 }

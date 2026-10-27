@@ -9,6 +9,7 @@ import { useLabels, usePreviewTextMask } from '../lib/labels'
 import { useModeLabelMap } from '../components/ModeLabel'
 import { useDisplayMode, PREVIEW_MODE } from '../lib/displayMode'
 import useTourAction from '../components/tour/useTourAction'
+import PreviewStatus from '../components/PreviewStatus'
 
 const PERIOD_LABELS = {
   '1w': '近一周',
@@ -1246,14 +1247,17 @@ export default function AnalysisPage({ openModal }) {
             <div className="pointer-events-none absolute -top-16 -right-20 h-48 w-48 rounded-full bg-cyan-200/20 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-violet-200/20 blur-3xl" />
             <div className="relative">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div>
                   <h3 className="font-medium text-stone-700">最优组合发现</h3>
                   <p className="text-[11px] text-stone-400 mt-1">Top 档位策略 · 点击查看该配置的近期记录</p>
                 </div>
-                <span className="inline-flex items-center rounded-full border border-cyan-200 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-cyan-700">
-                  TOP {deepData.comboRows.length}
-                </span>
+                <div className="flex items-center gap-2">
+                  {isPreview && <PreviewStatus>仅为数据模拟，无足够样本</PreviewStatus>}
+                  <span className="inline-flex shrink-0 items-center rounded-full border border-cyan-200 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-cyan-700">
+                    TOP {deepData.comboRows.length}
+                  </span>
+                </div>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {deepData.comboRows.map((row, index) => {

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState }
 import { useLocation, useNavigate } from 'react-router-dom'
 import { getDisplayMode, useDisplayMode } from '../../lib/displayMode'
 import { isDesignPreview } from '../../design/labEditions'
-import { ACTS, DEMO_SENTENCE, ENTRY_DELAY_MS, overviewDuration, ROUTE_LEAD_MS, STEPS, navAnchor } from '../../lib/tour/tourScript'
+import { ACTS, DEMO_SENTENCE, ENTRY_DELAY_MS, overviewDuration, ROUTE_LEAD_MS, STEPS, navAnchor, tourEntryForPage } from '../../lib/tour/tourScript'
 import { initialTourState, stepId, tourReducer } from '../../lib/tour/tourMachine'
 import { readTourSession, rememberTour, saveTourSession, shouldAutoOffer, tourEligible } from '../../lib/tour/tourGate'
 import { delay, tourBus, tourCache } from '../../lib/tour/tourBus'
@@ -35,12 +35,16 @@ export default function TourProvider({ children }) {
     controller.current?.abort(); light.current?.clear(); setPointer(null); setAnchor(null)
     document.querySelectorAll('[data-tour-arrival]').forEach((el) => { el.removeAttribute('data-tour-arrival'); el.style.removeProperty('--tour-arrival') })
   }, [])
-  const start = useCallback((track = defaultTrack()) => {
+  const start = useCallback((track = defaultTrack(), fromStep) => {
     if (!eligible) return
     bootController.current?.abort(); bootstrapped.current = true
     stopEffects(); guideController.current?.abort(); tourBus.reset(); overviewUntil.current = 0
-    dispatch({ type: 'START', track })
+    dispatch({ type: 'START', track, stepId: fromStep })
   }, [eligible, stopEffects])
+  const startHere = useCallback(() => {
+    const entry = tourEntryForPage(locationRef.current.pathname, defaultTrack())
+    if (entry) start(entry.track, entry.stepId)
+  }, [start])
   const pause = useCallback(() => { stopEffects(); dispatch({ type: 'PAUSE' }) }, [stopEffects])
   const resume = useCallback(() => dispatch({ type: 'RESUME' }), [])
   const exit = useCallback(() => {
@@ -230,7 +234,7 @@ export default function TourProvider({ children }) {
     if (outcome?.ok && !ctl.signal.aborted && getDisplayMode() === 'preview') resume()
   }
   const explore = (route) => { exit(); navigate(route) }
-  return <TourContext.Provider value={{ eligible, state, start }}>
+  return <TourContext.Provider value={{ eligible, state, startHere, pageAvailable: Boolean(tourEntryForPage(location.pathname)) }}>
     {children}
     <TourLauncher mobile />
     {onStage && <TourStage state={state} step={step} act={ACTS[step.act]} anchor={anchor} notice={notice} pointer={pointer} reduced={reduced} light={light} start={start} seek={seek} beginSeek={beginSeek} pause={pause} resume={resume} exit={exit} explore={explore} openGuide={openGuide} />}

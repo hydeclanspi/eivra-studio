@@ -3,7 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { initialTourState, stepId, tourReducer } from '../tour/tourMachine'
-import { ENTRY_DELAY_MS, DEMO_IMPORT, overviewDuration, routeBudget, STEPS, TRACKS, stepAtProgress, stepOffset, trackDuration } from '../tour/tourScript'
+import { ENTRY_DELAY_MS, DEMO_IMPORT, overviewDuration, routeBudget, STEPS, TRACKS, stepAtProgress, stepOffset, trackDuration, tourEntryForPage } from '../tour/tourScript'
 import { readTourJSON, shouldAutoOffer, tourEligible, writeTourJSON } from '../tour/tourGate'
 import { beamRoute, computeLanes, laserWave, pathClear, sampleLaserSpeed } from '../tour/laneRouting'
 import { delay, tourBus, tourCache } from '../tour/tourBus'
@@ -60,6 +60,49 @@ describe('demo eligibility and persistence', () => {
     expect(() => writeTourJSON(denied, 'key', { status: 'completed' })).not.toThrow()
     expect(readTourJSON({ getItem: () => '{bad' }, 'key')).toBe(null)
     expect(readTourJSON({ getItem: () => '{"version":0}' }, 'key')).toBe(null)
+  })
+})
+
+describe('launch from the current page', () => {
+  const entries = [
+    ['/', 'new.quickInput'], ['/new', 'new.quickInput'], ['/combo', 'combo.candidates'],
+    ['/settle', 'settle.quick'], ['/dashboard', 'dashboard.overview'],
+    ['/dashboard/analysis', 'dashboard.analysis'], ['/dashboard/metrics', 'dashboard.metrics'],
+    ['/dashboard/report', 'seasons.hero'], ['/quants', 'quants.studio'],
+    ['/history', 'history.records'], ['/history/teams', 'history.teams'], ['/params', 'console.fit'],
+  ]
+  it.each(entries)('starts %s at its first page chapter, with a fresh playback state', (route, expected) => {
+    const entry = tourEntryForPage(route)
+    expect(entry).toEqual({ track: 'full', stepId: expected })
+    const previous = { ...initialTourState, status: 'paused', track: 'short', index: 5, remaining: 1234, phase: 'dwelling', epoch: 4 }
+    const started = tourReducer(previous, { type: 'START', ...entry })
+    expect(stepId(started)).toBe(expected)
+    expect(started).toMatchObject({ status: 'running', phase: 'routing', remaining: null, epoch: 5 })
+    const next = tourReducer(started, { type: 'NEXT' })
+    expect(stepId(next)).toBe(TRACKS.full[started.index + 1])
+  })
+  it('uses the short track where available, and the full track for pages it omits', () => {
+    for (const [route] of entries) {
+      const normalized = route === '/' ? '/new' : route
+      const compact = TRACKS.short.find((id) => STEPS[id].route === normalized)
+      const entry = tourEntryForPage(route, 'short')
+      expect(entry.track).toBe(compact ? 'short' : 'full')
+      expect(STEPS[entry.stepId].route).toBe(normalized)
+    }
+    expect(tourEntryForPage('/combo', 'short').stepId).toBe('combo.generate')
+  })
+  it('supports route aliases and trailing slashes without matching unrelated pages', () => {
+    expect(tourEntryForPage('/dashboard/quants/')).toEqual(tourEntryForPage('/quants'))
+    expect(tourEntryForPage('/history/teams/')).toEqual(tourEntryForPage('/history/teams'))
+    expect(tourEntryForPage('/dashboard/unknown')).toBeNull()
+    expect(tourEntryForPage('/arsenal')).toBeNull()
+    expect(tourEntryForPage('/design2609')).toBeNull()
+  })
+  it('keeps explicit full replay at the beginning and rejects stale start steps', () => {
+    const here = tourReducer(initialTourState, { type: 'START', ...tourEntryForPage('/params') })
+    expect(tourReducer(here, { type: 'START', track: 'full' }).index).toBe(0)
+    expect(tourReducer(here, { type: 'START', track: 'short', stepId: 'dashboard.analysis' }).index).toBe(0)
+    expect(tourReducer(here, { type: 'START', track: 'removed', stepId: 'removed' })).toMatchObject({ track: 'full', index: 0 })
   })
 })
 
