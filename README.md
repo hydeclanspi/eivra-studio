@@ -118,6 +118,14 @@ Quant 不替代组合工作台。研究阶段输出的是规则与候选；候�
 
 → [研究引擎](eivra-studio/src/lib/quantResearch.js) · [前向观察](eivra-studio/src/lib/quantForward.js) · [证据契约](eivra-studio/src/lib/quantEvidence.js) · [实现说明](eivra-studio/docs/quant-research-workspace.md)
 
+### 近期演进
+
+- **可回看的完整闭环。** 导览贯穿投前记录、两场组合导入、依赖风险诊断与定制、Dashboard 深度复盘，以及三个研究工作区；Console 结束后回到下一次判断。
+- **研究有版本，证据有边界。** 实验保留冻结规则、输入与结论，策略库追踪演进，数据中心决定可用的验证方式。
+- **克制的视觉与可靠的开场。** 红果主题保留薄荷绿与杏橙的交融；首页按实际就绪状态触发欢迎，历史样例使用与 Live 一致的状态材质。
+
+[版本演进与提交索引](eivra-studio/docs/release-notes.md) · [文档导航](eivra-studio/docs/README.md) · [导览实现说明](eivra-studio/docs/demo-tour.md)
+
 ### 工程架构
 
 产品由浏览器中的研究界面与共享分析内核组成。数据通过结构化或自然语言流程进入系统，经由存储与模型函数处理，再以可检查的结果返回界面。
@@ -146,9 +154,9 @@ React 工作台
 
 ### 工作台导览
 
-[播放约两分钟的自动导览](https://hydeclanspi.vercel.app/?tour=1) · [约一分钟速览](https://hydeclanspi.vercel.app/?tour=short)
+[播放约 3 分 10 秒的自动导览](https://hydeclanspi.vercel.app/?tour=1) · [约 2 分 10 秒速览](https://hydeclanspi.vercel.app/?tour=short)
 
-公开 Demo 首访在 New 页面加载至少 8.5 秒后显示欢迎窗，四秒后自动播放；跨页先留出 5 秒浏览整体界面。玻璃小鲸鱼主讲人通过字幕、蓝白光束与真实的解析和组合求解，串起判断、配仓、结算、复盘、校准与研究。点击页面或按 Space 暂停接管，Esc 退出，顶栏「导览」可重播；重播、完成和退出都会清理导览临时输入与结果。手机默认速览，`?tour=0` 关闭本次会话的导览；Full、`/arsenal` 和设计预览不显示导览。数据标签读取当前演示结果，不构成收益承诺。
+公开 Demo 每次进入首页，在文档、字体、图片、首页校准与布局就绪后，再等待 3.75 秒显示欢迎窗，四秒后自动播放。跨页先留出 3 秒浏览整体界面，History 为 2 秒。玻璃小鲸鱼通过字幕、光束和真实页面操作，串起判断、配仓、结算、复盘、研究、历史回看与校准，最后回到 New。进度条可前后拖动；点击页面或按 Space 暂停接管，Esc 退出，顶栏「导览」可重播。手机默认速览，`?tour=0` 禁用当前 URL 的导览；Full、`/arsenal` 和设计预览不显示导览。操作使用临时演示状态，退出时清理；样例收益不构成收益承诺。
 
 实现与验证边界见 [Demo 导览维护说明](eivra-studio/docs/demo-tour.md)。
 
@@ -250,6 +258,12 @@ Eivra Studio turns a discretionary thesis into a traceable sequence of forecasts
 Independently designed, engineered, and maintained by [hydeclanspi](https://github.com/hydeclanspi). The current research domain is discrete football outcomes priced through market odds; the system studies the broader problem of allocating risk when part of the signal comes from human judgment.
 
 ---
+
+### Recent development
+
+The guided demo now follows the full decision loop, with a seekable timeline, dependency editing, deeper dashboard views, and three Quant workspaces. It waits for the home page to become readable before offering the tour, then returns to New after Console. Synthetic history is explicitly labelled and follows the same payout arithmetic as the product.
+
+[Release notes and commit index](eivra-studio/docs/release-notes.md) · [Documentation map](eivra-studio/docs/README.md) · [Play the guided demo](https://hydeclanspi.vercel.app/?tour=1)
 
 ### The idea
 

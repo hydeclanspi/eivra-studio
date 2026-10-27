@@ -4,9 +4,11 @@
 
 正式品牌为 **Eivra Studio**，标语为 **Intuition, calibrated.**。生产页面已使用 Eivra 品牌，图形 Logo 保留原件；命名规则、Acuen 备选名和兼容边界见 [`docs/brand-identity.md`](docs/brand-identity.md)。
 
+文档入口：[维护与设计导航](docs/README.md) · [版本演进与提交索引](docs/release-notes.md) · [Demo 导览](docs/demo-tour.md)。
+
 ## 环境要求
 
-- Node.js ≥ 18，npm ≥ 9
+- Node.js ≥ 20，npm ≥ 9（与 GitHub CI 保持一致）
 - 纯前端即可运行：数据默认存于浏览器，分析全在前端完成，无需后端
 
 ## 常用脚本
@@ -54,4 +56,4 @@ api/              Vercel serverless function（演示解锁端点，见 api/READ
 
 仓库根目录 [`../.github/workflows/`](../.github/workflows/) 下的 CI 在向主分支推送 / 提交 PR 时执行 **lint → test → build** 三道门禁。提交前请确保三者本地通过。
 
-Vercel 项目的 **Root Directory** 必须是 `eivra-studio`。目录重命名不涉及生产域名、页面文案、Logo、存储键或同步协议的迁移。
+Vercel 项目的 **Root Directory** 必须是 `eivra-studio`。当前页面品牌与兼容策略见 [品牌迁移记录](docs/product-brand-migration.md)。冻结归档不参与应用构建；历史存储与同步协议的兼容入口需保留。
