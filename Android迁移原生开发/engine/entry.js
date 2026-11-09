@@ -1,5 +1,6 @@
 import { installEngineGlobals, nativeSetStorageJSON, nativeGetStorageJSON, nativeResetStorage } from './shims.js'
 installEngineGlobals()
+nativeSetStorageJSON(JSON.stringify({ 'eivra.full_session_latch.v1': '1' }))
 import * as localData from './source/src/lib/localData.js'
 import * as analytics from './source/src/lib/analytics.js'
 import * as atomicParlay from './source/src/lib/atomicParlay.js'
@@ -20,10 +21,11 @@ function hydrateStorage(stores = {}) {
   let bundle = input
   if (typeof bundle === 'string') { try { bundle = JSON.parse(bundle) } catch { bundle = null } }
   if (!bundle) bundle = {}
-  const records = bundle.investments || getDemoInvestments()
-  const config = bundle.system_config || bundle.systemConfig || getDemoSystemConfig()
-  const teams = bundle.team_profiles || getDemoTeamProfiles()
-  const logs = bundle.access_logs || getDemoAccessLogs()
+  const coldStart = Object.keys(bundle).length === 0
+  const records = coldStart ? getDemoInvestments() : (bundle.investments || [])
+  const config = coldStart ? getDemoSystemConfig() : (bundle.system_config || bundle.systemConfig || {})
+  const teams = coldStart ? getDemoTeamProfiles() : (bundle.team_profiles || [])
+  const logs = coldStart ? getDemoAccessLogs() : (bundle.access_logs || [])
   nativeSetStorageJSON(JSON.stringify({
     [investmentsKey]: JSON.stringify(records), [configKey]: JSON.stringify(config),
     [teamsKey]: JSON.stringify(teams), [logsKey]: JSON.stringify(logs),
@@ -65,6 +67,16 @@ globalThis.eivraEngine = {
   },
   invokeJSON(name, argsJSON = '[]') { return JSON.stringify(this.invoke(name, JSON.parse(argsJSON)) ?? null) },
   exportWorkspace() {
+    const storage = JSON.parse(nativeGetStorageJSON())
+    const key = 'eivra.investments.v1'
+    const configKey = 'eivra.system_config.v1'
+    if (!storage[key]) {
+      const demo = getDemoInvestments()
+      const config = getDemoSystemConfig()
+      const teams = getDemoTeamProfiles()
+      const logs = getDemoAccessLogs()
+      nativeSetStorageJSON(JSON.stringify({ ...storage, [key]: JSON.stringify(demo), [configKey]: JSON.stringify(config), 'eivra.team_profiles.v1': JSON.stringify(teams), 'eivra.access_logs.v1': JSON.stringify(logs) }))
+    }
     return { version: 1, system_config: localData.getSystemConfig(), team_profiles: localData.getTeamProfiles(), investments: localData.getInvestments(), access_logs: localData.getAccessLogs() }
   },
   exportWorkspaceJSON() { return JSON.stringify(this.exportWorkspace()) },
