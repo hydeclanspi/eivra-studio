@@ -11,7 +11,7 @@ class WorkspaceRepository(private val context: Context) {
     private val key = "bundle"
     private val backupKey = "backup.before-import"
     fun load(): JSONObject = try { JSONObject(preferences.getString(key, null) ?: DemoData.json.toString()) } catch (_: Exception) { DemoData.json }
-    fun save(bundle: JSONObject) { preferences.edit().putString(key, bundle.toString()).apply() }
+    fun save(bundle: JSONObject) { if (!preferences.edit().putString(key, bundle.toString()).commit()) throw IllegalStateException("本地工作区写入失败") }
     suspend fun bootstrap(): JSONObject = withContext(Dispatchers.Default) {
         NativeEngine(context, if (preferences.contains(key)) load() else null).use { it.workspace() }.also { save(it) }
     }
