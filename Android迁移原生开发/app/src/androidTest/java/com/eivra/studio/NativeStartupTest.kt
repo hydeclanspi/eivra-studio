@@ -29,6 +29,15 @@ class NativeStartupTest {
         rule.onNodeWithText("未确认时不会替你填 0.5", substring = true).assertIsDisplayed()
     }
 
+    @Test fun rotationRetainsDraftAndRoute() {
+        rule.onNodeWithText("主队", substring = true).performTextInput("Arsenal")
+        rule.onNodeWithText("客队", substring = true).performTextInput("Chelsea")
+        rule.activityRule.scenario.recreate()
+        rule.onNodeWithText("Arsenal", substring = true).assertIsDisplayed()
+        rule.onNodeWithText("Chelsea", substring = true).assertIsDisplayed()
+        rule.onNodeWithText("新建投资", substring = true).assertIsDisplayed()
+    }
+
     @Test fun historyRetainsOriginalForecastEvidence() {
         rule.onNodeWithText("History", substring = true).performClick()
         rule.onNodeWithText("历史与证据", substring = true).assertIsDisplayed()

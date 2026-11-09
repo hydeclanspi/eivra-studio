@@ -1,5 +1,6 @@
 package com.eivra.studio
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -49,6 +50,16 @@ private val destinations = listOf(
 @Composable
 fun EivraApp(tablet: Boolean) {
     var route by rememberSaveable { mutableStateOf("new") }
+    val routeHistory = rememberSaveable { mutableStateOf(listOf<String>()) }
+    fun navigate(next: String) {
+        if (next == route) return
+        routeHistory.value = routeHistory.value + route
+        route = next
+    }
+    BackHandler(enabled = routeHistory.value.isNotEmpty()) {
+        route = routeHistory.value.last()
+        routeHistory.value = routeHistory.value.dropLast(1)
+    }
     InspirationTheme(route) {
     val context = LocalContext.current
     val repository = remember { WorkspaceRepository(context) }
@@ -68,7 +79,7 @@ fun EivraApp(tablet: Boolean) {
     fun update(next: JSONObject) { bundle = next; repository.save(next) }
     fun saveInvestment(record: JSONObject) {
         scope.launch {
-            try { bundle = repository.saveInvestment(record); notice = "已按原数据契约保存"; route = "portfolio" }
+            try { bundle = repository.saveInvestment(record); notice = "已按原数据契约保存"; navigate("portfolio") }
             catch (e: Exception) { notice = "保存失败：${e.message}" }
         }
     }
@@ -80,11 +91,11 @@ fun EivraApp(tablet: Boolean) {
     }
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
-        topBar = { EivraTopBar(tablet, route, engineStatus) { route = it } },
-        bottomBar = { if (!tablet) PhoneNavigation(route) { route = it } }
+        topBar = { EivraTopBar(tablet, route, engineStatus) { navigate(it) } },
+        bottomBar = { if (!tablet) PhoneNavigation(route) { navigate(it) } }
     ) { insets ->
         Row(Modifier.fillMaxSize().padding(insets)) {
-            if (tablet) TabletNavigation(route) { route = it }
+            if (tablet) TabletNavigation(route) { navigate(it) }
             Box(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(horizontal = if (tablet) 32.dp else 17.dp, vertical = if (tablet) 26.dp else 19.dp)) {
                 Column(Modifier.fillMaxWidth().widthIn(max = 1320.dp).align(Alignment.TopCenter), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     bundle?.let { current ->

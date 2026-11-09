@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -16,18 +17,20 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
 
-private data class EntryDraft(val name: String = "主胜", val odds: String = "2.00")
+@kotlinx.parcelize.Parcelize
+private data class EntryDraft(val name: String = "主胜", val odds: String = "2.00") : android.os.Parcelable
+@kotlinx.parcelize.Parcelize
 private data class MatchDraft(
     val home: String = "", val away: String = "", val entries: List<EntryDraft> = listOf(EntryDraft()),
     val conf: String = "", val mode: String = "常规-杠杆", val tysHome: String = "M", val tysAway: String = "M",
     val fid: String = "0.40", val fseHome: String = "0.50", val fseAway: String = "0.50", val note: String = "",
-)
+) : android.os.Parcelable
 
 @Composable
 fun NewInvestmentScreen(tablet: Boolean, bundle: JSONObject, repository: WorkspaceRepository, onSave: (JSONObject) -> Unit) {
-    var matches by remember { mutableStateOf(listOf(MatchDraft())) }
-    var stake by remember { mutableStateOf("") }
-    var comboName by remember { mutableStateOf("") }
+    var matches by rememberSaveable { mutableStateOf(listOf(MatchDraft())) }
+    var stake by rememberSaveable { mutableStateOf("") }
+    var comboName by rememberSaveable { mutableStateOf("") }
     var prediction by remember { mutableStateOf<JSONObject?>(null) }
     var computing by remember { mutableStateOf(false) }
     var validation by remember { mutableStateOf("") }
