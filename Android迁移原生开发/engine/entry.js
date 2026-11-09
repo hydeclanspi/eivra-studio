@@ -1,6 +1,13 @@
 import { installEngineGlobals, nativeSetStorageJSON, nativeGetStorageJSON, nativeResetStorage } from './shims.js'
 installEngineGlobals()
-nativeSetStorageJSON(JSON.stringify({ 'eivra.full_session_latch.v1': '1', 'eivra.git_sync_state.v1': JSON.stringify({ enabled: false }) }))
+nativeSetStorageJSON(JSON.stringify({
+  'eivra.full_session_latch.v1': '1', 'eivra.git_sync_state.v1': JSON.stringify({ enabled: false }),
+  'eivra.investments.v1': JSON.stringify(getDemoInvestments()),
+  'eivra.system_config.v1': JSON.stringify(getDemoSystemConfig()),
+  'eivra.team_profiles.v1': JSON.stringify(getDemoTeamProfiles()),
+  'eivra.access_logs.v1': JSON.stringify(getDemoAccessLogs()),
+}))
+import { getDemoInvestments, getDemoSystemConfig, getDemoTeamProfiles, getDemoAccessLogs } from './source/src/lib/demoData.js'
 import * as localData from './source/src/lib/localData.js'
 import * as analytics from './source/src/lib/analytics.js'
 import * as atomicParlay from './source/src/lib/atomicParlay.js'
@@ -8,7 +15,6 @@ import * as naturalInputParser from './source/src/lib/naturalInputParser.js'
 import * as quantStrategy from './source/src/lib/quantStrategy.js'
 import * as quantResearch from './source/src/lib/quantResearch.js'
 import * as quantForward from './source/src/lib/quantForward.js'
-import { getDemoInvestments, getDemoSystemConfig, getDemoTeamProfiles, getDemoAccessLogs } from './source/src/lib/demoData.js'
 
 const modules = { localData, analytics, atomicParlay, naturalInputParser, quantStrategy, quantResearch, quantForward }
 const clone = (value) => JSON.parse(JSON.stringify(value))
