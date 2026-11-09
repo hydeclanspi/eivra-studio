@@ -52,6 +52,7 @@ jobs:
         run: ./gradlew assembleDebug --stacktrace
       - name: Native UI smoke tests on Android emulator
         uses: reactivecircus/android-emulator-runner@v2
+        timeout-minutes: 12
         with:
           api-level: 36
           arch: x86_64
