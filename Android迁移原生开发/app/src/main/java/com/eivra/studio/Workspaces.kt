@@ -88,13 +88,6 @@ private fun BalanceChart(rows: org.json.JSONArray) {
 }
 
 @Composable
-fun HistoryScreen(bundle: JSONObject) {
-    PageIntro("HISTORY · 可回看", "历史与球队", "不是只留成功的路径，判断、修改、结算与失效条件都要能找回。")
-    InvestmentList(bundle, false)
-    GlassCard { SectionHeading("TEAM", "球队画像", "事件身份与记录时间必须明确区分"); Text("球队历史、别名与样本画像将由同一份投资记录派生，避免在 Android 另造一套统计口径。", color = Eivra.Secondary) }
-}
-
-@Composable
 fun QuantsScreen() {
     PageIntro("QUANTS · 策略研究", "一个直觉，如何成为规则", "策略版本与实验记录不可变；证据条件决定能做什么实验，而不是菜单想点什么就点什么。")
     listOf(
