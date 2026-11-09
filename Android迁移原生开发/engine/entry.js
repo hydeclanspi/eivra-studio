@@ -30,6 +30,10 @@ function hydrateStorage(stores = {}) {
     investments: getDemoInvestments(), system_config: getDemoSystemConfig(),
     team_profiles: getDemoTeamProfiles(), access_logs: getDemoAccessLogs(),
   }
+  if (!input || (typeof input === 'string' && input.trim() === '{}')) {
+    localData.importDataBundle({ investments: getDemoInvestments(), system_config: getDemoSystemConfig(), team_profiles: getDemoTeamProfiles(), access_logs: getDemoAccessLogs() }, 'replace')
+    return
+  }
   const records = bundle.investments || []
   const config = bundle.system_config || bundle.systemConfig || {}
   const teams = bundle.team_profiles || []
