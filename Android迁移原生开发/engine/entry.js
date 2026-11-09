@@ -10,6 +10,7 @@ import * as quantStrategy from './source/src/lib/quantStrategy.js'
 import * as quantResearch from './source/src/lib/quantResearch.js'
 import * as quantForward from './source/src/lib/quantForward.js'
 import { buildForecastSnapshot, capRecommendedStake } from './source/src/lib/investmentForecast.js'
+import { predictMatchProbability } from './source/src/lib/matchPrediction.js'
 
 const modules = { localData, analytics, atomicParlay, naturalInputParser, quantStrategy, quantResearch, quantForward }
 const clone = (value) => JSON.parse(JSON.stringify(value))
@@ -74,7 +75,7 @@ globalThis.eivraEngine = {
       const config = localData.getSystemConfig()
       const calibrationContext = analytics.getPredictionCalibrationContext()
       const profiles = (matches || []).map(match => {
-        const unionProbability = analytics.predictMatchProbability({
+        const unionProbability = predictMatchProbability({
           ...match,
           conf: Number(match.conf) > 1 ? Number(match.conf) / 100 : Number(match.conf),
           fse_home: Number(match.fse_home) > 1 ? Number(match.fse_home) / 100 : Number(match.fse_home),
