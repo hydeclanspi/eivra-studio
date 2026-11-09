@@ -9,7 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.eivra.studio.Eivra
+import com.eivra.studio.ui.Eivra
 import org.json.JSONObject
 
 @Composable

@@ -82,10 +82,10 @@ fun NewInvestmentScreen(tablet: Boolean, bundle: JSONObject, repository: Workspa
                 }
             }
             Text("模式", style = MaterialTheme.typography.bodyMedium)
-            ChoiceRow(listOf("常规-杠杆", "保守", "半彩票半保险"), match.mode, onSelect = { matches = matches.edit(index) { copy(mode = it) } }
+            ChoiceRow(listOf("常规-杠杆", "保守", "半彩票半保险"), match.mode, onSelect = { matches = matches.edit(index) { copy(mode = it) } })
             Text("TYS · 主 / 客", style = MaterialTheme.typography.bodyMedium)
-            ChoiceRow(listOf("S", "M", "L", "H"), match.tysHome, onSelect = { matches = matches.edit(index) { copy(tysHome = it) } }
-            ChoiceRow(listOf("S", "M", "L", "H"), match.tysAway, onSelect = { matches = matches.edit(index) { copy(tysAway = it) } }
+            ChoiceRow(listOf("S", "M", "L", "H"), match.tysHome, onSelect = { matches = matches.edit(index) { copy(tysHome = it) } })
+            ChoiceRow(listOf("S", "M", "L", "H"), match.tysAway, onSelect = { matches = matches.edit(index) { copy(tysAway = it) } })
             LabeledField("投前备注", match.note, { matches = matches.edit(index) { copy(note = it) } }, "为什么这样判断？")
             prediction?.optJSONArray("profiles")?.optJSONObject(index)?.let { profile ->
                 Text("校准概率 ${formatProbability(profile.optDouble("hitProbability"))} · 模型状态 ${profile.optString("modelStatus", "待确认")}", color = Eivra.Secondary, style = MaterialTheme.typography.bodyMedium)

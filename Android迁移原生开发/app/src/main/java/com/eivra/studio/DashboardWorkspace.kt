@@ -25,7 +25,7 @@ fun DashboardScreen(tablet: Boolean, bundle: JSONObject, repository: WorkspaceRe
     val current = snapshot
     if (current == null) GlassCard { Text(if (error.isEmpty()) "正在由原始分析内核计算…" else error, color = LocalEivraSurface.current.muted) }
     else {
-        ChoiceRow(listOf("all", "2w", "4w", "season"), period) { period = it }
+        ChoiceRow(listOf("all", "2w", "4w", "season"), period, onSelect = { period = it })
         val settled = current.optInt("settledPeriod")
         val hitRate = current.optDouble("hitRatePeriod")
         val pnl = current.optDouble("cycleProfit")
@@ -51,6 +51,8 @@ private fun BalanceChart(rows: JSONArray) {
     if (values.isEmpty()) { Text("暂无资金轨迹", color = LocalEivraSurface.current.muted); return }
     val min = values.minOrNull() ?: 0.0
     val max = values.maxOrNull() ?: 1.0
+    val accent = LocalEivraSurface.current.accent
+    val gridColor = LocalEivraSurface.current.muted.copy(alpha = .25f)
     Canvas(Modifier.fillMaxWidth().height(160.dp)) {
         val range = (max - min).takeIf { it > 0 } ?: 1.0
         val path = Path()
@@ -59,8 +61,8 @@ private fun BalanceChart(rows: JSONArray) {
             val y = size.height - ((value - min) / range).toFloat() * (size.height * .8f) - size.height * .1f
             if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
         }
-        drawPath(path, LocalEivraSurface.current.accent, style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-        drawLine(LocalEivraSurface.current.muted.copy(alpha = .25f), start = Offset(0f, size.height), end = Offset(size.width, size.height))
+        drawPath(path, accent, style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+        drawLine(gridColor, start = Offset(0f, size.height), end = Offset(size.width, size.height))
     }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("¥ ${"%.0f".format(min)}", color = LocalEivraSurface.current.muted); Text("¥ ${"%.0f".format(max)}", color = LocalEivraSurface.current.muted) }
 }
