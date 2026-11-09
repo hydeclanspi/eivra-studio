@@ -8,12 +8,15 @@ import org.json.JSONObject
 
 class WorkspaceRepository(val context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences("eivra.workspace.v1", Context.MODE_PRIVATE)
+    private val demoPreferences = context.applicationContext.getSharedPreferences("eivra.demo.workspace.v1", Context.MODE_PRIVATE)
     private val key = "bundle"
+    fun isDemoWorkspace(): Boolean = preferences.getBoolean("demo.active", false)
+    private fun activePreferences() = if (isDemoWorkspace()) demoPreferences else preferences
     private val backupKey = "backup.before-import"
-    fun load(): JSONObject = try { JSONObject(preferences.getString(key, null) ?: DemoData.json.toString()) } catch (_: Exception) { DemoData.json }
-    fun save(bundle: JSONObject) { if (!preferences.edit().putString(key, bundle.toString()).commit()) throw IllegalStateException("本地工作区写入失败") }
+    fun load(): JSONObject = try { JSONObject(activePreferences().getString(key, null) ?: DemoData.json.toString()) } catch (_: Exception) { DemoData.json }
+    fun save(bundle: JSONObject) { if (!activePreferences().edit().putString(key, bundle.toString()).commit()) throw IllegalStateException("本地工作区写入失败") }
     suspend fun bootstrap(): JSONObject = withContext(Dispatchers.Default) {
-        NativeEngine(context, if (preferences.contains(key)) load() else null).use { it.workspace() }.also { save(it) }
+        NativeEngine(context, if (activePreferences().contains(key)) load() else null).use { it.workspace() }.also { save(it) }
     }
     suspend fun forecast(matches: JSONArray, generatedAt: String): JSONObject = withContext(Dispatchers.Default) {
         NativeEngine(context, load()).use { JSONObject(it.invoke("forecast.buildDraft", JSONArray().put(matches).put(generatedAt))) }
@@ -69,7 +72,7 @@ class WorkspaceRepository(val context: Context) {
     fun export(): String = load().toString(2)
     fun backup(): String = export()
     fun restoreBackup(): Boolean {
-        val backup = preferences.getString(backupKey, null) ?: return false
+        val backup = activePreferences().getString(backupKey, null) ?: return false
         save(JSONObject(backup)); return true
     }
     fun previewImport(text: String, merge: Boolean): BundleValidation {
@@ -90,8 +93,15 @@ class WorkspaceRepository(val context: Context) {
         val incoming = parsed.getJSONArray("investments")
         val next = JSONObject(parsed.toString())
         if (merge) next.put("investments", WorkspaceMigration.merge(load().optJSONArray("investments") ?: JSONArray(), incoming))
-        preferences.edit().putString(backupKey, before).putString(key, next.toString()).apply()
+        activePreferences().edit().putString(backupKey, before).putString(key, next.toString()).apply()
         return validation
     }
-    fun resetDemo() { preferences.edit().putString(backupKey, export()).remove(key).apply() }
+    fun resetDemo() {
+        preferences.edit().putString("owner.backup-before-demo", if (isDemoWorkspace()) preferences.getString("owner.backup-before-demo", null) else export()).putBoolean("demo.active", true).apply()
+        demoPreferences.edit().remove(key).apply()
+    }
+    fun restoreOwnerWorkspace(): Boolean {
+        preferences.edit().putBoolean("demo.active", false).apply()
+        return true
+    }
 }

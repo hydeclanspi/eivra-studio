@@ -68,6 +68,8 @@ fun ConsoleScreen(bundle: JSONObject, repository: WorkspaceRepository, onChanged
     }
     GlassCard {
         SectionHeading("03", "备份与演示区", "导出原 bundle；恢复演示不覆盖未备份数据")
+        Text(if (repository.isDemoWorkspace()) "当前为演示区：96 条精选演示记录不进入主人校准样本。" else "当前为主人工作区：从空记录开始，不自动混入演示样本。", color = LocalEivraSurface.current.muted)
+        if (repository.isDemoWorkspace()) EivraButton("返回主人工作区", { repository.restoreOwnerWorkspace(); onChanged(null) }, Modifier.fillMaxWidth(), subtle = true)
         EivraButton("导出当前工作区 JSON", { exportLauncher.launch("eivra-workspace-${System.currentTimeMillis()}.json") }, Modifier.fillMaxWidth(), subtle = true)
         var confirmReset by remember { mutableStateOf(false) }
         if (!confirmReset) EivraButton("检查恢复演示区选项", { confirmReset = true }, Modifier.fillMaxWidth(), subtle = true)
