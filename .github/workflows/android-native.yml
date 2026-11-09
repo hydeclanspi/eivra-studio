@@ -50,6 +50,13 @@ jobs:
         run: ./gradlew testDebugUnitTest --stacktrace
       - name: Assemble native APK
         run: ./gradlew assembleDebug --stacktrace
+      - name: Enable KVM for native emulator
+        run: |
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+            sudo usermod -aG kvm "$USER" || true
+          fi
+          ls -l /dev/kvm || true
       - name: Native UI smoke tests on Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         timeout-minutes: 12
@@ -69,11 +76,13 @@ jobs:
             Android迁移原生开发/app/build/outputs/apk/androidTest/
           retention-days: 30
       - name: Verify APK and test reports
+        if: always()
         run: |
           test -s app/build/outputs/apk/debug/app-debug.apk
           find app/build/reports -type f | sort
           sha256sum app/build/outputs/apk/debug/app-debug.apk
       - name: Upload debug APK
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: eivra-native-debug-apk
