@@ -20,6 +20,16 @@ function hydrateStorage(stores = {}) {
   const teamsKey = 'eivra.team_profiles.v1'
   const logsKey = 'eivra.access_logs.v1'
   const input = stores[investmentsKey] || stores['eivra.workspace.native']
+  const ownerEmpty = stores.emptyOwner === true
+  if (ownerEmpty) {
+    nativeSetStorageJSON(JSON.stringify({
+      [investmentsKey]: "[]",
+      [configKey]: JSON.stringify(getDemoSystemConfig()),
+      [teamsKey]: "[]", [logsKey]: "[]",
+      "eivra.full_session_latch.v1": "1", "eivra.git_sync_state.v1": JSON.stringify({ enabled: false }),
+    }))
+    return
+  }
   let bundle = input
   if (typeof bundle === 'string') { try { bundle = JSON.parse(bundle) } catch { bundle = null } }
   if (!bundle || (typeof bundle === 'object' && Object.keys(bundle).length === 0)) bundle = {
