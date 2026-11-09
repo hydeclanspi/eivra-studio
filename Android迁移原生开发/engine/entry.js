@@ -1,7 +1,7 @@
 import { installEngineGlobals, nativeSetStorageJSON, nativeGetStorageJSON, nativeResetStorage } from './shims.js'
 installEngineGlobals()
 nativeSetStorageJSON(JSON.stringify({
-  'eivra.full_session_latch.v1': '1', 'eivra.git_sync_state.v1': JSON.stringify({ enabled: false }),
+  'eivra.full_session_latch.v1': '1', 'eivra.genesis_applied.v1': '1', 'eivra.git_sync_state.v1': JSON.stringify({ enabled: false }),
   'eivra.investments.v1': JSON.stringify(getDemoInvestments()),
   'eivra.system_config.v1': JSON.stringify(getDemoSystemConfig()),
   'eivra.team_profiles.v1': JSON.stringify(getDemoTeamProfiles()),
