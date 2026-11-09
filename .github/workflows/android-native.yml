@@ -21,6 +21,8 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
       - name: Unit tests and native boundary checks
         run: ./gradlew testDebugUnitTest --stacktrace
       - name: Assemble native APK
