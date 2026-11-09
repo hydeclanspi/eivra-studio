@@ -19,6 +19,18 @@ class WorkspaceRepository(val context: Context) {
         NativeEngine(context, load()).use { JSONObject(it.invoke("forecast.buildDraft", JSONArray().put(matches).put(generatedAt))) }
     }
     suspend fun saveInvestment(record: JSONObject): JSONObject = withContext(Dispatchers.Default) {
+        val matches = record.getJSONArray("matches")
+        val frozenAt = record.getString("created_at")
+        val forecast = forecast(matches, frozenAt)
+        val snapshot = forecast.optJSONObject("forecastSnapshot") ?: throw IllegalStateException("原模型未给出可冻结的预测分布")
+        record.put("forecast_snapshot", snapshot)
+        record.put("expected_rating", forecast.opt("expectedRating"))
+        record.put("combined_odds", forecast.opt("combinedOdds"))
+        record.put("suggested_amount", forecast.opt("recommendedInvest"))
+        record.put("ticket_hit_probability", snapshot.opt("ticket_hit_probability"))
+        record.put("ticket_profit_probability", snapshot.opt("ticket_profit_probability"))
+        record.put("expected_return", snapshot.opt("expected_return"))
+        record.put("expected_rating_semantics", "mean_calibrated_leg_probability")
         NativeEngine(context, load()).use {
             it.invoke("localData.saveInvestment", JSONArray().put(record))
             it.workspace().also { next -> save(next) }

@@ -64,3 +64,5 @@ assert.equal(forecast.forecastSnapshot.generated_at, '2026-11-09T12:00:00.000Z')
 assert.equal(forecast.forecastSnapshot.legs[0].entries.length, 2)
 
 console.log(JSON.stringify({ ok: true, originalInvestments: original.investments.length, saved, updated, dashboardKeys: Object.keys(dashboard).slice(0, 20) }))
+
+assert.throws(() => api.invokeJSON('forecast.buildDraft', JSON.stringify([[{ home_team: 'A', away_team: 'B', conf: null, entries: [{ name: '主胜', odds: 2 }] }]])), /explicit conf/)

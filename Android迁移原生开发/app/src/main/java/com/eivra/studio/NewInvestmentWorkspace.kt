@@ -32,8 +32,8 @@ fun NewInvestmentScreen(tablet: Boolean, bundle: JSONObject, repository: Workspa
     var computing by remember { mutableStateOf(false) }
     var validation by remember { mutableStateOf("") }
     var computingKey by remember { mutableStateOf(0) }
-    val createdAt = remember { Instant.now().toString() }
-    val payload = remember(matches, createdAt) {
+    val previewTime = remember(matches) { Instant.now().toString() }
+    val payload = remember(matches, previewTime) {
         JSONArray().apply { matches.forEachIndexed { index, match -> put(match.toJSON(index)) } }
     }
     LaunchedEffect(payload.toString()) {
@@ -41,7 +41,7 @@ fun NewInvestmentScreen(tablet: Boolean, bundle: JSONObject, repository: Workspa
         if (!matches.any { it.home.isNotBlank() && it.away.isNotBlank() }) { prediction = null; return@LaunchedEffect }
         delay(220)
         computing = true
-        try { prediction = repository.forecast(payload, createdAt); validation = "" }
+        try { prediction = repository.forecast(payload, previewTime); validation = "" }
         catch (e: Exception) { prediction = null; validation = "投前模型暂不可用：${e.message ?: "请检查输入"}" }
         if (key == computingKey) computing = false
     }
@@ -123,24 +123,21 @@ fun NewInvestmentScreen(tablet: Boolean, bundle: JSONObject, repository: Workspa
         if (validation.isNotBlank()) Text(validation, color = MaterialTheme.colorScheme.error)
         EivraButton("确认投资 · 冻结预测", {
             val amount = stake.toDoubleOrNull()
-            val snapshot = prediction?.optJSONObject("forecastSnapshot")
             when {
                 amount == null || amount < 0 -> validation = "实际投入须是非负数字。"
                 matches.any { it.home.isBlank() || it.away.isBlank() } -> validation = "请填写每场的主队与客队。"
                 matches.any { draft -> draft.entries.any { it.name.isBlank() || (it.odds.toDoubleOrNull()?.let { o -> o <= 1 } != false) } } -> validation = "每条 Entry 都须有盘口名称和大于 1 的赔率。"
                 matches.any { it.conf.toDoubleOrNull()?.let { c -> c in 0.0..1.0 } != true } -> validation = "请确认每场的原始 Conf（0–1）；未确认时不会替你填 0.5。"
-                snapshot == null -> validation = "原模型尚未给出有效预测分布；不会用默认概率替代。"
+                prediction == null -> validation = "原模型尚未给出有效预测分布；不会用默认概率替代。"
                 else -> {
+                    val createdAt = Instant.now().toString()
                     val record = JSONObject().put("id", "android-${System.currentTimeMillis()}")
-                        .put("created_at", Instant.now().toString()).put("combo_name", comboName.trim())
+                        .put("created_at", createdAt).put("combo_name", comboName.trim())
                         .put("status", "pending").put("inputs", amount).put("parlay_size", matches.size)
-                        .put("matches", payload).put("forecast_snapshot", snapshot)
+                        .put("matches", payload)
                         .put("expected_rating", prediction?.opt("expectedRating") ?: JSONObject.NULL)
                         .put("expected_rating_semantics", "mean_calibrated_leg_probability")
                         .put("combined_odds", prediction?.opt("combinedOdds") ?: JSONObject.NULL)
-                        .put("ticket_hit_probability", snapshot.optDouble("ticket_hit_probability"))
-                        .put("ticket_profit_probability", snapshot.optDouble("ticket_profit_probability"))
-                        .put("expected_return", snapshot.optDouble("expected_return"))
                         .put("suggested_amount", prediction?.opt("recommendedInvest") ?: JSONObject.NULL).put("revenues", JSONObject.NULL).put("profit", JSONObject.NULL)
                     onSave(record)
                 }
