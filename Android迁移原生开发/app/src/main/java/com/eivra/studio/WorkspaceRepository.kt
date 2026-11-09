@@ -15,6 +15,9 @@ class WorkspaceRepository(private val context: Context) {
     suspend fun bootstrap(): JSONObject = withContext(Dispatchers.Default) {
         NativeEngine(context, if (preferences.contains(key)) load() else null).use { it.workspace() }.also { save(it) }
     }
+    suspend fun forecast(matches: JSONArray, generatedAt: String): JSONObject = withContext(Dispatchers.Default) {
+        NativeEngine(context, load()).use { JSONObject(it.invoke("forecast.buildDraft", JSONArray().put(matches).put(generatedAt))) }
+    }
     suspend fun saveInvestment(record: JSONObject): JSONObject = withContext(Dispatchers.Default) {
         NativeEngine(context, load()).use {
             it.invoke("localData.saveInvestment", JSONArray().put(record))

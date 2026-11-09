@@ -1,13 +1,6 @@
 import './platform-init.js'
 import { installEngineGlobals, nativeSetStorageJSON, nativeGetStorageJSON, nativeResetStorage } from './shims.js'
 installEngineGlobals()
-nativeSetStorageJSON(JSON.stringify({
-  'eivra.full_session_latch.v1': '1', 'eivra.genesis_applied.v1': '1', 'eivra.git_sync_state.v1': JSON.stringify({ enabled: false }),
-  'eivra.investments.v1': JSON.stringify(getDemoInvestments()),
-  'eivra.system_config.v1': JSON.stringify(getDemoSystemConfig()),
-  'eivra.team_profiles.v1': JSON.stringify(getDemoTeamProfiles()),
-  'eivra.access_logs.v1': JSON.stringify(getDemoAccessLogs()),
-}))
 import { getDemoInvestments, getDemoSystemConfig, getDemoTeamProfiles, getDemoAccessLogs } from './source/src/lib/demoData.js'
 import * as localData from './source/src/lib/localData.js'
 import * as analytics from './source/src/lib/analytics.js'
@@ -16,6 +9,7 @@ import * as naturalInputParser from './source/src/lib/naturalInputParser.js'
 import * as quantStrategy from './source/src/lib/quantStrategy.js'
 import * as quantResearch from './source/src/lib/quantResearch.js'
 import * as quantForward from './source/src/lib/quantForward.js'
+import { buildForecastSnapshot, capRecommendedStake } from './source/src/lib/investmentForecast.js'
 
 const modules = { localData, analytics, atomicParlay, naturalInputParser, quantStrategy, quantResearch, quantForward }
 const clone = (value) => JSON.parse(JSON.stringify(value))
@@ -62,6 +56,7 @@ const allowed = {
   'analytics.getPredictionCalibrationContext': analytics.getPredictionCalibrationContext,
   'analytics.getTeamsSnapshot': analytics.getTeamsSnapshot,
   'analytics.getModelValidationSnapshot': analytics.getModelValidationSnapshot,
+  'forecast.buildDraft': (matches, generatedAt) => globalThis.eivraEngine.forecast.buildDraft(matches, generatedAt),
   'naturalInputParser.parseNaturalInput': naturalInputParser.parseNaturalInput,
   'quantResearch.getResearchStore': quantResearch.getResearchStore,
   'quantForward.getForwardStore': quantForward.getForwardStore,
@@ -73,6 +68,39 @@ globalThis.eivraEngine = {
     const values = typeof raw === 'string' ? JSON.parse(raw) : raw
     hydrateStorage(values)
     return this.exportWorkspace()
+  },
+  forecast: {
+    buildDraft(matches, generatedAt = new Date().toISOString()) {
+      const config = localData.getSystemConfig()
+      const calibrationContext = analytics.getPredictionCalibrationContext()
+      const profiles = (matches || []).map(match => {
+        const unionProbability = analytics.predictMatchProbability({
+          ...match,
+          conf: Number(match.conf) > 1 ? Number(match.conf) / 100 : Number(match.conf),
+          fse_home: Number(match.fse_home) > 1 ? Number(match.fse_home) / 100 : Number(match.fse_home),
+          fse_away: Number(match.fse_away) > 1 ? Number(match.fse_away) / 100 : Number(match.fse_away),
+        }, config, calibrationContext)
+        return {
+          ...atomicParlay.buildAtomicMatchProfile({ entries: match.entries || [], unionProbability, fallbackOdds: config.defaultOdds }),
+          unionProbability,
+        }
+      })
+      const combinedProfile = atomicParlay.combineAtomicMatchProfiles(profiles)
+      const poolBalance = analytics.getReservoirState().poolBalance || 0
+      const kellyFraction = atomicParlay.solveKellyFractionByAtomicDistribution(combinedProfile.states)
+      const recommendedInvest = capRecommendedStake(poolBalance * kellyFraction / Math.max(1, config.kellyDivisor), poolBalance, config.riskCapRatio)
+      const expectedRating = profiles.length ? profiles.reduce((sum, row) => sum + row.hitProbability, 0) / profiles.length : null
+      const conditionalOdds = Number(combinedProfile.conditionalOdds)
+      const combinedOdds = Number.isFinite(conditionalOdds) && conditionalOdds > 0
+        ? conditionalOdds : (matches || []).reduce((product, match) => product * atomicParlay.calcAtomicEquivalentOdds(match.entries || [], config.defaultOdds), 1)
+      return {
+        profiles, combinedProfile, expectedRating, combinedOdds, recommendedInvest, kellyFraction, poolBalance,
+        forecastSnapshot: buildForecastSnapshot({
+          combinedProfile, generatedAt, calibrationMetadata: calibrationContext.metadata,
+          legs: (matches || []).map((match, index) => ({ match, profile: profiles[index] })),
+        }),
+      }
+    },
   },
   invoke(name, args = []) {
     if (!Object.prototype.hasOwnProperty.call(allowed, name)) throw new Error('Unregistered native engine operation: ' + name)
