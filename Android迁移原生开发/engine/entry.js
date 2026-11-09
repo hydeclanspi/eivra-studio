@@ -22,10 +22,10 @@ function hydrateStorage(stores = {}) {
   const input = stores[investmentsKey] || stores['eivra.workspace.native']
   const ownerEmpty = stores.emptyOwner === true
   if (ownerEmpty) {
-    localData.importDataBundle({ investments: [], team_profiles: [], system_config: getDemoSystemConfig(), access_logs: [] }, 'replace')
     nativeSetStorageJSON(JSON.stringify({
       'eivra.full_session_latch.v1': '1', 'eivra.git_sync_state.v1': JSON.stringify({ enabled: false }),
     }))
+    localData.importDataBundle({ investments: [], team_profiles: [], system_config: getDemoSystemConfig(), access_logs: [] }, 'replace')
     return
   }
   let bundle = input
