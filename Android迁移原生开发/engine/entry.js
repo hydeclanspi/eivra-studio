@@ -1,6 +1,6 @@
 import { installEngineGlobals, nativeSetStorageJSON, nativeGetStorageJSON, nativeResetStorage } from './shims.js'
 installEngineGlobals()
-nativeSetStorageJSON(JSON.stringify({ 'eivra.full_session_latch.v1': '1' }))
+nativeSetStorageJSON(JSON.stringify({ 'eivra.full_session_latch.v1': '1', 'eivra.git_sync_state.v1': JSON.stringify({ enabled: false }) }))
 import * as localData from './source/src/lib/localData.js'
 import * as analytics from './source/src/lib/analytics.js'
 import * as atomicParlay from './source/src/lib/atomicParlay.js'

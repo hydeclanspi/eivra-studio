@@ -30,6 +30,7 @@ export function installEngineGlobals() {
   globalThis.CustomEvent = NativeCustomEvent
   Object.defineProperty(globalThis, 'navigator', { value: { onLine: true }, configurable: true, writable: true })
   globalThis.document = { hidden: false, visibilityState: 'visible', addEventListener() {}, removeEventListener() {} }
+  globalThis.fetch = async () => { throw new Error('Network is disabled in the native offline engine') }
 }
 export function structuredCloneNative(value) {
   if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value)
