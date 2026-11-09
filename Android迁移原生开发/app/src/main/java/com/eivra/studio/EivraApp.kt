@@ -73,7 +73,7 @@ fun EivraApp(tablet: Boolean) {
                         "dashboard" -> DashboardScreen(tablet, bundle)
                         "quants" -> QuantsScreen()
                         "history" -> HistoryScreen(bundle)
-                        "console" -> ConsoleScreen(bundle, repository) { bundle = repository.load(); notice = "已恢复演示工作区" }
+                        "console" -> ConsoleScreen(bundle, repository) { bundle = repository.load(); notice = "本地工作区已更新" }
                     }
                     if (notice.isNotEmpty()) Text(notice, color = Eivra.Green, style = MaterialTheme.typography.bodyMedium)
                     Text("Precision in uncertainty · 信息期权配仓", style = MaterialTheme.typography.labelMedium, color = Eivra.Secondary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp))

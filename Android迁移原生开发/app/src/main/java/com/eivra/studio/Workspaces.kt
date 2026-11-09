@@ -199,14 +199,31 @@ fun QuantsScreen() {
 }
 
 @Composable
-fun ConsoleScreen(bundle: JSONObject, repository: WorkspaceRepository, onReset: () -> Unit) {
+fun ConsoleScreen(bundle: JSONObject, repository: WorkspaceRepository, onChanged: () -> Unit) {
     PageIntro("CONSOLE · 控制面", "参数与数据", "改参数、迁移数据与检查证据，都应有一个清晰、可恢复的入口。")
-    GlassCard { SectionHeading("01", "原生与计算", "无 WebView 页面承载 · 本地优先"); Text("Kotlin + Jetpack Compose
-QuickJS 独立计算边界 · Android 10+
-原 analytics / Quant golden cases 为发布闸门。", color = Eivra.Secondary) }
-    GlassCard { SectionHeading("02", "本地数据", "当前记录不会被预览模式隐式清空"); Text("记录数：${bundle.getJSONArray("investments").length()}
-数据保存在 App 私有存储；导出、校验与网页 bundle 合并是下一阶段验收项。", color = Eivra.Secondary) }
-    GlassCard { SectionHeading("03", "恢复演示工作区", "将清除当前 App 内的本地修改"); var confirm by remember { mutableStateOf(false) }; if (!confirm) EivraButton("检查重置选项", { confirm = true }, subtle = true) else { Text("确定清除本地工作区并恢复演示数据？此操作不可撤销。"); Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { EivraButton("取消", { confirm = false }, subtle = true); EivraButton("确认恢复", { repository.resetDemo(); onReset(); confirm = false }) } } }
+    var importText by rememberSaveable { mutableStateOf("") }
+    var merge by rememberSaveable { mutableStateOf(true) }
+    var message by remember { mutableStateOf("") }
+    var exported by remember { mutableStateOf("") }
+    GlassCard { SectionHeading("01", "原生与计算", "无 WebView 页面承载 · 本地优先"); Text("Kotlin + Jetpack Compose\nQuickJS 独立计算边界 · Android 10+\n原 analytics / Quant golden cases 为发布闸门。", color = Eivra.Secondary) }
+    GlassCard {
+        SectionHeading("02", "网页备份导入", "先校验，再合并；原始工作区自动备份")
+        OutlinedTextField(importText, { importText = it }, placeholder = { Text("粘贴网页端导出的 JSON bundle；不会自动上传") }, modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp), shape = RoundedCornerShape(13.dp))
+        Text("记录数：${bundle.getJSONArray("investments").length()} · ${if (merge) "按 id 合并，远端覆盖同 id" else "替换当前工作区"}", color = Eivra.Secondary)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            EivraButton(if (merge) "合并导入" else "替换导入", {
+                val result = repository.importWebBundle(importText, merge)
+                message = if (result.valid) "已导入 ${result.investmentCount} 条记录；导入前数据已备份" else result.errors.joinToString("；")
+                if (result.valid) onChanged()
+            }, Modifier.weight(1f))
+            EivraButton(if (merge) "改替换" else "改合并", { merge = !merge }, Modifier.weight(1f), subtle = true)
+        }
+        if (message.isNotEmpty()) Text(message, color = if (message.startsWith("已")) Eivra.Green else MaterialTheme.colorScheme.error)
+        EivraButton("生成当前工作区备份", { exported = repository.export() }, subtle = true)
+        if (exported.isNotEmpty()) OutlinedTextField(exported, {}, readOnly = true, modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp), shape = RoundedCornerShape(13.dp))
+        EivraButton("撤销上次导入／重置", { if (repository.restoreBackup()) { onChanged(); message = "已恢复变更前备份" } else message = "尚无可用备份" }, subtle = true)
+    }
+    GlassCard { SectionHeading("03", "恢复演示工作区", "先备份当前记录，再恢复演示"); var confirm by remember { mutableStateOf(false) }; if (!confirm) EivraButton("检查重置选项", { confirm = true }, subtle = true) else { Text("当前记录会先备份，可用上一步恢复。确定继续？"); Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { EivraButton("取消", { confirm = false }, subtle = true); EivraButton("确认恢复", { repository.resetDemo(); onChanged(); confirm = false }) } } }
 }
 
 @Composable
