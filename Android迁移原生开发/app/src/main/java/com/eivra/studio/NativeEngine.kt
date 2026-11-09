@@ -10,7 +10,7 @@ class NativeEngine(context: Context, workspace: JSONObject? = null) : AutoClosea
     private val quickJs = QuickJs.create()
     init {
         context.assets.open("eivra-engine.js").bufferedReader().use { quickJs.evaluate(it.readText()) }
-        quickJs.evaluate("eivraEngine.hydrate(${JSONObject.quote(JSONObject().put("eivra.workspace.native", workspace?.toString() ?: "").toString())})")
+        quickJs.evaluate("eivraEngine.hydrate(${JSONObject.quote(JSONObject().put("eivra.full_session_latch.v1", "1").put("eivra.workspace.native", workspace?.toString() ?: "{}").toString())})")
     }
     fun healthCheck(): JSONObject = JSONObject().put("engine", "QuickJS").put("native", true).put("answer", 42)
     fun invoke(name: String, args: JSONArray = JSONArray()): String = quickJs.evaluate("eivraEngine.invokeJSON(${JSONObject.quote(name)}, ${JSONObject.quote(args.toString())})") as String
