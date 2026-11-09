@@ -96,7 +96,7 @@ fun EivraApp(tablet: Boolean) {
                         "metrics" -> MetricsScreen(repository)
                         "teams" -> TeamsScreen(repository)
                         "history" -> HistoryScreen(current)
-                        "console" -> ConsoleScreen(current, repository) { bundle = repository.load(); notice = "本地工作区已更新" }
+                        "console" -> ConsoleScreen(current, repository) { next -> bundle = next ?: repository.load(); notice = "本地工作区已更新" }
                     }
                     } ?: GlassCard { Text("正在启动原生计算与工作区…", color = Eivra.Secondary) }
                     if (notice.isNotEmpty()) Text(notice, color = Eivra.Green, style = MaterialTheme.typography.bodyMedium)

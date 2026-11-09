@@ -31,6 +31,12 @@ class WorkspaceRepository(private val context: Context) {
             it.workspace().also { next -> save(next) }
         }
     }
+    suspend fun saveSystemConfig(config: JSONObject): JSONObject = withContext(Dispatchers.Default) {
+        NativeEngine(context, load()).use {
+            it.invoke("localData.saveSystemConfig", org.json.JSONArray().put(config))
+            it.workspace().also { next -> save(next) }
+        }
+    }
     suspend fun dashboard(period: String = "all"): JSONObject = withContext(Dispatchers.Default) {
         NativeEngine(context, load()).use { JSONObject(it.invoke("analytics.getDashboardSnapshot", org.json.JSONArray().put(period))) }
     }
