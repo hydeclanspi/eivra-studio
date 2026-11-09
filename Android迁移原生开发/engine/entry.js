@@ -33,6 +33,7 @@ function hydrateStorage(stores = {}) {
 const allowed = {
   'localData.getInvestments': localData.getInvestments,
   'localData.getSystemConfig': localData.getSystemConfig,
+  'localData.saveSystemConfig': localData.saveSystemConfig,
   'localData.getTeamProfiles': localData.getTeamProfiles,
   'localData.exportDataBundle': localData.exportDataBundle,
   'localData.importDataBundle': localData.importDataBundle,
@@ -44,6 +45,8 @@ const allowed = {
   'analytics.getMetricsSnapshot': analytics.getMetricsSnapshot,
   'analytics.getReservoirState': analytics.getReservoirState,
   'analytics.getPredictionCalibrationContext': analytics.getPredictionCalibrationContext,
+  'analytics.getTeamsSnapshot': analytics.getTeamsSnapshot,
+  'analytics.getModelValidationSnapshot': analytics.getModelValidationSnapshot,
   'naturalInputParser.parseNaturalInput': naturalInputParser.parseNaturalInput,
   'quantResearch.getResearchStore': quantResearch.getResearchStore,
   'quantForward.getForwardStore': quantForward.getForwardStore,

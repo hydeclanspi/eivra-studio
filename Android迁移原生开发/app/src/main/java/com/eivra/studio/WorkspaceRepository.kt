@@ -31,8 +31,23 @@ class WorkspaceRepository(private val context: Context) {
             it.workspace().also { next -> save(next) }
         }
     }
-    suspend fun dashboard(): JSONObject = withContext(Dispatchers.Default) {
-        NativeEngine(context, load()).use { JSONObject(it.invoke("analytics.getDashboardSnapshot")) }
+    suspend fun dashboard(period: String = "all"): JSONObject = withContext(Dispatchers.Default) {
+        NativeEngine(context, load()).use { JSONObject(it.invoke("analytics.getDashboardSnapshot", org.json.JSONArray().put(period))) }
+    }
+    suspend fun analysis(): JSONObject = withContext(Dispatchers.Default) {
+        NativeEngine(context, load()).use { JSONObject(it.invoke("analytics.getAnalysisSnapshot")) }
+    }
+    suspend fun metrics(): JSONObject = withContext(Dispatchers.Default) {
+        NativeEngine(context, load()).use { JSONObject(it.invoke("analytics.getMetricsSnapshot")) }
+    }
+    suspend fun teams(): org.json.JSONArray = withContext(Dispatchers.Default) {
+        NativeEngine(context, load()).use { org.json.JSONArray(it.invoke("analytics.getTeamsSnapshot", org.json.JSONArray().put("").put("all"))) }
+    }
+    suspend fun research(): JSONObject = withContext(Dispatchers.Default) {
+        NativeEngine(context, load()).use {
+            JSONObject().put("research", JSONObject(it.invoke("quantResearch.getResearchStore")))
+                .put("forward", JSONObject(it.invoke("quantForward.getForwardStore")))
+        }
     }
     fun export(): String = load().toString(2)
     fun backup(): String = export()

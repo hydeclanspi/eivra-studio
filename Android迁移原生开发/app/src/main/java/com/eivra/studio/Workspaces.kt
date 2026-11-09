@@ -159,22 +159,56 @@ fun SettleScreen(bundle: JSONObject, onSettle: (String, Boolean) -> Unit) {
 }
 
 @Composable
-fun DashboardScreen(tablet: Boolean, bundle: JSONObject) {
+fun DashboardScreen(tablet: Boolean, bundle: JSONObject, repository: WorkspaceRepository) {
     PageIntro("DASHBOARD · 归因", "判断，留下了什么", "资金、概率与结果并读；样本不足时，不用一个看似精确的数字掩盖不确定性。")
-    val records = bundle.getJSONArray("investments")
-    var settled = 0; var wins = 0; var pnl = 0.0; var brier = 0.0; var scored = 0
-    for (i in 0 until records.length()) { val r = records.getJSONObject(i); if (r.optString("status") in listOf("win", "loss", "settled")) { settled++; val won = r.optString("status") == "win" || r.optBoolean("result"); if (won) wins++; pnl += r.optDouble("profit"); if ((r.has("expected_rating") || r.has("expected"))) { val error = r.optDouble("expected_rating", r.optDouble("expected", Double.NaN)) - if (won) 1.0 else 0.0; brier += error * error; scored++ } } }
-    if (tablet) Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        GlassCard(Modifier.weight(1f)) { Metric("已结算样本", "$settled", "N 还不够时，只描述，不推广") }
-        GlassCard(Modifier.weight(1f)) { Metric("净结果", "${if (pnl >= 0) "+" else ""}¥ ${"%.1f".format(pnl)}", "记录值，不构成收益承诺", accent = if (pnl >= 0) Eivra.Green else Eivra.Red) }
-        GlassCard(Modifier.weight(1f)) { Metric("Brier", if (scored > 0) "%.3f".format(brier / scored) else "不可用", if (scored > 0) "越小越好 · 基于冻结概率" else "缺少可评估概率") }
-    } else GlassCard {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Metric("已结算样本", "$settled"); Metric("命中率", if (settled > 0) "%.0f%%".format(100.0 * wins / settled) else "不可用") }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Metric("净结果", "${if (pnl >= 0) "+" else ""}¥ ${"%.1f".format(pnl)}"); Metric("Brier", if (scored > 0) "%.3f".format(brier / scored) else "不可用") }
+    var snapshot by remember(bundle) { mutableStateOf<JSONObject?>(null) }
+    var error by remember(bundle) { mutableStateOf("") }
+    LaunchedEffect(bundle) {
+        try { snapshot = repository.dashboard() } catch (e: Exception) { error = e.message ?: "无法读取分析结果" }
     }
-    GlassCard { SectionHeading("01", "Performance", "实际观测，不代替 walk-forward 验证"); Text("已结算 $settled 笔 · 命中 $wins 笔 · 有概率评分 $scored 笔。
-校准曲线、时间数据契约和留出评估由原 analytics 统一提供。", color = Eivra.Secondary) }
-    GlassCard { SectionHeading("02", "最近判断"); InvestmentList(bundle, false) }
+    val current = snapshot
+    if (current == null) GlassCard { Text(if (error.isEmpty()) "正在由原始分析内核计算…" else error, color = Eivra.Secondary) }
+    else {
+        val settled = current.optInt("settledPeriod")
+        val hitRate = current.optDouble("hitRatePeriod")
+        val pnl = current.optDouble("timelineTotalProfit", current.optJSONArray("timeline")?.let { rows -> (0 until rows.length()).sumOf { rows.optJSONObject(it)?.optDouble("profit") ?: 0.0 } } ?: 0.0)
+        val roi = current.optDouble("roiPeriod")
+        if (tablet) Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            GlassCard(Modifier.weight(1f)) { Metric("已结算样本", "$settled", "N 还不够时，只描述，不推广") }
+            GlassCard(Modifier.weight(1f)) { Metric("净结果", "${if (pnl >= 0) "+" else ""}¥ ${"%.1f".format(pnl)}", "记录值，不构成收益承诺", accent = if (pnl >= 0) Eivra.Green else Eivra.Red) }
+            GlassCard(Modifier.weight(1f)) { Metric("命中率", if (settled > 0) "%.1f%%".format(hitRate) else "不可用", "来自原 analytics") }
+        } else GlassCard {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Metric("已结算样本", "$settled"); Metric("命中率", if (settled > 0) "%.1f%%".format(hitRate) else "不可用") }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Metric("净结果", "${if (pnl >= 0) "+" else ""}¥ ${"%.1f".format(pnl)}"); Metric("ROI", if (settled > 0) "%.1f%%".format(roi) else "不可用") }
+        }
+        GlassCard { SectionHeading("01", "Performance", "由原 analytics 统一派生，不在页面另算指标"); Text("已结算 $settled 笔 · 命中率 ${"%.1f".format(hitRate)}% · ROI ${"%.1f".format(roi)}%。
+校准曲线、时间数据契约和留出评估分别在 Analysis 与 Metrics 中查看。", color = Eivra.Secondary) }
+        val timeline = current.optJSONArray("timeline")
+        if (timeline != null && timeline.length() > 0) GlassCard { SectionHeading("02", "Balance timeline", "实际资金轨迹"); BalanceChart(timeline) }
+        GlassCard { SectionHeading("03", "最近判断"); InvestmentList(bundle, false) }
+    }
+}
+
+@Composable
+private fun BalanceChart(rows: org.json.JSONArray) {
+    val values = (0 until rows.length()).map { index ->
+        val row = rows.optJSONObject(index)
+        row?.optDouble("balance", row.optDouble("poolBalance", row.optDouble("value", Double.NaN))) ?: Double.NaN
+    }.filter { it.isFinite() }
+    if (values.isEmpty()) { Text("暂无资金轨迹", color = Eivra.Secondary); return }
+    val min = values.minOrNull() ?: 0.0; val max = values.maxOrNull() ?: 1.0
+    androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(160.dp)) {
+        val range = (max - min).takeIf { it > 0 } ?: 1.0
+        val path = androidx.compose.ui.graphics.Path()
+        values.forEachIndexed { index, value ->
+            val x = index.toFloat() / (values.size - 1).coerceAtLeast(1) * size.width
+            val y = size.height - ((value - min) / range).toFloat() * (size.height * .8f) - size.height * .1f
+            if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        }
+        drawPath(path, Eivra.Green, style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+        drawLine(Eivra.Rule, start = androidx.compose.ui.geometry.Offset(0f, size.height), end = androidx.compose.ui.geometry.Offset(size.width, size.height))
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("¥ ${"%.0f".format(min)}", color = Eivra.Secondary, style = MaterialTheme.typography.labelMedium); Text("¥ ${"%.0f".format(max)}", color = Eivra.Secondary, style = MaterialTheme.typography.labelMedium) }
 }
 
 @Composable

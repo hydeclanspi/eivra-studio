@@ -39,6 +39,9 @@ private val destinations = listOf(
     Destination("dashboard", "Dashboard", "表现看板", Icons.Outlined.SpaceDashboard),
     Destination("quants", "Quants", "策略研究", Icons.Outlined.Science),
     Destination("history", "History", "历史与球队", Icons.Outlined.History),
+    Destination("analysis", "Analysis", "表现切片", Icons.Outlined.Analytics),
+    Destination("metrics", "Metrics", "概率校准", Icons.Outlined.Gauge),
+    Destination("teams", "Teams", "球队画像", Icons.Outlined.Groups),
     Destination("console", "Console", "参数与数据", Icons.Outlined.Tune)
 )
 
@@ -87,8 +90,11 @@ fun EivraApp(tablet: Boolean) {
                         "new" -> NewInvestmentScreen(tablet, current, ::saveInvestment)
                         "portfolio" -> PortfolioScreen(current)
                         "settle" -> SettleScreen(current, ::settleInvestment)
-                        "dashboard" -> DashboardScreen(tablet, current)
-                        "quants" -> QuantsScreen()
+                        "dashboard" -> DashboardScreen(tablet, current, repository)
+                        "quants" -> QuantsScreen(repository)
+                        "analysis" -> AnalysisScreen(repository)
+                        "metrics" -> MetricsScreen(repository)
+                        "teams" -> TeamsScreen(repository)
                         "history" -> HistoryScreen(current)
                         "console" -> ConsoleScreen(current, repository) { bundle = repository.load(); notice = "本地工作区已更新" }
                     }
@@ -110,7 +116,7 @@ private fun EivraTopBar(tablet: Boolean, route: String, status: String, onNaviga
             if (tablet) { Text("Inspiration", style = MaterialTheme.typography.bodyMedium, color = Eivra.Green); Text("demo · preview", style = MaterialTheme.typography.labelMedium, color = Eivra.Secondary) }
             IconButton(onClick = { onNavigate("console") }) { Icon(Icons.Outlined.Menu, "更多与设置") }
         }
-        if (tablet) Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) { destinations.forEach { NavPill(it, route == it.id) { onNavigate(it.id) } } }
+        if (tablet) destinations.take(7).forEach { NavPill(it, route == it.id) { onNavigate(it.id) } }
         if (route == "new") Text(status, style = MaterialTheme.typography.labelMedium, color = Eivra.Secondary)
     }
 }
