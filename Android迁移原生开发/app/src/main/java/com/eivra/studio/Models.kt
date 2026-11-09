@@ -17,18 +17,18 @@ object DemoData {
         put("investments", JSONArray().apply {
             put(JSONObject().apply {
                 put("id", "demo-arsenal-city"); put("homeTeam", "Arsenal"); put("awayTeam", "Manchester City")
-                put("entries", JSONArray().apply { put(JSONObject().apply { put("name", "主胜"); put("odds", 2.10) }) })
+                put("matches", JSONArray().apply { put(JSONObject().apply { put("name", "主胜"); put("odds", 2.10) }) })
                 put("status", "settled"); put("result", true); put("inputs", 42.0); put("profit", 46.2)
                 put("createdAt", "2026-10-31T12:00:00Z"); put("expected", 0.54)
             })
             put(JSONObject().apply {
                 put("id", "demo-liverpool-real"); put("homeTeam", "Liverpool"); put("awayTeam", "Real Madrid")
-                put("entries", JSONArray().apply { put(JSONObject().apply { put("name", "双方进球"); put("odds", 1.85) }) })
+                put("matches", JSONArray().apply { put(JSONObject().apply { put("name", "双方进球"); put("odds", 1.85) }) })
                 put("status", "pending"); put("inputs", 35.0); put("createdAt", "2026-11-07T12:00:00Z"); put("expected", 0.59)
             })
             put(JSONObject().apply {
                 put("id", "demo-bayern-inter"); put("homeTeam", "Bayern München"); put("awayTeam", "Inter")
-                put("entries", JSONArray().apply { put(JSONObject().apply { put("name", "平局"); put("odds", 3.40) }) })
+                put("matches", JSONArray().apply { put(JSONObject().apply { put("name", "平局"); put("odds", 3.40) }) })
                 put("status", "settled"); put("result", false); put("inputs", 20.0); put("profit", -20.0)
                 put("createdAt", "2026-10-24T12:00:00Z"); put("expected", 0.34)
             })

@@ -1,7 +1,8 @@
 import { build } from 'esbuild'
+import { nativePlatformPlugin } from './native-platform.mjs'
 import { mkdirSync, copyFileSync } from 'node:fs'
 await build({
-  entryPoints: ['entry.js'], bundle: true, format: 'iife', platform: 'neutral',
+  entryPoints: ['entry.js'], plugins: [nativePlatformPlugin()], bundle: true, format: 'iife', platform: 'neutral',
   target: ['es2020'], outfile: '../app/src/main/assets/eivra-engine.js',
   legalComments: 'inline', charset: 'utf8', logLevel: 'info',
 })

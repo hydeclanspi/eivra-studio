@@ -5,20 +5,15 @@ import app.cash.quickjs.QuickJs
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** UI-free original business kernel, evaluated on Dispatchers.Default only. */
-class NativeEngine(context: Context) : AutoCloseable {
+/** One original business kernel, called on Dispatchers.Default. No DOM/WebView. */
+class NativeEngine(context: Context, workspace: JSONObject? = null) : AutoCloseable {
     private val quickJs = QuickJs.create()
     init {
         context.assets.open("eivra-engine.js").bufferedReader().use { quickJs.evaluate(it.readText()) }
+        quickJs.evaluate("eivraEngine.hydrate(${JSONObject.quote(JSONObject().put("eivra.workspace.native", workspace?.toString() ?: "").toString())})")
     }
-    fun healthCheck(): JSONObject {
-        return JSONObject().put("engine", "QuickJS").put("native", true).put("answer", 42)
-    }
-    fun setStorage(bundle: JSONObject) {
-        val stores = JSONObject().put("eivra.workspace.native", bundle.toString())
-        quickJs.evaluate("nativeSetStorageJSON(${JSONObject.quote(stores.toString())})")
-    }
-    fun storage(): String = quickJs.evaluate("nativeGetStorageJSON()") as String
-    fun invoke(name: String, args: JSONArray = JSONArray()): Any? = quickJs.evaluate("eivraEngine.invokeJSON(${JSONObject.quote(name)}, ${JSONObject.quote(args.toString())})")
+    fun healthCheck(): JSONObject = JSONObject().put("engine", "QuickJS").put("native", true).put("answer", 42)
+    fun invoke(name: String, args: JSONArray = JSONArray()): String = quickJs.evaluate("eivraEngine.invokeJSON(${JSONObject.quote(name)}, ${JSONObject.quote(args.toString())})") as String
+    fun workspace(): JSONObject = JSONObject(quickJs.evaluate("eivraEngine.exportWorkspaceJSON()") as String)
     override fun close() = quickJs.close()
 }
