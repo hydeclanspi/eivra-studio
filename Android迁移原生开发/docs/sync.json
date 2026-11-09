@@ -1,6 +1,6 @@
 {
   "branch": "android-native",
-  "local_commit": "4c53e2b92e3e4a0ee65a39d7b69e8b88bd5b3809",
-  "github_push": "confirmed",
-  "build": "pending"
+  "commit": "78ed9167dde6b5cf10b4132080bbd5dc71017ad7",
+  "run": "42672498173",
+  "status": "completed_failure_logs_to_read"
 }

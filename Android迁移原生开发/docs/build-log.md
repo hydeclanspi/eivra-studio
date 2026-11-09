@@ -15,3 +15,10 @@
 - run: https://github.com/hydeclanspi/eivra-studio/actions/runs/42669684862
 - 结果：AAR metadata 检查失败；所选新版 AndroidX 依赖要求 compileSdk 36。
 - 修复：compileSdk/targetSdk 36；minSdk 29 不变。
+
+## 原生引擎调试与 GitHub 调度异常 · 2026-11-09
+
+- 网页 lint/test/build 已连续通过；原生 golden tests 仍在适配，未通过。
+- 已处理平台依赖别名、构建时 env、Node navigator、FULL/demo/genesis 初始化和离线云同步。
+- Run 15 `42671411092`、Run 22 `42672498173` 均标记 completed/failure，但 jobs 为空、日志 zip 仅 22 bytes，无法取得实际执行日志。不得计作测试失败或通过，记为调度层无执行收据。
+- 下一步用包含此说明的新提交重新触发，优先取真实 job；若仍无执行，构建与 APK 状态保持未验收。
