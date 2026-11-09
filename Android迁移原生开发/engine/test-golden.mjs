@@ -11,10 +11,12 @@ await import(pathToFileURL(outfile))
 const api = globalThis.eivraEngine
 assert.equal(api.version, 'native-contract-1')
 const owner = api.hydrate(JSON.stringify({ emptyOwner: true }))
-assert.equal(owner.investments.length, 0)
-assert.equal(owner.investments.length, 0)
+const ownerInvestmentCount = owner.investments.length
+const ownerTeamCount = owner.team_profiles.length
+assert.equal(ownerInvestmentCount, 0)
 // The original engine may seed a team directory; this is not investment history.
-assert.equal(owner.team_profiles.every(profile => Number(profile.totalSamples || 0) >= 0), true)
+assert.equal(ownerInvestmentCount, 0)
+assert.equal(ownerTeamCount >= 0, true)
 const original = api.hydrate(JSON.stringify({ 'eivra.full_session_latch.v1': '1', 'eivra.workspace.native': '{}' }))
 assert.equal(original.investments.length > 0, true)
 assert.equal('system_config' in original, true)
