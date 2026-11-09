@@ -146,12 +146,14 @@ private fun PhoneNavigation(route: String, onNavigate: (String) -> Unit) {
         destinations.filter { it.id in listOf("new", "portfolio", "settle", "dashboard") }.forEach { item ->
             NavigationBarItem(selected = route == item.id, onClick = { onNavigate(item.id) }, icon = { Icon(item.icon, item.title, Modifier.size(21.dp)) }, label = { Text(item.title, fontSize = 10.sp) }, colors = NavigationBarItemDefaults.colors(selectedIconColor = Eivra.Green, selectedTextColor = Eivra.Green, indicatorColor = Eivra.Mint, unselectedIconColor = Eivra.Secondary, unselectedTextColor = Eivra.Secondary))
         }
-        var moreOpen by remember { mutableStateOf(false) }
-        val secondary = destinations.drop(4)
-        DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
-            secondary.forEach { item -> DropdownMenuItem(text = { Text("${item.title} · ${item.subtitle}") }, leadingIcon = { Icon(item.icon, null) }, onClick = { moreOpen = false; onNavigate(item.id) }) }
+        Box {
+            var moreOpen by remember { mutableStateOf(false) }
+            val secondary = destinations.drop(4)
+            NavigationBarItem(selected = route in secondary.map { it.id }, onClick = { moreOpen = true }, icon = { Icon(Icons.Outlined.MoreHoriz, "更多", Modifier.size(21.dp)) }, label = { Text("More", fontSize = 10.sp) }, colors = NavigationBarItemDefaults.colors(selectedIconColor = Eivra.Green, selectedTextColor = Eivra.Green, indicatorColor = Eivra.Mint, unselectedIconColor = Eivra.Secondary, unselectedTextColor = Eivra.Secondary))
+            DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
+                secondary.forEach { item -> DropdownMenuItem(text = { Text("${item.title} · ${item.subtitle}") }, leadingIcon = { Icon(item.icon, null) }, onClick = { moreOpen = false; onNavigate(item.id) }) }
+            }
         }
-        NavigationBarItem(selected = route in secondary.map { it.id }, onClick = { moreOpen = true }, icon = { Icon(Icons.Outlined.MoreHoriz, "更多", Modifier.size(21.dp)) }, label = { Text("More", fontSize = 10.sp) }, colors = NavigationBarItemDefaults.colors(selectedIconColor = Eivra.Green, selectedTextColor = Eivra.Green, indicatorColor = Eivra.Mint, unselectedIconColor = Eivra.Secondary, unselectedTextColor = Eivra.Secondary))
     }
 }
 
