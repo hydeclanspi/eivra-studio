@@ -4,6 +4,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -51,6 +53,32 @@ fun EivraTheme(content: @Composable () -> Unit) {
         typography = EivraTypography,
         content = content
     )
+}
+
+enum class InspirationMaterial { Folio, Glacier, Prism, Modern }
+data class EivraSurface(val canvas: Color, val card: Color, val well: Color, val ink: Color, val muted: Color, val accent: Color, val rim: Color, val radius: Int)
+val LocalEivraSurface = staticCompositionLocalOf {
+    EivraSurface(Color(0xFFD9D9D5), Color(0xE3F1F0E9), Color(0xADFFFFFA), Color(0xFF393E42), Color(0xFF686D73), Color(0xFF527B93), Color(0xDBFFFFFF), 22)
+}
+fun inspirationMaterial(route: String) = when {
+    route == "new" || route == "combo" -> InspirationMaterial.Folio
+    route == "settle" -> InspirationMaterial.Glacier
+    route == "teams" -> InspirationMaterial.Modern
+    route == "console" -> InspirationMaterial.Modern
+    else -> InspirationMaterial.Prism
+}
+
+@Composable
+fun InspirationTheme(route: String, content: @Composable () -> Unit) {
+    val surface = when (inspirationMaterial(route)) {
+        InspirationMaterial.Folio -> EivraSurface(Color(0xFFD9D9D5), Color(0xE3F1F0E9), Color(0xADFFFFFA), Color(0xFF393E42), Color(0xFF686D73), Color(0xFF527B93), Color(0xDBFFFFFF), 22)
+        InspirationMaterial.Glacier -> EivraSurface(Color(0xFFB6DCE7), Color(0xD6DCF4F6), Color(0xC4EDFBFC), Color(0xFF163E51), Color(0xFF476D7E), Color(0xFF007D9F), Color(0xDBFFFFFF), 26)
+        InspirationMaterial.Prism -> EivraSurface(Color(0xFFCEDBE6), Color(0xE0EEF4F9), Color(0x9CFFFFFF), Color(0xFF233747), Color(0xFF5F7383), Color(0xFF3475A7), Color(0xDBFFFFFF), 10)
+        InspirationMaterial.Modern -> EivraSurface(Color(0xFFF7F8FA), Color(0xFFFFFFFF), Color(0xFFFFFFFF), Color(0xFF273B35), Color(0xFF71817A), Color(0xFF527B93), Color(0xDBFFFFFF), 18)
+    }
+    CompositionLocalProvider(LocalEivraSurface provides surface) {
+        MaterialTheme(colorScheme = lightColorScheme(primary = surface.accent, onPrimary = Color.White, background = surface.canvas, onBackground = surface.ink, surface = surface.card, onSurface = surface.ink, secondary = surface.muted, outline = surface.accent.copy(alpha = .2f)), typography = EivraTypography, content = content)
+    }
 }
 
 enum class WindowKind { Phone, Tablet }
