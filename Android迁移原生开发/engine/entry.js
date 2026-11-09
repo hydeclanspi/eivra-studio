@@ -1,3 +1,4 @@
+import './platform-init.js'
 import { installEngineGlobals, nativeSetStorageJSON, nativeGetStorageJSON, nativeResetStorage } from './shims.js'
 installEngineGlobals()
 nativeSetStorageJSON(JSON.stringify({
