@@ -16,7 +16,7 @@ fun AnalysisScreen(repository: WorkspaceRepository) {
     var error by remember { mutableStateOf("") }
     LaunchedEffect(Unit) { try { data = repository.analysis() } catch (e: Exception) { error = e.message ?: "读取失败" } }
     val snapshot = data
-    if (snapshot == null) GlassCard { Text(if (error.isEmpty()) "正在分析…" else error, color = Eivra.Secondary); return }
+    if (snapshot == null) { GlassCard { Text(if (error.isEmpty()) "正在分析…" else error, color = Eivra.Secondary) }; return }
     val modes = snapshot.optJSONArray("modeData")
     GlassCard { SectionHeading("01", "Mode breakdown", "每条腿按原始归因拆分"); if (modes == null || modes.length() == 0) Text("暂无可用切片", color = Eivra.Secondary) else for (i in 0 until modes.length()) { val row = modes.getJSONObject(i); Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(row.optString("mode", row.optString("label"))); Text("N ${row.optInt("samples")} · ${"%.1f".format(row.optDouble("hitRate"))}% · ROI ${"%.1f".format(row.optDouble("roi"))}%", color = Eivra.Secondary) } } }
     val strategies = snapshot.optJSONArray("strategyData")
@@ -31,7 +31,7 @@ fun MetricsScreen(repository: WorkspaceRepository) {
     var error by remember { mutableStateOf("") }
     LaunchedEffect(Unit) { try { data = repository.metrics() } catch (e: Exception) { error = e.message ?: "读取失败" } }
     val snapshot = data
-    if (snapshot == null) GlassCard { Text(if (error.isEmpty()) "正在计算指标…" else error, color = Eivra.Secondary); return }
+    if (snapshot == null) { GlassCard { Text(if (error.isEmpty()) "正在计算指标…" else error, color = Eivra.Secondary) }; return }
     val headline = snapshot.optJSONObject("headline") ?: snapshot
     GlassCard { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) { Metric("Brier", metricText(headline, listOf("brier", "brierScore"))); Metric("Log loss", metricText(headline, listOf("logLoss", "log_loss"))); Metric("Sharpe", metricText(headline, listOf("sharpe"))) } }
     GlassCard { SectionHeading("VALIDATION", "概率更新与留出评估", "不可用比伪精确更诚实"); Text("模型校验由 getMetricsSnapshot / getModelValidationSnapshot 提供。评分仅描述记录与概率，不证明预测能力。", color = Eivra.Secondary) }
@@ -53,7 +53,7 @@ fun QuantsScreen(repository: WorkspaceRepository) {
     var error by remember { mutableStateOf("") }
     LaunchedEffect(Unit) { try { data = repository.research() } catch (e: Exception) { error = e.message ?: "读取失败" } }
     val current = data
-    if (current == null) GlassCard { Text(if (error.isEmpty()) "正在读取研究记录…" else error, color = Eivra.Secondary); return }
+    if (current == null) { GlassCard { Text(if (error.isEmpty()) "正在读取研究记录…" else error, color = Eivra.Secondary) }; return }
     val research = current.optJSONObject("research") ?: JSONObject()
     val runs = research.optJSONArray("runs")
     val projects = research.optJSONArray("projects")
