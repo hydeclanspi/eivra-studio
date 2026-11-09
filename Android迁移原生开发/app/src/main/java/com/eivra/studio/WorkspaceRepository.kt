@@ -6,7 +6,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-class WorkspaceRepository(private val context: Context) {
+class WorkspaceRepository(val context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences("eivra.workspace.v1", Context.MODE_PRIVATE)
     private val key = "bundle"
     private val backupKey = "backup.before-import"
@@ -59,6 +59,16 @@ class WorkspaceRepository(private val context: Context) {
     fun restoreBackup(): Boolean {
         val backup = preferences.getString(backupKey, null) ?: return false
         save(JSONObject(backup)); return true
+    }
+    fun previewImport(text: String, merge: Boolean): BundleValidation {
+        val parsed = try { JSONObject(text) } catch (_: Exception) { return BundleValidation(false, 0, null, listOf("文件不是有效 JSON")) }
+        val validation = WorkspaceMigration.validate(parsed)
+        if (!validation.valid) return validation
+        val incoming = parsed.getJSONArray("investments")
+        val current = load().optJSONArray("investments") ?: JSONArray()
+        val ids = (0 until current.length()).map { current.getJSONObject(it).optString("id") }.toSet()
+        val duplicates = (0 until incoming.length()).count { ids.contains(incoming.getJSONObject(it).optString("id")) }
+        return validation.copy(summary = "当前 ${current.length()} 笔 · 同 id ${duplicates} 笔 · 导入后预计 ${if (merge) current.length() + incoming.length() - duplicates else incoming.length()} 笔")
     }
     fun importWebBundle(text: String, merge: Boolean): BundleValidation {
         val parsed = try { JSONObject(text) } catch (_: Exception) { return BundleValidation(false, 0, null, listOf("文件不是有效 JSON")) }
