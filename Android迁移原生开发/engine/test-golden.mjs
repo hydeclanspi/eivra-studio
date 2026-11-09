@@ -22,7 +22,7 @@ const saved = JSON.parse(api.invokeJSON('localData.getInvestments')).find(x => x
 assert.equal(saved.matches.length, 1)
 assert.equal(saved.matches[0].entries[0].name, '主胜')
 assert.equal(saved.parlay_size, 1)
-const updated = JSON.parse(api.invokeJSON('localData.updateInvestment', JSON.stringify([record.id, { status: 'win', profit: 10 }])))
+const updated = JSON.parse(api.invokeJSON('localData.updateInvestment', JSON.stringify([record.id, { status: 'win', profit: 10, matches: [{ ...record.matches[0], is_correct: true, results: '2-1' }] }])))
 assert.equal(updated.status, 'win')
 assert.equal(updated.matches[0].is_correct, true)
 assert.equal(typeof updated.settled_at, 'string')

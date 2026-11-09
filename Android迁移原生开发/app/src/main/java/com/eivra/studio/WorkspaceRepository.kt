@@ -27,7 +27,13 @@ class WorkspaceRepository(private val context: Context) {
             val records = JSONObject().put("records", JSONArray(before)).getJSONArray("records")
             val record = (0 until records.length()).map { i -> records.getJSONObject(i) }.single { it.getString("id") == id }
             val profit = if (won) record.optDouble("combined_odds", 0.0) * record.optDouble("inputs") - record.optDouble("inputs") else -record.optDouble("inputs")
-            it.invoke("localData.updateInvestment", JSONArray().put(id).put(JSONObject().put("status", if (won) "win" else "loss").put("profit", profit)))
+            val matches = record.optJSONArray("matches") ?: JSONArray()
+            for (index in 0 until matches.length()) {
+                val match = matches.getJSONObject(index)
+                match.put("is_correct", won)
+                if (!match.has("results") || match.optString("results").isBlank()) match.put("results", if (won) "confirmed" else "incorrect")
+            }
+            it.invoke("localData.updateInvestment", JSONArray().put(id).put(JSONObject().put("status", if (won) "win" else "lose").put("profit", profit).put("matches", matches)))
             it.workspace().also { next -> save(next) }
         }
     }
