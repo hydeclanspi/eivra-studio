@@ -20,12 +20,14 @@ function hydrateStorage(stores = {}) {
   const input = stores[investmentsKey] || stores['eivra.workspace.native']
   let bundle = input
   if (typeof bundle === 'string') { try { bundle = JSON.parse(bundle) } catch { bundle = null } }
-  if (!bundle) bundle = {}
-  const coldStart = Object.keys(bundle).length === 0
-  const records = coldStart ? getDemoInvestments() : (bundle.investments || [])
-  const config = coldStart ? getDemoSystemConfig() : (bundle.system_config || bundle.systemConfig || {})
-  const teams = coldStart ? getDemoTeamProfiles() : (bundle.team_profiles || [])
-  const logs = coldStart ? getDemoAccessLogs() : (bundle.access_logs || [])
+  if (!bundle || (typeof bundle === 'object' && Object.keys(bundle).length === 0)) bundle = {
+    investments: getDemoInvestments(), system_config: getDemoSystemConfig(),
+    team_profiles: getDemoTeamProfiles(), access_logs: getDemoAccessLogs(),
+  }
+  const records = bundle.investments || []
+  const config = bundle.system_config || bundle.systemConfig || {}
+  const teams = bundle.team_profiles || []
+  const logs = bundle.access_logs || []
   nativeSetStorageJSON(JSON.stringify({
     [investmentsKey]: JSON.stringify(records), [configKey]: JSON.stringify(config),
     [teamsKey]: JSON.stringify(teams), [logsKey]: JSON.stringify(logs),

@@ -10,9 +10,11 @@ await build({ entryPoints: ['entry.js'], plugins: [nativePlatformPlugin()], defi
 await import(pathToFileURL(outfile))
 const api = globalThis.eivraEngine
 assert.equal(api.version, 'native-contract-1')
-const original = api.hydrate('{}')
+const original = api.hydrate(JSON.stringify({ 'eivra.full_session_latch.v1': '1', 'eivra.workspace.native': '{}' }))
 assert.equal(original.investments.length > 0, true)
+console.log('hydrated', original.investments.length, original.investments[0])
 assert.equal('system_config' in original, true)
+console.log('latch', globalThis.window.sessionStorage.getItem('eivra.full_session_latch.v1'), 'stored before save', api.exportWorkspace().investments.length)
 const record = { id: 'native-golden-1', created_at: '2026-11-09T12:00:00.000Z', status: 'pending', inputs: 10,
   matches: [{ id: 'native-golden-match', home_team: 'Arsenal', away_team: 'Chelsea', odds: 2, conf: .6, entries: [{ name: '主胜', odds: 2 }] }] }
 assert.equal(JSON.parse(api.invokeJSON('localData.saveInvestment', [record])).id, record.id)
