@@ -14,15 +14,15 @@ class ArchitectureTest {
     }
     @Test fun originalEngineDefinesRequiredContracts() {
         val entry = File("../engine/entry.js").readText()
-        listOf("localData.saveInvestment", "localData.updateInvestment", "analytics.getDashboardSnapshot", "analytics.getAnalysisSnapshot", "analytics.getMetricsSnapshot", "analytics.getTeamsSnapshot", "quantResearch.getResearchStore", "quantForward.getForwardStore").forEach {
+        listOf("localData.saveInvestment", "localData.updateInvestment", "forecast.buildDraft", "localData.settleFromForm", "analytics.getDashboardSnapshot", "analytics.getAnalysisSnapshot", "analytics.getMetricsSnapshot", "analytics.getTeamsSnapshot", "quantResearch.getResearchStore", "quantForward.getForwardStore").forEach {
             assertTrue("Missing engine contract: $it", entry.contains(it))
         }
     }
     @Test fun nativeWritesUseOriginalSnakeCaseContract() {
-        val screen = File("src/main/java/com/eivra/studio/Workspaces.kt").readText()
+        val screen = File("src/main/java/com/eivra/studio/NewInvestmentWorkspace.kt").readText()
         assertTrue(screen.contains("home_team"))
         assertTrue(screen.contains("created_at"))
-        assertTrue(screen.contains("localData") || File("src/main/java/com/eivra/studio/WorkspaceRepository.kt").readText().contains("localData.updateInvestment"))
+        assertTrue(File("src/main/java/com/eivra/studio/WorkspaceRepository.kt").readText().contains("localData"))
     }
     @Test fun demoDataIsValid() {
         val records = DemoData.json.getJSONArray("investments")
