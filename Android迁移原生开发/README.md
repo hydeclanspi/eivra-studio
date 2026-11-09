@@ -12,7 +12,7 @@
 
 ## 构建
 
-JDK 17、Android SDK 35，在项目根目录执行：
+JDK 17、Android SDK 36，在项目根目录执行：
 
 ```sh
 ./gradlew testDebugUnitTest
