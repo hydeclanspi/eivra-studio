@@ -1,0 +1,13 @@
+{
+  "stage": "native-foundation-awaiting-build",
+  "source_commit": "0fca340f48c9eb94704e4fbee69d8d4e65ededdc",
+  "native_source_written": true,
+  "build_passed": false,
+  "unit_tests_passed": false,
+  "engine_parity_passed": false,
+  "apk_built": false,
+  "device_acceptance": false,
+  "visual_acceptance": false,
+  "performance_acceptance": false,
+  "notes": ["This is not a completed migration.", "No execution receipt, no completion claim."]
+}
