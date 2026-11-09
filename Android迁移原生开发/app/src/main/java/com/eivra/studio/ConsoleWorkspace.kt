@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.eivra.studio.ui.*
@@ -51,7 +52,7 @@ fun ConsoleScreen(bundle: JSONObject, repository: WorkspaceRepository, onChanged
         EivraButton("选择网页导出的 JSON 文件", { openLauncher.launch(arrayOf("application/json", "text/plain")) }, Modifier.fillMaxWidth(), subtle = true)
         if (fileName.isNotBlank()) Text(fileName, color = Eivra.Secondary)
         OutlinedTextField(importText, { importText = it; confirmImport = false }, placeholder = { Text("也可粘贴网页端导出的 bundle") }, modifier = Modifier.fillMaxWidth().heightIn(min = 150.dp), shape = RoundedCornerShape(13.dp))
-        ChoiceRow(listOf("merge", "replace"), if (merge) "merge" else "replace") { merge = it == "merge"; confirmImport = false }
+        ChoiceRow(listOf("merge", "replace"), if (merge) "merge" else "replace", onSelect = { merge = it == "merge"; confirmImport = false })
         val preview = remember(importText) { repository.previewImport(importText, merge) }
         if (preview.valid) {
             Text("可导入 ${preview.investmentCount} 笔记录；${if (merge) "同 id 以来源覆盖，其余保留" else "替换整个工作区"}。", color = Eivra.Secondary)

@@ -87,3 +87,12 @@ fun SectionHeading(index: String, title: String, subtitle: String? = null) {
         Column { Text(title, style = MaterialTheme.typography.titleMedium); if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = LocalEivraSurface.current.muted) }
     }
 }
+
+@Composable
+fun PageIntro(eyebrow: String, title: String, description: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Eyebrow(eyebrow)
+        Text(title, style = MaterialTheme.typography.displaySmall, color = LocalEivraSurface.current.ink)
+        Text(description, style = MaterialTheme.typography.bodyMedium, color = LocalEivraSurface.current.muted)
+    }
+}

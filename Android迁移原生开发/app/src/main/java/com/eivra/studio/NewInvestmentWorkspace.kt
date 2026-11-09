@@ -82,10 +82,10 @@ fun NewInvestmentScreen(tablet: Boolean, bundle: JSONObject, repository: Workspa
                 }
             }
             Text("模式", style = MaterialTheme.typography.bodyMedium)
-            ChoiceRow(listOf("常规-杠杆", "保守", "半彩票半保险"), match.mode) { matches = matches.edit(index) { copy(mode = it) } }
+            ChoiceRow(listOf("常规-杠杆", "保守", "半彩票半保险"), match.mode, onSelect = { matches = matches.edit(index) { copy(mode = it) } }
             Text("TYS · 主 / 客", style = MaterialTheme.typography.bodyMedium)
-            ChoiceRow(listOf("S", "M", "L", "H"), match.tysHome) { matches = matches.edit(index) { copy(tysHome = it) } }
-            ChoiceRow(listOf("S", "M", "L", "H"), match.tysAway) { matches = matches.edit(index) { copy(tysAway = it) } }
+            ChoiceRow(listOf("S", "M", "L", "H"), match.tysHome, onSelect = { matches = matches.edit(index) { copy(tysHome = it) } }
+            ChoiceRow(listOf("S", "M", "L", "H"), match.tysAway, onSelect = { matches = matches.edit(index) { copy(tysAway = it) } }
             LabeledField("投前备注", match.note, { matches = matches.edit(index) { copy(note = it) } }, "为什么这样判断？")
             prediction?.optJSONArray("profiles")?.optJSONObject(index)?.let { profile ->
                 Text("校准概率 ${formatProbability(profile.optDouble("hitProbability"))} · 模型状态 ${profile.optString("modelStatus", "待确认")}", color = Eivra.Secondary, style = MaterialTheme.typography.bodyMedium)
@@ -160,3 +160,4 @@ private fun MatchDraft.toJSON(index: Int) = JSONObject()
 private fun <T> List<T>.edit(index: Int, transform: T.() -> T) = mapIndexed { i, value -> if (i == index) value.transform() else value }
 private fun formatProbability(value: Double) = if (value.isFinite()) "%.1f%%".format(value * 100) else "未评级"
 private fun formatOdds(value: Double) = if (value.isFinite()) "%.2f".format(value) else "—"
+

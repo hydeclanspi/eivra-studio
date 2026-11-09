@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.eivra.studio.Eivra
+
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -33,7 +33,7 @@ fun ProjectionInspector(title: String, root: Any?) {
         }
         if (value == null || value == JSONObject.NULL) Text("未返回 / 无可用样本", color = Eivra.Secondary)
         else if (value is JSONObject || value is JSONArray) {
-            Text(value.toString(2), fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
+            Text((value as? JSONObject)?.toString(2) ?: (value as? JSONArray)?.toString(2) ?: value.toString(), fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
         } else Text(formatProjection(value), style = MaterialTheme.typography.titleMedium)
     }
 }

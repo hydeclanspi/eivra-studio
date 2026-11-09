@@ -18,7 +18,7 @@ fun AnalysisScreen(repository: WorkspaceRepository) {
     LaunchedEffect(period) { try { data = repository.analysis(period) } catch (e: Exception) { error = e.message ?: "读取失败" } }
     val snapshot = data
     if (snapshot == null) { GlassCard { Text(if (error.isEmpty()) "正在分析…" else error, color = Eivra.Secondary) }; return }
-    ChoiceRow(listOf("all", "2w", "4w", "season"), period) { period = it }
+    ChoiceRow(listOf("all", "2w", "4w", "season"), period, onSelect = { period = it }
     val modes = snapshot.optJSONArray("modeData")
     GlassCard { SectionHeading("01", "Mode breakdown", "每条腿按原始归因拆分"); if (modes == null || modes.length() == 0) Text("暂无可用切片", color = Eivra.Secondary) else for (i in 0 until modes.length()) { val row = modes.getJSONObject(i); Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(row.optString("mode", row.optString("label"))); Text("N ${row.optInt("samples")} · ${"%.1f".format(row.optDouble("hitRate"))}% · ROI ${"%.1f".format(row.optDouble("roi"))}%", color = Eivra.Secondary) } } }
     val strategies = snapshot.optJSONArray("strategyData")
@@ -36,7 +36,7 @@ fun MetricsScreen(repository: WorkspaceRepository) {
     LaunchedEffect(period) { try { data = repository.metrics(period) } catch (e: Exception) { error = e.message ?: "读取失败" } }
     val snapshot = data
     if (snapshot == null) { GlassCard { Text(if (error.isEmpty()) "正在计算指标…" else error, color = Eivra.Secondary) }; return }
-    ChoiceRow(listOf("all", "2w", "4w", "season"), period) { period = it }
+    ChoiceRow(listOf("all", "2w", "4w", "season"), period, onSelect = { period = it }
     val headline = snapshot.optJSONObject("headline") ?: snapshot
     GlassCard { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) { Metric("Brier", metricText(headline, listOf("brier", "brierScore"))); Metric("Log loss", metricText(headline, listOf("logLoss", "log_loss"))); Metric("Sharpe", metricText(headline, listOf("sharpe"))) } }
     ProjectionInspector("Metrics · 完整投影", snapshot)
@@ -46,7 +46,7 @@ fun MetricsScreen(repository: WorkspaceRepository) {
 @Composable
 fun TeamsScreen(repository: WorkspaceRepository) {
     PageIntro("TEAMS · 事件画像", "球队与历史", "按同一支球队聚合过往判断，保留时间、样本和语义边界。")
-    var data by remember { mutableStateOf<JSONObject?>(null) }
+    var data by remember { mutableStateOf<org.json.JSONArray?>(null) }
     LaunchedEffect(Unit) { data = repository.teams() }
     val teams = data
     if (teams != null) ProjectionInspector("Teams · 完整球队画像", teams)

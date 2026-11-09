@@ -17,7 +17,7 @@ fun HistoryScreen(bundle: JSONObject) {
     var status by remember { mutableStateOf("all") }
     val records = bundle.optJSONArray("investments") ?: JSONArray()
     LabeledField("搜索球队、盘口、组合或备注", query, { query = it }, "例如 Arsenal / 主胜 / demo")
-    ChoiceRow(listOf("all", "pending", "win", "lose"), status) { status = it }
+    ChoiceRow(listOf("all", "pending", "win", "lose"), status, onSelect = { status = it }
     val rows = (0 until records.length()).map { records.getJSONObject(it) }.filter { record ->
         (status == "all" || record.optString("status") == status) &&
             (query.isBlank() || record.toString().contains(query, ignoreCase = true))

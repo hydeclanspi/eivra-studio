@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -40,16 +41,17 @@ private val destinations = listOf(
     Destination("quants", "Quants", "策略研究", Icons.Outlined.Science),
     Destination("history", "History", "历史与球队", Icons.Outlined.History),
     Destination("analysis", "Analysis", "表现切片", Icons.Outlined.Analytics),
-    Destination("metrics", "Metrics", "概率校准", Icons.Outlined.Gauge),
+    Destination("metrics", "Metrics", "概率校准", Icons.Outlined.Speed),
     Destination("teams", "Teams", "球队画像", Icons.Outlined.Groups),
     Destination("console", "Console", "参数与数据", Icons.Outlined.Tune)
 )
 
 @Composable
 fun EivraApp(tablet: Boolean) {
+    var route by rememberSaveable { mutableStateOf("new") }
+    InspirationTheme(route) {
     val context = LocalContext.current
     val repository = remember { WorkspaceRepository(context) }
-    var route by rememberSaveable { mutableStateOf("new") }
     var bundle by remember { mutableStateOf<JSONObject?>(null) }
     var engineStatus by remember { mutableStateOf("计算引擎自检中…") }
     var notice by remember { mutableStateOf("") }
@@ -70,9 +72,9 @@ fun EivraApp(tablet: Boolean) {
             catch (e: Exception) { notice = "保存失败：${e.message}" }
         }
     }
-    fun settleInvestment(id: String, won: Boolean) {
+    fun settleInvestment(id: String, form: JSONObject) {
         scope.launch {
-            try { bundle = repository.settleInvestment(id, won); notice = "已写入结算与结算时间" }
+            try { bundle = repository.settleInvestment(id, form); notice = "已写入结算与结算时间" }
             catch (e: Exception) { notice = "结算失败：${e.message}" }
         }
     }
@@ -87,7 +89,7 @@ fun EivraApp(tablet: Boolean) {
                 Column(Modifier.fillMaxWidth().widthIn(max = 1320.dp).align(Alignment.TopCenter), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     bundle?.let { current ->
                     when (route) {
-                        "new" -> NewInvestmentScreen(tablet, current, ::saveInvestment)
+                        "new" -> NewInvestmentScreen(tablet, current, repository, ::saveInvestment)
                         "portfolio" -> PortfolioScreen(current)
                         "settle" -> SettleScreen(current, ::settleInvestment)
                         "dashboard" -> DashboardScreen(tablet, current, repository)
@@ -105,6 +107,7 @@ fun EivraApp(tablet: Boolean) {
             }
         }
     }
+    }
 }
 
 @Composable
@@ -116,7 +119,7 @@ private fun EivraTopBar(tablet: Boolean, route: String, status: String, onNaviga
             if (tablet) { Text("Inspiration", style = MaterialTheme.typography.bodyMedium, color = Eivra.Green); Text("demo · preview", style = MaterialTheme.typography.labelMedium, color = Eivra.Secondary) }
             IconButton(onClick = { onNavigate("console") }) { Icon(Icons.Outlined.Menu, "更多与设置") }
         }
-        if (tablet) destinations.take(7).forEach { NavPill(it, route == it.id) { onNavigate(it.id) } }
+        if (tablet) Row(Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp)) { destinations.forEach { NavPill(it, route == it.id) { onNavigate(it.id) } } }
         if (route == "new") Text(status, style = MaterialTheme.typography.labelMedium, color = Eivra.Secondary)
     }
 }
@@ -146,7 +149,7 @@ private fun PhoneNavigation(route: String, onNavigate: (String) -> Unit) {
         destinations.filter { it.id in listOf("new", "portfolio", "settle", "dashboard") }.forEach { item ->
             NavigationBarItem(selected = route == item.id, onClick = { onNavigate(item.id) }, icon = { Icon(item.icon, item.title, Modifier.size(21.dp)) }, label = { Text(item.title, fontSize = 10.sp) }, colors = NavigationBarItemDefaults.colors(selectedIconColor = Eivra.Green, selectedTextColor = Eivra.Green, indicatorColor = Eivra.Mint, unselectedIconColor = Eivra.Secondary, unselectedTextColor = Eivra.Secondary))
         }
-        Box {
+        Row {
             var moreOpen by remember { mutableStateOf(false) }
             val secondary = destinations.drop(4)
             NavigationBarItem(selected = route in secondary.map { it.id }, onClick = { moreOpen = true }, icon = { Icon(Icons.Outlined.MoreHoriz, "更多", Modifier.size(21.dp)) }, label = { Text("More", fontSize = 10.sp) }, colors = NavigationBarItemDefaults.colors(selectedIconColor = Eivra.Green, selectedTextColor = Eivra.Green, indicatorColor = Eivra.Mint, unselectedIconColor = Eivra.Secondary, unselectedTextColor = Eivra.Secondary))
@@ -157,7 +160,3 @@ private fun PhoneNavigation(route: String, onNavigate: (String) -> Unit) {
     }
 }
 
-@Composable
-private fun PageIntro(eyebrow: String, title: String, description: String) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { Eyebrow(eyebrow); Text(title, style = MaterialTheme.typography.displaySmall); Text(description, style = MaterialTheme.typography.bodyMedium, color = Eivra.Secondary) }
-}
