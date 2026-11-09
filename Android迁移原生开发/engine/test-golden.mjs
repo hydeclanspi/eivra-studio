@@ -20,12 +20,24 @@ const saved = JSON.parse(api.invokeJSON('localData.getInvestments')).find(x => x
 assert.equal(saved.matches.length, 1)
 assert.equal(saved.matches[0].entries[0].name, '主胜')
 assert.equal(saved.parlay_size, 1)
-const updated = JSON.parse(api.invokeJSON('localData.updateInvestment', JSON.stringify([record.id, { status: 'win', profit: 10, matches: [{ ...record.matches[0], is_correct: true, results: '2-1' }] }])))
+const updated = JSON.parse(api.invokeJSON('localData.settleFromForm', JSON.stringify([record.id, { revenues: 20, matches: [{ results: '2-1', isCorrect: true, matchRating: 0.3, matchRep: 0, postNote: '符合判断' }] }])))
 assert.equal(updated.status, 'win')
 assert.equal(updated.matches[0].is_correct, true)
+assert.equal(updated.status, 'win')
+assert.equal(updated.revenues, 20)
+assert.equal(updated.actual_rating, 0.3)
 assert.equal(typeof updated.settled_at, 'string')
 const dashboard = JSON.parse(api.invokeJSON('analytics.getDashboardSnapshot', '[]'))
 assert.equal(typeof dashboard, 'object')
+
+const losing = JSON.parse(api.invokeJSON('localData.settleFromForm', JSON.stringify([record.id, {
+  revenues: 0,
+  matches: [{ results: '0-1', isCorrect: false, matchRating: 0.1, matchRep: null, postNote: '未兑现' }],
+}])))
+assert.equal(losing.status, 'lose')
+assert.equal(losing.matches[0].is_correct, false)
+assert.equal(losing.profit, -10)
+
 const exported = api.exportWorkspace()
 assert.equal(exported.investments.some(x => x.id === record.id), true)
 assert.equal(JSON.parse(api.invokeJSON('localData.importDataBundle', JSON.stringify([exported, 'replace']))), true)

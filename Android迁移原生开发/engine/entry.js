@@ -50,6 +50,29 @@ const allowed = {
   'localData.saveInvestment': localData.saveInvestment,
   'localData.updateInvestment': localData.updateInvestment,
   'localData.updateInvestments': localData.updateInvestments,
+  'localData.settleFromForm': (id, form) => localData.updateInvestment(id, previous => {
+    const inputs = Number(previous.inputs || 0)
+    const revenues = Number(form.revenues)
+    const ratings = (form.matches || []).map(match => match.matchRating).filter(value => value !== null && value !== undefined && value !== '').map(Number)
+    const reps = (form.matches || []).map(match => match.matchRep).filter(value => value !== null && value !== undefined && value !== '').map(Number)
+    return {
+      ...previous,
+      status: (form.matches || []).every(match => match.isCorrect === true) ? 'win' : 'lose',
+      revenues,
+      profit: Number((revenues - inputs).toFixed(2)),
+      actual_rating: ratings.length ? Number((ratings.reduce((sum, value) => sum + value, 0) / ratings.length).toFixed(2)) : null,
+      rep: reps.length ? Number((reps.reduce((sum, value) => sum + value, 0) / reps.length).toFixed(2)) : null,
+      remarks: (form.matches || []).map((match, index) => match.postNote?.trim() ? `M${index + 1}: ${match.postNote.trim()}` : '').filter(Boolean).join('；'),
+      matches: (previous.matches || []).map((match, index) => ({
+        ...match,
+        results: String(form.matches?.[index]?.results || '').trim(),
+        is_correct: form.matches?.[index]?.isCorrect ?? null,
+        match_rating: form.matches?.[index]?.matchRating === '' || form.matches?.[index]?.matchRating == null ? null : Number(form.matches[index].matchRating),
+        match_rep: form.matches?.[index]?.matchRep === '' || form.matches?.[index]?.matchRep == null ? null : Number(form.matches[index].matchRep),
+        post_note: String(form.matches?.[index]?.postNote || '').trim(),
+      })),
+    }
+  }),
   'analytics.getDashboardSnapshot': analytics.getDashboardSnapshot,
   'analytics.getAnalysisSnapshot': analytics.getAnalysisSnapshot,
   'analytics.getMetricsSnapshot': analytics.getMetricsSnapshot,

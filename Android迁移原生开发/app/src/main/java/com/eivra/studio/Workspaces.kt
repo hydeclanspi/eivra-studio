@@ -32,28 +32,6 @@ fun PortfolioScreen(bundle: JSONObject) {
 }
 
 @Composable
-fun SettleScreen(bundle: JSONObject, onSettle: (String, Boolean) -> Unit) {
-    PageIntro("SETTLE · 观察结果", "结算记录", "实际发生了什么？让每一笔判断都有结果，也让结果回到证据里。")
-    val records = bundle.getJSONArray("investments")
-    var any = false
-    for (i in 0 until records.length()) {
-        val record = records.getJSONObject(i)
-        if (record.optString("status") == "pending") {
-            any = true
-            GlassCard {
-                Text(recordTitle(record), style = MaterialTheme.typography.titleLarge)
-                Text("投入 ¥${record.optDouble("inputs")} · ${recordEntry(record)}", color = Eivra.Secondary)
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    EivraButton("命中", { onSettle(record.getString("id"), true) }, Modifier.weight(1f))
-                    EivraButton("未命中", { onSettle(record.getString("id"), false) }, Modifier.weight(1f), subtle = true)
-                }
-            }
-        }
-    }
-    if (!any) GlassCard { Text("没有待结算的判断。", style = MaterialTheme.typography.titleMedium); Text("已完成的投资保留在 History，不会被结算操作删除。", color = Eivra.Secondary) }
-}
-
-@Composable
 fun DashboardScreen(tablet: Boolean, bundle: JSONObject, repository: WorkspaceRepository) {
     PageIntro("DASHBOARD · 归因", "判断，留下了什么", "资金、概率与结果并读；样本不足时，不用一个看似精确的数字掩盖不确定性。")
     var snapshot by remember(bundle) { mutableStateOf<JSONObject?>(null) }

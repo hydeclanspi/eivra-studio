@@ -24,19 +24,9 @@ class WorkspaceRepository(private val context: Context) {
             it.workspace().also { next -> save(next) }
         }
     }
-    suspend fun settleInvestment(id: String, won: Boolean): JSONObject = withContext(Dispatchers.Default) {
+    suspend fun settleInvestment(id: String, form: JSONObject): JSONObject = withContext(Dispatchers.Default) {
         NativeEngine(context, load()).use {
-            val before = it.invoke("localData.getInvestments")
-            val records = JSONObject().put("records", JSONArray(before)).getJSONArray("records")
-            val record = (0 until records.length()).map { i -> records.getJSONObject(i) }.single { it.getString("id") == id }
-            val profit = if (won) record.optDouble("combined_odds", 0.0) * record.optDouble("inputs") - record.optDouble("inputs") else -record.optDouble("inputs")
-            val matches = record.optJSONArray("matches") ?: JSONArray()
-            for (index in 0 until matches.length()) {
-                val match = matches.getJSONObject(index)
-                match.put("is_correct", won)
-                if (!match.has("results") || match.optString("results").isBlank()) match.put("results", if (won) "confirmed" else "incorrect")
-            }
-            it.invoke("localData.updateInvestment", JSONArray().put(id).put(JSONObject().put("status", if (won) "win" else "lose").put("profit", profit).put("matches", matches)))
+            it.invoke("localData.settleFromForm", JSONArray().put(id).put(form))
             it.workspace().also { next -> save(next) }
         }
     }
