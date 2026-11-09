@@ -53,7 +53,7 @@ fun EivraApp(tablet: Boolean) {
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
         engineStatus = withContext(Dispatchers.Default) {
-            try { NativeEngine().use { "原生计算 · ${it.healthCheck().getInt("answer")}" } } catch (e: Exception) { "引擎待接入 · ${e.javaClass.simpleName}" }
+            try { NativeEngine(context).use { "原生计算 · ${it.healthCheck().getInt("answer")}" } } catch (e: Exception) { "引擎待接入 · ${e.javaClass.simpleName}" }
         }
     }
     fun update(next: JSONObject) { bundle = next; repository.save(next) }

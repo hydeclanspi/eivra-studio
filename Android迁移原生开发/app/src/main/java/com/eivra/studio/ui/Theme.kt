@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.sp
 // Material You dynamic colors; Eivra must not turn into another Android app.
 object Eivra {
     val Canvas = Color(0xFFF3F2EE)
-    val Surface = Color(0xFFFFFE)
+    val Surface = Color(0xFFFFFEFF)
     val Glass = Color(0xEFFFFFFF)
     val Ink = Color(0xFF273B35)
     val Secondary = Color(0xFF71817A)

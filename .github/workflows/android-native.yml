@@ -23,6 +23,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
+      - name: Web regression baseline
+        working-directory: eivra-studio
+        run: npm ci && npm run lint && npm test && npm run build
+      - name: Native engine packaging and golden tests
+        working-directory: Android迁移原生开发/engine
+        run: npm install && npm run test && npm run build
       - name: Unit tests and native boundary checks
         run: ./gradlew testDebugUnitTest --stacktrace
       - name: Assemble native APK
