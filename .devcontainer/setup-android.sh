@@ -4,7 +4,7 @@ export DEBIAN_FRONTEND=noninteractive
 sudo mkdir -p /opt/android-sdk/cmdline-tools
 sudo chown -R "$(id -u):$(id -g)" /opt/android-sdk
 if [ ! -x /opt/android-sdk/cmdline-tools/latest/bin/sdkmanager ]; then
-  curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-16111833_latest.zip -o /tmp/android-commandline.zip
+  curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o /tmp/android-commandline.zip
   python3 -c "import zipfile;zipfile.ZipFile('/tmp/android-commandline.zip').extractall('/opt/android-sdk/cmdline-tools/latest')"
   chmod -R u+rx /opt/android-sdk/cmdline-tools/latest/bin
 fi
