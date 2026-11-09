@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import assert from 'node:assert/strict'
 const outfile = join(mkdtempSync(join(tmpdir(), 'eivra-engine-')), 'engine.mjs')
-await build({ entryPoints: ['entry.js'], plugins: [nativePlatformPlugin()], bundle: true, format: 'esm', platform: 'node', target: 'node20', outfile })
+await build({ entryPoints: ['entry.js'], plugins: [nativePlatformPlugin()], define: { 'import.meta.env': '{}' }, bundle: true, format: 'esm', platform: 'node', target: 'node20', outfile })
 await import(pathToFileURL(outfile))
 const api = globalThis.eivraEngine
 assert.equal(api.version, 'native-contract-1')

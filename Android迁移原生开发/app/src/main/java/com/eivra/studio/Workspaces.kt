@@ -84,8 +84,8 @@ fun NewInvestmentScreen(tablet: Boolean, bundle: JSONObject, onSave: (JSONObject
         OutlinedTextField(note, { note = it }, placeholder = { Text("赛前备注：我看见了什么，什么会推翻这个判断？") }, modifier = Modifier.fillMaxWidth().heightIn(min = 100.dp), shape = RoundedCornerShape(13.dp), textStyle = MaterialTheme.typography.bodyLarge)
     }
     GlassCard {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Metric("综合 ODDS", odds.ifBlank { "--" }); Metric("风控上限", "¥ ${"%.0f".format(bundle.getJSONObject("systemConfig").optDouble("pool", 0.0) * bundle.getJSONObject("systemConfig").optDouble("riskCapRatio", .12))}") }
-        Text("蓄水池 ¥${"%.0f".format(bundle.getJSONObject("systemConfig").optDouble("pool", 0.0))} · 原模型校准结果待通过跨端 golden cases 后接入", style = MaterialTheme.typography.bodyMedium, color = Eivra.Secondary)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Metric("综合 ODDS", odds.ifBlank { "--" }); Metric("风控上限", "¥ ${"%.0f".format((bundle.optJSONObject("system_config") ?: bundle.optJSONObject("systemConfig"))?.optDouble("initialCapital", 0.0) ?: 0.0 * (bundle.optJSONObject("system_config") ?: bundle.optJSONObject("systemConfig"))?.optDouble("riskCapRatio", .12) ?: .12)}") }
+        Text("蓄水池 ¥${"%.0f".format((bundle.optJSONObject("system_config") ?: bundle.optJSONObject("systemConfig"))?.optDouble("initialCapital", 0.0) ?: 0.0)} · 原模型校准结果待通过跨端 golden cases 后接入", style = MaterialTheme.typography.bodyMedium, color = Eivra.Secondary)
         if (validation.isNotEmpty()) Text(validation, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
         EivraButton("确认投资", {
             val parsedOdds = odds.toDoubleOrNull()
@@ -99,17 +99,25 @@ fun NewInvestmentScreen(tablet: Boolean, bundle: JSONObject, onSave: (JSONObject
                 parsedStake < 0 -> validation = "投入不能为负数。"
                 else -> {
                     val entry = JSONObject().put("name", entryName.trim()).put("odds", if (parsedOdds == null) JSONObject.NULL else parsedOdds)
+                    val match = JSONObject()
+                        .put("id", "android-match-${System.currentTimeMillis()}")
+                        .put("home_team", home.trim()).put("away_team", away.trim())
+                        .put("entries", JSONArray().put(entry))
+                        .put("entry_text", entryName.trim())
+                        .put("conf", if (parsedExpected == null) JSONObject.NULL else parsedExpected)
+                        .put("tys_home", betaHome).put("tys_away", betaAway)
+                        .put("fid", gamma.toDoubleOrNull() ?: .4)
+                        .put("fse_home", deltaHome.toDoubleOrNull() ?: .1)
+                        .put("fse_away", deltaAway.toDoubleOrNull() ?: .1)
                     val record = JSONObject()
                         .put("id", "android-${System.currentTimeMillis()}")
-                        .put("homeTeam", home.trim()).put("awayTeam", away.trim())
-                        .put("entries", JSONArray().put(entry)).put("status", "pending")
-                        .put("inputs", parsedStake).put("createdAt", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).format(Date()))
-                        .put("expected", if (parsedExpected == null) JSONObject.NULL else parsedExpected)
-                        .put("parameters", JSONObject().put("alpha", alpha).put("betaHome", betaHome).put("betaAway", betaAway).put("gamma", gamma).put("deltaHome", deltaHome).put("deltaAway", deltaAway))
+                        .put("status", "pending").put("inputs", parsedStake)
+                        .put("created_at", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).format(Date()))
+                        .put("matches", JSONArray().put(match))
+                        .put("parlay_size", 1)
+                        .put("parameters", JSONObject().put("alpha", alpha))
                         .put("note", note).put("source", "android-native")
-                    val next = JSONObject(bundle.toString())
-                    next.getJSONArray("investments").put(record)
-                    onSave(next)
+                    onSave(record)
                 }
             }
         }, Modifier.fillMaxWidth(), Icons.Outlined.Check)
@@ -123,13 +131,13 @@ fun PortfolioScreen(bundle: JSONObject) {
     var pending = 0
     var exposure = 0.0
     for (i in 0 until records.length()) { val r = records.getJSONObject(i); if (r.optString("status") == "pending") { pending++; exposure += r.optDouble("inputs") } }
-    GlassCard { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) { Metric("待结算", "$pending 笔"); Metric("在途冻结", "¥ ${"%.0f".format(exposure)}"); Metric("蓄水池", "¥ ${"%.0f".format(bundle.getJSONObject("systemConfig").optDouble("pool"))}") } }
+    GlassCard { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) { Metric("待结算", "$pending 笔"); Metric("在途冻结", "¥ ${"%.0f".format(exposure)}"); Metric("蓄水池", "¥ ${"%.0f".format((bundle.optJSONObject("system_config") ?: bundle.optJSONObject("systemConfig"))?.optDouble("initialCapital", 0.0) ?: 0.0)}") } }
     GlassCard { SectionHeading("02", "当前候选", "点击 Settle 记录实际结果，闭合反馈链路"); if (pending == 0) Text("还没有待配置的判断。去 New 写下第一条。", color = Eivra.Secondary); InvestmentList(bundle, true) }
     GlassCard { SectionHeading("03", "依赖风险诊断", "不把探索性指数当成已校准的尾部概率"); Text("共享同一场比赛的不同头寸需要按原子选项评估依赖；当前页面仅展示记录，完整 Monte Carlo 与原 analytics 适配通过回归后开放。", color = Eivra.Secondary) }
 }
 
 @Composable
-fun SettleScreen(bundle: JSONObject, onSave: (JSONObject) -> Unit) {
+fun SettleScreen(bundle: JSONObject, onSettle: (String, Boolean) -> Unit) {
     PageIntro("SETTLE · 观察结果", "结算记录", "实际发生了什么？让每一笔判断都有结果，也让结果回到证据里。")
     val records = bundle.getJSONArray("investments")
     var any = false
@@ -138,21 +146,11 @@ fun SettleScreen(bundle: JSONObject, onSave: (JSONObject) -> Unit) {
         if (record.optString("status") == "pending") {
             any = true
             GlassCard {
-                Text("${record.getString("homeTeam")}  vs  ${record.getString("awayTeam")}", style = MaterialTheme.typography.titleLarge)
-                Text("投入 ¥${record.optDouble("inputs")} · ${record.optJSONArray("entries")?.optJSONObject(0)?.optString("name")}", color = Eivra.Secondary)
+                Text(recordTitle(record), style = MaterialTheme.typography.titleLarge)
+                Text("投入 ¥${record.optDouble("inputs")} · ${recordEntry(record)}", color = Eivra.Secondary)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    EivraButton("命中", {
-                        val next = JSONObject(bundle.toString()); val r = next.getJSONArray("investments").getJSONObject(i)
-                        val odds = r.getJSONArray("entries").getJSONObject(0).optDouble("odds", 0.0)
-                        val input = r.optDouble("inputs")
-                        r.put("status", "settled").put("result", true).put("profit", if (odds > 0) input * (odds - 1) else 0.0).put("settledAt", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).format(Date()))
-                        onSave(next)
-                    }, Modifier.weight(1f))
-                    EivraButton("未命中", {
-                        val next = JSONObject(bundle.toString()); val r = next.getJSONArray("investments").getJSONObject(i)
-                        r.put("status", "settled").put("result", false).put("profit", -r.optDouble("inputs")).put("settledAt", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).format(Date()))
-                        onSave(next)
-                    }, Modifier.weight(1f), subtle = true)
+                    EivraButton("命中", { onSettle(record.getString("id"), true) }, Modifier.weight(1f))
+                    EivraButton("未命中", { onSettle(record.getString("id"), false) }, Modifier.weight(1f), subtle = true)
                 }
             }
         }
@@ -165,7 +163,7 @@ fun DashboardScreen(tablet: Boolean, bundle: JSONObject) {
     PageIntro("DASHBOARD · 归因", "判断，留下了什么", "资金、概率与结果并读；样本不足时，不用一个看似精确的数字掩盖不确定性。")
     val records = bundle.getJSONArray("investments")
     var settled = 0; var wins = 0; var pnl = 0.0; var brier = 0.0; var scored = 0
-    for (i in 0 until records.length()) { val r = records.getJSONObject(i); if (r.optString("status") == "settled") { settled++; val won = r.optBoolean("result"); if (won) wins++; pnl += r.optDouble("profit"); if (r.has("expected") && !r.isNull("expected")) { val error = r.getDouble("expected") - if (won) 1.0 else 0.0; brier += error * error; scored++ } } }
+    for (i in 0 until records.length()) { val r = records.getJSONObject(i); if (r.optString("status") in listOf("win", "loss", "settled")) { settled++; val won = r.optString("status") == "win" || r.optBoolean("result"); if (won) wins++; pnl += r.optDouble("profit"); if ((r.has("expected_rating") || r.has("expected"))) { val error = r.optDouble("expected_rating", r.optDouble("expected", Double.NaN)) - if (won) 1.0 else 0.0; brier += error * error; scored++ } } }
     if (tablet) Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         GlassCard(Modifier.weight(1f)) { Metric("已结算样本", "$settled", "N 还不够时，只描述，不推广") }
         GlassCard(Modifier.weight(1f)) { Metric("净结果", "${if (pnl >= 0) "+" else ""}¥ ${"%.1f".format(pnl)}", "记录值，不构成收益承诺", accent = if (pnl >= 0) Eivra.Green else Eivra.Red) }
@@ -235,10 +233,23 @@ private fun InvestmentList(bundle: JSONObject, pendingOnly: Boolean) {
         if (pendingOnly && r.optString("status") != "pending") continue
         shown++
         Column(Modifier.fillMaxWidth().background(Color.White.copy(alpha = .45f), RoundedCornerShape(14.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("${r.optString("homeTeam")} vs ${r.optString("awayTeam")}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis); Text(if (r.optString("status") == "pending") "待结算" else if (r.optBoolean("result")) "命中" else "未命中", style = MaterialTheme.typography.labelMedium, color = if (r.optString("status") == "pending") Eivra.Gold else if (r.optBoolean("result")) Eivra.Green else Eivra.Red) }
-            Text(r.optJSONArray("entries")?.optJSONObject(0)?.optString("name") ?: "", style = MaterialTheme.typography.bodyMedium)
-            Text("投入 ¥${r.optDouble("inputs")} · ${r.optString("createdAt").take(10)}", style = MaterialTheme.typography.labelMedium, color = Eivra.Secondary)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(recordTitle(r), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis); Text(if (r.optString("status") == "pending") "待结算" else if (recordIsWin(r)) "命中" else "未命中", style = MaterialTheme.typography.labelMedium, color = if (r.optString("status") == "pending") Eivra.Gold else if (r.optString("status") == "win" || r.optBoolean("result")) Eivra.Green else Eivra.Red) }
+            Text(recordEntry(r), style = MaterialTheme.typography.bodyMedium)
+            Text("投入 ¥${r.optDouble("inputs")} · ${r.optString("created_at", r.optString("createdAt")).take(10)}", style = MaterialTheme.typography.labelMedium, color = Eivra.Secondary)
         }
     }
     if (shown == 0) Text("暂无记录", color = Eivra.Secondary)
 }
+
+private fun firstMatch(record: JSONObject): JSONObject = record.optJSONArray("matches")?.optJSONObject(0) ?: record
+private fun recordTitle(record: JSONObject): String {
+    val match = firstMatch(record)
+    val home = match.optString("home_team", record.optString("homeTeam", "未命名主队"))
+    val away = match.optString("away_team", record.optString("awayTeam", "未命名客队"))
+    return "$home  vs  $away"
+}
+private fun recordEntry(record: JSONObject): String {
+    val match = firstMatch(record)
+    return match.optString("entry_text").ifBlank { match.optJSONArray("entries")?.optJSONObject(0)?.optString("name") ?: record.optJSONArray("entries")?.optJSONObject(0)?.optString("name") ?: "" }
+}
+private fun recordIsWin(record: JSONObject): Boolean = record.optString("status") == "win" || record.optBoolean("result")

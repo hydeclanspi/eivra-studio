@@ -47,16 +47,32 @@ fun EivraApp(tablet: Boolean) {
     val context = LocalContext.current
     val repository = remember { WorkspaceRepository(context) }
     var route by rememberSaveable { mutableStateOf("new") }
-    var bundle by remember { mutableStateOf(repository.load()) }
+    var bundle by remember { mutableStateOf<JSONObject?>(null) }
     var engineStatus by remember { mutableStateOf("计算引擎自检中…") }
     var notice by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
-        engineStatus = withContext(Dispatchers.Default) {
-            try { NativeEngine(context).use { "原生计算 · ${it.healthCheck().getInt("answer")}" } } catch (e: Exception) { "引擎待接入 · ${e.javaClass.simpleName}" }
+        try {
+            bundle = repository.bootstrap()
+            engineStatus = "原生计算 · 原业务内核"
+        } catch (e: Exception) {
+            bundle = repository.load()
+            engineStatus = "引擎启动失败 · ${e.message?.take(80) ?: e.javaClass.simpleName}"
         }
     }
     fun update(next: JSONObject) { bundle = next; repository.save(next) }
+    fun saveInvestment(record: JSONObject) {
+        scope.launch {
+            try { bundle = repository.saveInvestment(record); notice = "已按原数据契约保存"; route = "portfolio" }
+            catch (e: Exception) { notice = "保存失败：${e.message}" }
+        }
+    }
+    fun settleInvestment(id: String, won: Boolean) {
+        scope.launch {
+            try { bundle = repository.settleInvestment(id, won); notice = "已写入结算与结算时间" }
+            catch (e: Exception) { notice = "结算失败：${e.message}" }
+        }
+    }
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
         topBar = { EivraTopBar(tablet, route, engineStatus) { route = it } },
@@ -66,15 +82,17 @@ fun EivraApp(tablet: Boolean) {
             if (tablet) TabletNavigation(route) { route = it }
             Box(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(horizontal = if (tablet) 32.dp else 17.dp, vertical = if (tablet) 26.dp else 19.dp)) {
                 Column(Modifier.fillMaxWidth().widthIn(max = 1320.dp).align(Alignment.TopCenter), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                    bundle?.let { current ->
                     when (route) {
-                        "new" -> NewInvestmentScreen(tablet, bundle) { update(it); notice = "已保存到本地工作区"; route = "portfolio" }
-                        "portfolio" -> PortfolioScreen(bundle)
-                        "settle" -> SettleScreen(bundle) { update(it) }
-                        "dashboard" -> DashboardScreen(tablet, bundle)
+                        "new" -> NewInvestmentScreen(tablet, current, ::saveInvestment)
+                        "portfolio" -> PortfolioScreen(current)
+                        "settle" -> SettleScreen(current, ::settleInvestment)
+                        "dashboard" -> DashboardScreen(tablet, current)
                         "quants" -> QuantsScreen()
-                        "history" -> HistoryScreen(bundle)
-                        "console" -> ConsoleScreen(bundle, repository) { bundle = repository.load(); notice = "本地工作区已更新" }
+                        "history" -> HistoryScreen(current)
+                        "console" -> ConsoleScreen(current, repository) { bundle = repository.load(); notice = "本地工作区已更新" }
                     }
+                    } ?: GlassCard { Text("正在启动原生计算与工作区…", color = Eivra.Secondary) }
                     if (notice.isNotEmpty()) Text(notice, color = Eivra.Green, style = MaterialTheme.typography.bodyMedium)
                     Text("Precision in uncertainty · 信息期权配仓", style = MaterialTheme.typography.labelMedium, color = Eivra.Secondary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp))
                 }
