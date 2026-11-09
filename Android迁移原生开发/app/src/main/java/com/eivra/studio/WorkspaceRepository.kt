@@ -39,11 +39,11 @@ class WorkspaceRepository(private val context: Context) {
     suspend fun dashboard(period: String = "all"): JSONObject = withContext(Dispatchers.Default) {
         NativeEngine(context, load()).use { JSONObject(it.invoke("analytics.getDashboardSnapshot", org.json.JSONArray().put(period))) }
     }
-    suspend fun analysis(): JSONObject = withContext(Dispatchers.Default) {
-        NativeEngine(context, load()).use { JSONObject(it.invoke("analytics.getAnalysisSnapshot")) }
+    suspend fun analysis(period: String = "all"): JSONObject = withContext(Dispatchers.Default) {
+        NativeEngine(context, load()).use { JSONObject(it.invoke("analytics.getAnalysisSnapshot", org.json.JSONArray().put(period))) }
     }
-    suspend fun metrics(): JSONObject = withContext(Dispatchers.Default) {
-        NativeEngine(context, load()).use { JSONObject(it.invoke("analytics.getMetricsSnapshot")) }
+    suspend fun metrics(period: String = "all"): JSONObject = withContext(Dispatchers.Default) {
+        NativeEngine(context, load()).use { JSONObject(it.invoke("analytics.getMetricsSnapshot", org.json.JSONArray().put(period))) }
     }
     suspend fun teams(): org.json.JSONArray = withContext(Dispatchers.Default) {
         NativeEngine(context, load()).use { org.json.JSONArray(it.invoke("analytics.getTeamsSnapshot", org.json.JSONArray().put("").put("all"))) }

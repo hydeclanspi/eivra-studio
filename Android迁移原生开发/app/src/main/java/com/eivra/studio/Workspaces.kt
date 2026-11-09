@@ -34,14 +34,17 @@ fun PortfolioScreen(bundle: JSONObject) {
 @Composable
 fun DashboardScreen(tablet: Boolean, bundle: JSONObject, repository: WorkspaceRepository) {
     PageIntro("DASHBOARD · 归因", "判断，留下了什么", "资金、概率与结果并读；样本不足时，不用一个看似精确的数字掩盖不确定性。")
-    var snapshot by remember(bundle) { mutableStateOf<JSONObject?>(null) }
-    var error by remember(bundle) { mutableStateOf("") }
-    LaunchedEffect(bundle) {
-        try { snapshot = repository.dashboard() } catch (e: Exception) { error = e.message ?: "无法读取分析结果" }
+    var period by remember { mutableStateOf("all") }
+    var snapshot by remember(bundle, period) { mutableStateOf<JSONObject?>(null) }
+    var error by remember(bundle, period) { mutableStateOf("") }
+    LaunchedEffect(bundle, period) {
+        try { snapshot = repository.dashboard(period) } catch (e: Exception) { error = e.message ?: "无法读取分析结果" }
     }
     val current = snapshot
     if (current == null) GlassCard { Text(if (error.isEmpty()) "正在由原始分析内核计算…" else error, color = Eivra.Secondary) }
     else {
+        ChoiceRow(listOf("all", "2w", "4w", "season"), period) { period = it }
+        ProjectionInspector("Dashboard · 完整原投影", current)
         val settled = current.optInt("settledPeriod")
         val hitRate = current.optDouble("hitRatePeriod")
         val pnl = current.optDouble("timelineTotalProfit", current.optJSONArray("timeline")?.let { rows -> (0 until rows.length()).sumOf { rows.optJSONObject(it)?.optDouble("profit") ?: 0.0 } } ?: 0.0)
