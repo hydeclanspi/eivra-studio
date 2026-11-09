@@ -1,8 +1,13 @@
 name: Android Native CI
+
 on:
   push:
+    branches: [android-native, main]
+    paths: ["Android迁移原生开发/**", ".github/workflows/android-native.yml"]
+  pull_request:
     paths: ["Android迁移原生开发/**", ".github/workflows/android-native.yml"]
   workflow_dispatch:
+
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
@@ -12,13 +17,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: "17" }
+        with:
+          distribution: temurin
+          java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
-      - run: chmod +x gradlew
-      - run: ./gradlew testDebugUnitTest
-      - run: ./gradlew assembleDebug
-      - uses: actions/upload-artifact@v4
+      - name: Unit tests and native boundary checks
+        run: ./gradlew testDebugUnitTest --stacktrace
+      - name: Assemble native APK
+        run: ./gradlew assembleDebug --stacktrace
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
         with:
           name: eivra-native-debug-apk
           path: Android迁移原生开发/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 14
+          retention-days: 30
