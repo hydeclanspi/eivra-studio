@@ -1,24 +1,13 @@
-# 构建与验收记录
+# Eivra Studio Android 构建日志
 
-## Run 1 · 2026-11-09
+## 2026-11-09 · 跨端计算已跑通，APK 尚未生成
 
-- commit: `4c53e2b92e3e4a0ee65a39d7b69e8b88bd5b3809`
-- branch: `android-native`
-- run: https://github.com/hydeclanspi/eivra-studio/actions/runs/42669582303
-- 结果：失败；Gradle wrapper 在 Windows 生成后没有 Unix 可执行位。
-- 影响：测试与 APK 构建未执行，不记为测试失败、不记为 APK 已构建。
-- 修复：CI 在测试前明确执行 `chmod +x gradlew`。
+- 原网页基线 lint / Vitest / production build：已通过。
+- Codespaces 实际执行：Node 24.22.2、OpenJDK 17.0.21、Gradle 8.13、Android SDK 36。
+- 原生引擎 `npm run test`：通过。原始 demo 96 条投资，使用原 `localData.saveInvestment` 保存，使用 `updateInvestment` 逐腿结算，检查 `settled_at/outcome_available_at`，导出并回读；Dashboard/Analysis/Metrics/Teams/Research/Forward 调用完成。
+- 原生引擎 `npm run build`：通过，独立引擎 752.7 KB，无网页 WebView。
+- 关键修复：FULL session latch 在业务模块 import 前建立；JSON 调用采用 `invokeJSON(name, JSON.stringify(argsArray))`；结算按原始 `matches + entries + is_correct` 契约传入。
+- `testDebugUnitTest` / `assembleDebug`：尚待成功。JDK 25 与 Gradle 不兼容已切到 JDK 17；SDK 已安装，下一次构建需修复 SDK 权限/依赖并处理 Kotlin 编译错误。
+- 模拟器、视觉复刻、性能与真机验收均未执行。
 
-## Run 2 · 2026-11-09
-
-- commit: `6c4ceb30561967415d5bfcd6ff1bece9c690b41c`
-- run: https://github.com/hydeclanspi/eivra-studio/actions/runs/42669684862
-- 结果：AAR metadata 检查失败；所选新版 AndroidX 依赖要求 compileSdk 36。
-- 修复：compileSdk/targetSdk 36；minSdk 29 不变。
-
-## 原生引擎调试与 GitHub 调度异常 · 2026-11-09
-
-- 网页 lint/test/build 已连续通过；原生 golden tests 仍在适配，未通过。
-- 已处理平台依赖别名、构建时 env、Node navigator、FULL/demo/genesis 初始化和离线云同步。
-- Run 15 `42671411092`、Run 22 `42672498173` 均标记 completed/failure，但 jobs 为空、日志 zip 仅 22 bytes，无法取得实际执行日志。不得计作测试失败或通过，记为调度层无执行收据。
-- 下一步用包含此说明的新提交重新触发，优先取真实 job；若仍无执行，构建与 APK 状态保持未验收。
+这是构建记录，不是完成证明。
