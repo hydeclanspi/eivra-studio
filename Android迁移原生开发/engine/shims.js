@@ -28,7 +28,7 @@ export function installEngineGlobals() {
   globalThis.localStorage = nativeStore
   globalThis.sessionStorage = nativeStore
   globalThis.CustomEvent = NativeCustomEvent
-  globalThis.navigator = { onLine: true }
+  Object.defineProperty(globalThis, 'navigator', { value: { onLine: true }, configurable: true, writable: true })
   globalThis.document = { hidden: false, visibilityState: 'visible', addEventListener() {}, removeEventListener() {} }
 }
 export function structuredCloneNative(value) {
