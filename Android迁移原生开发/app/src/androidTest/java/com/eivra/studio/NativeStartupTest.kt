@@ -163,8 +163,10 @@ class NativeStartupTest {
         rule.waitUntil(timeoutMillis = 30_000) { runCatching { rule.onNodeWithTag("dashboard-loaded").assertExists() }.isSuccess }
         navigate("history")
         waitPage("历史与证据")
-        rule.onAllNodesWithText("Arsenal", substring = true).onFirst().performScrollTo().assertIsDisplayed()
-        rule.onAllNodesWithText("Chelsea", substring = true).onFirst().performScrollTo().assertIsDisplayed()
+        scrollAndInput("field-搜索球队、盘口、组合或备注", "Chelsea")
+        rule.onAllNodesWithText("Arsenal vs Chelsea", substring = true).onFirst().assertIsDisplayed()
+        rule.onAllNodesWithText("实际 2-1", substring = true).onFirst().assertExists()
+        rule.onAllNodesWithText("命中", substring = false).onFirst().assertExists()
     }
 
 }
