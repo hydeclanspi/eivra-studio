@@ -24,6 +24,11 @@ class NativeStartupTest {
         }
     }
 
+    private fun diagnose() {
+        runCatching { rule.onRoot().printToLog("EivraTree") }
+        capture("failure-diagnostic")
+    }
+
     private fun navigate(id: String) {
         if (id in listOf("history", "analysis", "metrics", "teams", "console", "quants")) {
             runCatching { rule.onNodeWithTag("nav-more").performClick() }
@@ -34,7 +39,7 @@ class NativeStartupTest {
 
     private fun capture(name: String) {
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-        val dir = File("/sdcard/Download/eivra-acceptance")
+        val dir = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "acceptance")
         dir.mkdirs()
         val saved = device.takeScreenshot(File(dir, "$name.png"))
         if (!saved) throw IllegalStateException("无法保存原生截图 $name")
@@ -45,11 +50,11 @@ class NativeStartupTest {
         capture("phone-new")
         rule.onNodeWithText("Eivra Studio", substring = true).assertIsDisplayed()
         navigate("portfolio")
-        waitPage("组合配置")
+        runCatching { waitPage("组合配置") }.onFailure { diagnose(); throw it }
         capture("phone-portfolio")
         rule.onNodeWithTag("page-title").assertTextEquals("组合配置")
         navigate("dashboard")
-        waitPage("判断，留下了什么")
+        runCatching { waitPage("判断，留下了什么") }.onFailure { diagnose(); throw it }
         capture("phone-dashboard")
         rule.onNodeWithTag("page-title").assertTextEquals("判断，留下了什么")
         Espresso.pressBack()
@@ -79,7 +84,7 @@ class NativeStartupTest {
     @Test fun historyRetainsOriginalForecastEvidence() {
         waitHome()
         navigate("history")
-        waitPage("历史与证据")
+        runCatching { waitPage("历史与证据") }.onFailure { diagnose(); throw it }
         capture("phone-history")
         rule.onNodeWithTag("page-title").assertTextEquals("历史与证据")
         rule.onAllNodesWithText("展开 Entries、预测与时间戳", substring = true).onFirst().performClick()
