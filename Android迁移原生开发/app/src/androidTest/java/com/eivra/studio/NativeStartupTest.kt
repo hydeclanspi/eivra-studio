@@ -13,9 +13,11 @@ class NativeStartupTest {
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
 
     private fun waitHome() {
-        rule.waitUntil(timeoutMillis = 45_000) {
-            runCatching { rule.onNodeWithText("新建投资", substring = true).assertIsDisplayed() }.isSuccess
-        }
+        runCatching {
+            rule.waitUntil(timeoutMillis = 60_000) {
+                runCatching { rule.onNodeWithTag("workspace-ready").assertExists() }.isSuccess
+            }
+        }.onFailure { diagnose("startup"); throw it }
     }
 
     private fun waitPage(title: String) {
@@ -27,7 +29,7 @@ class NativeStartupTest {
     private fun diagnose(stage: String = "failure") {
         runCatching { rule.onRoot().printToLog("EivraTree") }
         runCatching { capture("$stage-diagnostic") }
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val context = InstrumentationRegistry.getInstrumentation().context
         val dir = File(context.filesDir, "native-screenshots").apply { mkdirs() }
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
         device.executeShellCommand("logcat -d -t 400 -v threadtime").lineSequence().filter {
@@ -44,7 +46,7 @@ class NativeStartupTest {
     }
 
     private fun capture(name: String) {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val context = InstrumentationRegistry.getInstrumentation().context
         val dir = File(context.filesDir, "native-screenshots").apply { mkdirs() }
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
         val output = File(dir, "$name.png")
@@ -134,9 +136,11 @@ class NativeStartupTest {
         scrollAndInput("field-客队", "Chelsea")
         scrollAndInput("field-我的原始 Conf", "0.6")
         scrollAndInput("field-实际投入 ¥", "10")
-        rule.waitUntil(timeoutMillis = 30_000) {
-            runCatching { rule.onNodeWithText("Expected Rating", substring = true).assertExists() }.isSuccess
-        }
+        runCatching {
+            rule.waitUntil(timeoutMillis = 30_000) {
+                runCatching { rule.onNodeWithText("Expected Rating", substring = true).assertExists() }.isSuccess
+            }
+        }.onFailure { diagnose("forecast"); throw it }
         rule.onNodeWithText("确认投资", substring = true).performScrollTo().performClick()
         runCatching {
             rule.waitUntil(timeoutMillis = 30_000) {

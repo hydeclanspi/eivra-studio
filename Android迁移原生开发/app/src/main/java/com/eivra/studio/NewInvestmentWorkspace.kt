@@ -56,6 +56,7 @@ fun NewInvestmentScreen(tablet: Boolean, bundle: JSONObject, repository: Workspa
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
+            android.util.Log.e("EivraNative", "Native forecast failed", e)
             if (key == computingKey) { prediction = null; validation = "投前模型暂不可用：${e.message ?: "请检查输入"}" }
         } finally {
             if (key == computingKey) computing = false
