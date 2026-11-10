@@ -173,7 +173,7 @@ private fun PhoneNavigation(route: String, onNavigate: (String) -> Unit) {
             }
             var moreOpen by remember { mutableStateOf(false) }
             val secondary = destinations.drop(4)
-            Box(Modifier.weight(1f)) {
+            Row(Modifier.weight(1f)) {
                 NavigationBarItem(selected = route in secondary.map { it.id }, onClick = { moreOpen = true }, modifier = Modifier.testTag("nav-more"), icon = { Icon(Icons.Outlined.MoreHoriz, "更多", Modifier.size(21.dp)) }, label = { Text("More", fontSize = 10.sp, maxLines = 1) }, colors = NavigationBarItemDefaults.colors(selectedIconColor = Eivra.Green, selectedTextColor = Eivra.Green, indicatorColor = Eivra.Mint, unselectedIconColor = Eivra.Secondary, unselectedTextColor = Eivra.Secondary))
                 DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
                     secondary.forEach { item -> DropdownMenuItem(modifier = Modifier.testTag("nav-${item.id}"), text = { Text("${item.title} · ${item.subtitle}") }, leadingIcon = { Icon(item.icon, null) }, onClick = { moreOpen = false; onNavigate(item.id) }) }
