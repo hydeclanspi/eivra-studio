@@ -71,9 +71,9 @@ jobs:
             ./Android迁移原生开发/gradlew -p Android迁移原生开发 connectedDebugAndroidTest
             TEST_STATUS=$?
             set -e
-            adb shell ls -l /data/local/tmp/eivra-acceptance || true
+            adb shell ls -l /sdcard/Android/data/com.eivra.studio.test/files/acceptance || true
             mkdir -p /tmp/eivra-native-screenshots
-            adb pull /data/local/tmp/eivra-acceptance /tmp/eivra-native-screenshots || true
+            adb pull /sdcard/Android/data/com.eivra.studio.test/files/acceptance /tmp/eivra-native-screenshots || true
             mkdir -p Android迁移原生开发/app/build/outputs/native-screenshots
             cp -r /tmp/eivra-native-screenshots/. Android迁移原生开发/app/build/outputs/native-screenshots/ || true
             exit $TEST_STATUS

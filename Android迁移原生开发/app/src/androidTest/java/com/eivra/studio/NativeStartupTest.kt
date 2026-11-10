@@ -38,13 +38,18 @@ class NativeStartupTest {
     }
 
     private fun capture(name: String) {
-        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-        val dir = File("/data/local/tmp/eivra-acceptance")
-        dir.mkdirs()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val device = UiDevice.getInstance(instrumentation)
+        // Screenshot is written by the instrumentation process, not the shell
+        // account used by UiAutomator's system service on API 35.
+        val dir = File(instrumentation.context.getExternalFilesDir(null), "acceptance")
+        check(dir.mkdirs() || dir.isDirectory) { "无法创建截图目录 ${dir.absolutePath}" }
         val output = File(dir, "$name.png")
-        android.util.Log.i("EivraNative", "screenshot path=${output.absolutePath}")
         val saved = device.takeScreenshot(output)
-        if (!saved) throw IllegalStateException("无法保存原生截图 $name")
+        android.util.Log.i("EivraNative", "screenshot path=${output.absolutePath} saved=$saved exists=${output.exists()}")
+        if (!saved || !output.isFile || output.length() == 0L) {
+            throw IllegalStateException("无法保存原生截图 $name 到 ${output.absolutePath}")
+        }
     }
 
     @Test fun startsNativeAndNavigatesCoreWorkspace() {
