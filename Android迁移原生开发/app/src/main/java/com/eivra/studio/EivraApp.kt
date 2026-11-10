@@ -95,10 +95,13 @@ fun EivraApp(tablet: Boolean) {
             try {
                 bundle = repository.settleInvestment(id, form)
                 notice = "已写入结算与结算时间"
-                val settled = bundle?.optJSONArray("investments")?.let { rows -> (0 until rows.length()).map(rows::getJSONObject).firstOrNull { it.optString("id") == id }
+                val rows = bundle?.optJSONArray("investments")
+                val settled = rows?.let { array -> (0 until array.length()).map(array::getJSONObject).firstOrNull { it.optString("id") == id } }
                 android.util.Log.i("EivraNative", "Settled id=$id status=${settled?.optString("status")} revenue=${settled?.optDouble("revenues")} matches=${settled?.optJSONArray("matches")?.length()}")
+            } catch (e: Exception) {
+                notice = "结算失败：${e.message}"
+                android.util.Log.e("EivraNative", "Native settlement failed", e)
             }
-            catch (e: Exception) { notice = "结算失败：${e.message}"; android.util.Log.e("EivraNative", "Native settlement failed", e) }
         }
     }
     Scaffold(
