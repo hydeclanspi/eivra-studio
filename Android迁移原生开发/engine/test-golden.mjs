@@ -14,6 +14,7 @@ const owner = api.hydrate(JSON.stringify({ emptyOwner: true }))
 const ownerInvestmentCount = owner.investments.length
 const ownerTeamCount = owner.team_profiles.length
 assert.equal(ownerInvestmentCount, 0)
+assert.ok(owner && typeof owner === 'object' && Array.isArray(owner.investments), 'native offline bootstrap must complete without browser timers')
 // The original engine may seed a team directory; this is not investment history.
 assert.equal(ownerInvestmentCount, 0)
 assert.equal(ownerTeamCount >= 0, true)
@@ -73,3 +74,4 @@ assert.equal(forecast.forecastSnapshot.legs[0].entries.length, 2)
 console.log(JSON.stringify({ ok: true, originalInvestments: original.investments.length, saved, updated, dashboardKeys: Object.keys(dashboard).slice(0, 20) }))
 
 assert.throws(() => api.invokeJSON('forecast.buildDraft', JSON.stringify([[{ home_team: 'A', away_team: 'B', conf: null, entries: [{ name: '主胜', odds: 2 }] }]])), /explicit conf/)
+
