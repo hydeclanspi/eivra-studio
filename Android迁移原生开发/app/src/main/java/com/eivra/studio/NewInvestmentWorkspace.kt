@@ -29,7 +29,7 @@ private data class MatchDraft(
 ) : android.os.Parcelable
 
 @Composable
-fun NewInvestmentScreen(tablet: Boolean, bundle: JSONObject, repository: WorkspaceRepository, onSave: (JSONObject) -> Unit) {
+fun NewInvestmentScreen(tablet: Boolean, bundle: JSONObject, repository: WorkspaceRepository, onSave: (JSONObject) -> Unit, recordIdFactory: () -> String = { "android-${System.currentTimeMillis()}" }) {
     var matches by rememberSaveable { mutableStateOf(listOf(MatchDraft())) }
     var stake by rememberSaveable { mutableStateOf("") }
     var comboName by rememberSaveable { mutableStateOf("") }
@@ -151,7 +151,7 @@ fun NewInvestmentScreen(tablet: Boolean, bundle: JSONObject, repository: Workspa
                 prediction == null -> validation = "原模型尚未给出有效预测分布；不会用默认概率替代。"
                 else -> {
                     val createdAt = Instant.now().toString()
-                    val record = JSONObject().put("id", "android-${System.currentTimeMillis()}")
+                    val record = JSONObject().put("id", recordIdFactory())
                         .put("created_at", createdAt).put("combo_name", comboName.trim())
                         .put("status", "pending").put("inputs", amount).put("parlay_size", matches.size)
                         .put("matches", payload)

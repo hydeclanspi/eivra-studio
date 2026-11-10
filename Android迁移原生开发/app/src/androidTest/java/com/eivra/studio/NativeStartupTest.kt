@@ -149,8 +149,8 @@ class NativeStartupTest {
         }.onFailure { diagnose("save"); throw it }
         navigate("settle")
         waitPage("结算记录")
-        rule.onNodeWithText("Arsenal vs Chelsea", substring = true).performScrollTo().assertIsDisplayed()
-        rule.onNodeWithText("命中", substring = false).performScrollTo().performClick()
+        rule.onAllNodesWithText("Arsenal vs Chelsea", substring = true).onFirst().performScrollTo().assertIsDisplayed()
+        rule.onAllNodesWithText("命中", substring = false).onFirst().performScrollTo().performClick()
         scrollAndInput("field-实际比分 / 结果", "2-1")
         scrollAndInput("field-Revenue · 实际回款 ¥", "20")
         rule.onNodeWithText("确认结算", substring = true).performScrollTo().performClick()

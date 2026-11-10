@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
 import com.eivra.studio.ui.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -29,7 +30,7 @@ fun SettleScreen(bundle: JSONObject, onSettle: (String, JSONObject) -> Unit) {
         var legs by remember(record.getString("id")) { mutableStateOf(List(matches.length()) { SettlementLeg() }) }
         var revenue by remember(record.getString("id")) { mutableStateOf("") }
         var error by remember(record.getString("id")) { mutableStateOf("") }
-        GlassCard {
+        GlassCard(modifier = Modifier.testTag("settle-card-${record.getString("id")}")) {
             SectionHeading("01", recordTitle(record), "${record.optString("combo_name", "未命名组合")} · 投入 ¥ ${record.optDouble("inputs")}")
             for (index in 0 until matches.length()) {
                 val match = matches.getJSONObject(index)
@@ -39,7 +40,7 @@ fun SettleScreen(bundle: JSONObject, onSettle: (String, JSONObject) -> Unit) {
                 LabeledField("实际比分 / 结果", leg.result, { legs = legs.editSettlement(index) { copy(result = it) } }, "例如 2–1；没有比分时留空")
                 Text("该腿判断是否正确？", style = MaterialTheme.typography.bodyMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    EivraButton("命中", { legs = legs.editSettlement(index) { copy(correct = true) } }, Modifier.weight(1f), subtle = leg.correct != true)
+                    EivraButton("命中", { legs = legs.editSettlement(index) { copy(correct = true) } }, Modifier.weight(1f).testTag("settle-hit-${record.getString("id")}-$index"), subtle = leg.correct != true)
                     EivraButton("未命中", { legs = legs.editSettlement(index) { copy(correct = false) } }, Modifier.weight(1f), subtle = leg.correct != false)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
