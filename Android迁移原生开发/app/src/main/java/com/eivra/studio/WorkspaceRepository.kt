@@ -36,13 +36,19 @@ class WorkspaceRepository(val context: Context) {
         record.put("expected_rating_semantics", "mean_calibrated_leg_probability")
         NativeEngine(context, load()).use {
             it.invoke("localData.saveInvestment", JSONArray().put(record))
-            it.workspace().also { next -> save(next) }
+            it.workspace().also { next ->
+                android.util.Log.i("EivraNative", "Persist saved workspace id=${record.optString("id")} count=${next.optJSONArray("investments")?.length()}")
+                save(next)
+            }
         }
     }
     suspend fun settleInvestment(id: String, form: JSONObject): JSONObject = withContext(Dispatchers.Default) {
         NativeEngine(context, load()).use {
             it.invoke("localData.settleFromForm", JSONArray().put(id).put(form))
-            it.workspace().also { next -> save(next) }
+            it.workspace().also { next ->
+                android.util.Log.i("EivraNative", "Persist settled workspace id=$id count=${next.optJSONArray("investments")?.length()}")
+                save(next)
+            }
         }
     }
     suspend fun saveSystemConfig(config: JSONObject): JSONObject = withContext(Dispatchers.Default) {

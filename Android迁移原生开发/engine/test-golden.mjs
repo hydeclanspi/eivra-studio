@@ -28,6 +28,10 @@ const saved = JSON.parse(api.invokeJSON('localData.getInvestments')).find(x => x
 assert.equal(saved.matches.length, 1)
 assert.equal(saved.matches[0].entries[0].name, '主胜')
 assert.equal(saved.parlay_size, 1)
+const persistedAfterSave = api.exportWorkspace()
+api.hydrate(JSON.stringify({ 'eivra.full_session_latch.v1': '1', 'eivra.workspace.native': JSON.stringify(persistedAfterSave) }))
+assert.equal(api.exportWorkspace().investments.some(x => x.id === record.id), true, 'a second native engine must retain the saved record')
+
 const updated = JSON.parse(api.invokeJSON('localData.settleFromForm', JSON.stringify([record.id, { revenues: 20, matches: [{ results: '2-1', isCorrect: true, matchRating: 0.3, matchRep: 0, postNote: '符合判断' }] }])))
 assert.equal(updated.status, 'win')
 assert.equal(updated.matches[0].is_correct, true)
