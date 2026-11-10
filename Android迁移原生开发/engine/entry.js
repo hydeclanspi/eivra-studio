@@ -23,7 +23,7 @@ function hydrateStorage(stores = {}) {
   const ownerEmpty = stores.emptyOwner === true
   if (ownerEmpty) {
     nativeSetStorageJSON(JSON.stringify({
-      'eivra.full_session_latch.v1': '1', 'eivra.git_sync_state.v1': JSON.stringify({ enabled: false }),
+      'eivra.full_session_latch.v1': '1', 'eivra.genesis_applied.v1': '1', 'eivra.git_sync_state.v1': JSON.stringify({ enabled: false }),
     }))
     localData.importDataBundle({ investments: [], team_profiles: [], system_config: getDemoSystemConfig(), access_logs: [] }, 'replace')
     return
@@ -45,7 +45,11 @@ function hydrateStorage(stores = {}) {
   nativeSetStorageJSON(JSON.stringify({
     [investmentsKey]: JSON.stringify(records), [configKey]: JSON.stringify(config),
     [teamsKey]: JSON.stringify(teams), [logsKey]: JSON.stringify(logs),
+    // Preserve the initialization markers with the real workspace, or a
+    // subsequent engine instance treats it as a fresh demo installation.
     'eivra.full_session_latch.v1': '1',
+    'eivra.genesis_applied.v1': '1',
+    'eivra.git_sync_state.v1': JSON.stringify({ enabled: false }),
   }))
 }
 const allowed = {
