@@ -69,7 +69,7 @@ jobs:
             chmod +x Android迁移原生开发/gradlew
             ./Android迁移原生开发/gradlew -p Android迁移原生开发 connectedDebugAndroidTest
             adb shell ls -l /sdcard/Android/data/com.eivra.studio/files/acceptance || true
-          adb pull /sdcard/Android/data/com.eivra.studio/files/acceptance /tmp/eivra-native-screenshots || true
+            adb pull /sdcard/Android/data/com.eivra.studio/files/acceptance /tmp/eivra-native-screenshots || true
             mkdir -p app/build/outputs/native-screenshots
             cp -r /tmp/eivra-native-screenshots/. app/build/outputs/native-screenshots/ || true
       - name: Upload emulator evidence
