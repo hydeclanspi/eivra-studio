@@ -51,7 +51,9 @@ fun NewInvestmentScreen(tablet: Boolean, bundle: JSONObject, repository: Workspa
         computing = true
         try {
             delay(220)
+            android.util.Log.i("EivraNative", "Forecast start key=$key")
             val result = repository.forecast(payload, Instant.now().toString())
+            android.util.Log.i("EivraNative", "Forecast success key=$key")
             if (key == computingKey) { prediction = result; validation = "" }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
@@ -139,6 +141,7 @@ fun NewInvestmentScreen(tablet: Boolean, bundle: JSONObject, repository: Workspa
         }
         if (validation.isNotBlank()) Text(validation, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("new-validation"))
         EivraButton("确认投资 · 冻结预测", {
+            android.util.Log.i("EivraNative", "Save clicked prediction=${prediction != null} computing=$computing validation=$validation")
             val amount = stake.toDoubleOrNull()
             when {
                 amount == null || amount < 0 -> validation = "实际投入须是非负数字。"

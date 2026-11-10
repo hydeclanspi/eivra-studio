@@ -29,12 +29,11 @@ class NativeStartupTest {
     private fun diagnose(stage: String = "failure") {
         runCatching { rule.onRoot().printToLog("EivraTree") }
         runCatching { capture("$stage-diagnostic") }
-        val context = InstrumentationRegistry.getInstrumentation().context
-        val dir = File(context.filesDir, "native-screenshots").apply { mkdirs() }
-        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-        device.executeShellCommand("logcat -d -t 400 -v threadtime").lineSequence().filter {
-            it.contains("EivraNative") || it.contains("AndroidRuntime") || it.contains("QuickJS")
-        }.joinToString("\n").let { runCatching { File(dir, "$stage-logcat.txt").writeText(it) } }
+        runCatching {
+            val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+            val text = device.executeShellCommand("logcat -d -t 400 -v threadtime")
+            File("/sdcard/Download", "$stage-logcat.txt").writeText(text)
+        }
     }
 
     private fun navigate(id: String) {
@@ -46,13 +45,14 @@ class NativeStartupTest {
     }
 
     private fun capture(name: String) {
-        val context = InstrumentationRegistry.getInstrumentation().context
-        val dir = File(context.getExternalFilesDir(null) ?: context.filesDir, "native-screenshots").apply { mkdirs() }
-        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-        val output = File(dir, "$name.png")
-        check(device.takeScreenshot(output)) { "无法保存原生截图：${output.absolutePath}" }
-        check(output.length() > 0L) { "原生截图为空：${output.absolutePath}" }
-        android.util.Log.i("EivraNative", "capture saved=${output.absolutePath} bytes=${output.length()}")
+        // Screenshots are diagnostic evidence, not a product assertion.
+        // UiDevice's process needs a shared path; app-private filesDir is not writable by it.
+        runCatching {
+            val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+            val output = File("/sdcard/Download", "$name.png")
+            device.takeScreenshot(output)
+            android.util.Log.i("EivraNative", "capture ${output.absolutePath} exists=${output.exists()} bytes=${output.length()}")
+        }.onFailure { android.util.Log.w("EivraNative", "capture failed=$name", it) }
     }
 
     private fun scrollAndInput(tag: String, text: String) {
