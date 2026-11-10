@@ -11,16 +11,21 @@ for i in $(seq 1 30); do
 done
 adb shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' || true
 adb exec-out screencap -p > Android迁移原生开发/app/build/outputs/native-screenshots/native-new.png || true
-# 320x640 smoke viewport: five equal bottom-navigation targets.
-adb shell input tap 96 600 >/dev/null || true
+# Use the actual viewport, not fixed 320x640 coordinates. Every capture is nonempty.
+capture() { adb exec-out screencap -p > "Android迁移原生开发/app/build/outputs/native-screenshots/$1.png"; test -s "Android迁移原生开发/app/build/outputs/native-screenshots/$1.png"; }
+tap() { adb shell input tap "$1" "$2" >/dev/null; }
+read -r WIDTH HEIGHT <<< "$(adb shell wm size | tail -1 | sed -E 's/.*: ([0-9]+)x([0-9]+).*/\1 \2/')"
+CENTER=$((WIDTH / 2)); BOTTOM=$((HEIGHT - 40))
+capture native-new
+tap $((WIDTH * 3 / 10)) "$BOTTOM"
 sleep 3
-adb exec-out screencap -p > Android迁移原生开发/app/build/outputs/native-screenshots/native-portfolio.png || true
-adb shell input tap 224 600 >/dev/null || true
+capture native-portfolio
+tap $((WIDTH * 7 / 10)) "$BOTTOM"
 sleep 8
-adb exec-out screencap -p > Android迁移原生开发/app/build/outputs/native-screenshots/native-dashboard.png || true
-adb shell input tap 288 600 >/dev/null || true
+capture native-dashboard
+tap $((WIDTH * 9 / 10)) "$BOTTOM"
 sleep 1
-adb shell input tap 288 320 >/dev/null || true
+tap "$CENTER" $((HEIGHT / 2))
 sleep 2
-adb exec-out screencap -p > Android迁移原生开发/app/build/outputs/native-screenshots/native-history.png || true
-ls -l Android迁移原生开发/app/build/outputs/native-screenshots || true
+capture native-history
+ls -l Android迁移原生开发/app/build/outputs/native-screenshots

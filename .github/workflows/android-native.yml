@@ -64,6 +64,8 @@ jobs:
           api-level: 35
           arch: x86_64
           target: google_apis
+          screen-size: 390x844
+          density: 420
           script: |
             cd "$GITHUB_WORKSPACE"
             chmod +x Android迁移原生开发/gradlew
