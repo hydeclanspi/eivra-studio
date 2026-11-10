@@ -34,9 +34,10 @@ class NativeStartupTest {
 
     private fun capture(name: String) {
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-        val dir = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "acceptance")
+        val dir = File("/sdcard/Download/eivra-acceptance")
         dir.mkdirs()
-        device.takeScreenshot(File(dir, "$name.png"))
+        val saved = device.takeScreenshot(File(dir, "$name.png"))
+        if (!saved) throw IllegalStateException("无法保存原生截图 $name")
     }
 
     @Test fun startsNativeAndNavigatesCoreWorkspace() {
@@ -61,7 +62,7 @@ class NativeStartupTest {
         rule.onNodeWithTag("field-客队").performTextInput("Chelsea")
         rule.onNodeWithTag("field-实际投入 ¥").performTextInput("10")
         rule.onNodeWithText("确认投资", substring = true).performScrollTo().performClick()
-        rule.onNodeWithText("原始 Conf", substring = true).assertExists()
+        rule.onAllNodesWithText("原始 Conf", substring = true).onFirst().assertExists()
         rule.onNodeWithText("未确认时不会替你填 0.5", substring = true).assertIsDisplayed()
     }
 
@@ -82,7 +83,7 @@ class NativeStartupTest {
         capture("phone-history")
         rule.onNodeWithTag("page-title").assertTextEquals("历史与证据")
         rule.onAllNodesWithText("展开 Entries、预测与时间戳", substring = true).onFirst().performClick()
-        rule.onNodeWithText("结算时间", substring = true).performScrollTo()
+        rule.onAllNodesWithText("结算时间", substring = true).onFirst().performScrollTo()
         rule.onNodeWithText("结算时间", substring = true).assertIsDisplayed()
     }
 }
