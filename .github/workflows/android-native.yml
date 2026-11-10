@@ -74,13 +74,18 @@ jobs:
             mkdir -p Android迁移原生开发/app/build/outputs/native-screenshots
             adb install -r Android迁移原生开发/app/build/outputs/apk/debug/app-debug.apk
             adb shell monkey -p com.eivra.studio 1
-            sleep 5
+            # Wait for actual original-engine workspace readiness, not an arbitrary screenshot.
+            for i in $(seq 1 30); do
+              adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 || true
+              if adb shell cat /sdcard/window.xml 2>/dev/null | grep -q 'workspace-ready'; then break; fi
+              sleep 1
+            done
             adb shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' || true
             mkdir -p Android迁移原生开发/app/build/outputs/native-screenshots
             adb exec-out screencap -p > Android迁移原生开发/app/build/outputs/native-screenshots/native-new.png || true
             # 320x640 smoke viewport: bottom navigation has five equal targets.
             adb shell input tap 96 600 >/dev/null || true
-            sleep 2
+            sleep 3
             adb exec-out screencap -p > Android迁移原生开发/app/build/outputs/native-screenshots/native-portfolio.png || true
             adb shell input tap 224 600 >/dev/null || true
             sleep 8

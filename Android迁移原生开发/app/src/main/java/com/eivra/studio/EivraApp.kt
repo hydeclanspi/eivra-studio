@@ -101,6 +101,7 @@ fun EivraApp(tablet: Boolean) {
             Box(Modifier.weight(1f).fillMaxHeight().then(if (route == "history") Modifier else Modifier.verticalScroll(rememberScrollState())).padding(horizontal = if (tablet) 32.dp else 17.dp, vertical = if (tablet) 26.dp else 19.dp)) {
                 Column(Modifier.fillMaxWidth().widthIn(max = 1320.dp).align(Alignment.TopCenter), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     bundle?.let { current ->
+                    Text("", modifier = Modifier.testTag("workspace-ready"))
                     when (route) {
                         "new" -> NewInvestmentScreen(tablet, current, repository, ::saveInvestment)
                         "portfolio" -> PortfolioScreen(current)
