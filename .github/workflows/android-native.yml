@@ -72,7 +72,10 @@ jobs:
             TEST_STATUS=$?
             set -e
             mkdir -p Android迁移原生开发/app/build/outputs/native-screenshots
-            adb exec-out screencap -p > Android迁移原生开发/app/build/outputs/native-screenshots/native-final-screen.png || true
+            adb shell ls -l /data/local/tmp/eivra-*.png || true
+            mkdir -p /tmp/eivra-native-screenshots
+            for file in $(adb shell ls /data/local/tmp/eivra-*.png 2>/dev/null); do adb pull "$file" /tmp/eivra-native-screenshots/ || true; done
+            cp -r /tmp/eivra-native-screenshots/. Android迁移原生开发/app/build/outputs/native-screenshots/ || true
             ls -l Android迁移原生开发/app/build/outputs/native-screenshots || true
             exit $TEST_STATUS
       - name: Upload emulator evidence
