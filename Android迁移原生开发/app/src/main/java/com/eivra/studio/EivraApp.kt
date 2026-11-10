@@ -81,13 +81,23 @@ fun EivraApp(tablet: Boolean) {
     fun update(next: JSONObject) { bundle = next; repository.save(next) }
     fun saveInvestment(record: JSONObject) {
         scope.launch {
-            try { bundle = repository.saveInvestment(record); notice = "已按原数据契约保存"; navigate("portfolio") }
+            try {
+                bundle = repository.saveInvestment(record)
+                notice = "已按原数据契约保存"
+                android.util.Log.i("EivraNative", "Saved record id=${record.optString("id")} investments=${bundle?.optJSONArray("investments")?.length()}")
+                navigate("portfolio")
+            }
             catch (e: Exception) { notice = "保存失败：${e.message}"; android.util.Log.e("EivraNative", "Native save failed", e) }
         }
     }
     fun settleInvestment(id: String, form: JSONObject) {
         scope.launch {
-            try { bundle = repository.settleInvestment(id, form); notice = "已写入结算与结算时间" }
+            try {
+                bundle = repository.settleInvestment(id, form)
+                notice = "已写入结算与结算时间"
+                val settled = bundle?.optJSONArray("investments")?.let { rows -> (0 until rows.length()).map(rows::getJSONObject).firstOrNull { it.optString("id") == id }
+                android.util.Log.i("EivraNative", "Settled id=$id status=${settled?.optString("status")} revenue=${settled?.optDouble("revenues")} matches=${settled?.optJSONArray("matches")?.length()}")
+            }
             catch (e: Exception) { notice = "结算失败：${e.message}"; android.util.Log.e("EivraNative", "Native settlement failed", e) }
         }
     }
