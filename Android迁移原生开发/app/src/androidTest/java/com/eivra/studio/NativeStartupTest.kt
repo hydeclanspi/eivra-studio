@@ -34,7 +34,7 @@ class NativeStartupTest {
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
         device.executeShellCommand("logcat -d -t 400 -v threadtime").lineSequence().filter {
             it.contains("EivraNative") || it.contains("AndroidRuntime") || it.contains("QuickJS")
-        }.joinToString("\n").let { File(dir, "$stage-logcat.txt").writeText(it) }
+        }.joinToString("\n").let { runCatching { File(dir, "$stage-logcat.txt").writeText(it) } }
     }
 
     private fun navigate(id: String) {
@@ -47,7 +47,7 @@ class NativeStartupTest {
 
     private fun capture(name: String) {
         val context = InstrumentationRegistry.getInstrumentation().context
-        val dir = File(context.filesDir, "native-screenshots").apply { mkdirs() }
+        val dir = File(context.getExternalFilesDir(null) ?: context.filesDir, "native-screenshots").apply { mkdirs() }
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
         val output = File(dir, "$name.png")
         check(device.takeScreenshot(output)) { "无法保存原生截图：${output.absolutePath}" }

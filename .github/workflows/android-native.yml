@@ -74,7 +74,7 @@ jobs:
             TEST_STATUS=$?
             set -e
             mkdir -p Android迁移原生开发/app/build/outputs/native-screenshots
-            adb exec-out run-as com.eivra.studio.test tar -cf - files/native-screenshots 2>/dev/null | tar -xf - -C Android迁移原生开发/app/build/outputs/native-screenshots/ || true
+            adb pull /sdcard/Android/data/com.eivra.studio.test/files/native-screenshots Android迁移原生开发/app/build/outputs/native-screenshots/ || true
             adb logcat -d -v threadtime > Android迁移原生开发/app/build/outputs/native-screenshots/full-logcat.txt || true
             bash Android迁移原生开发/scripts/capture-native-workspaces.sh
             exit $TEST_STATUS
