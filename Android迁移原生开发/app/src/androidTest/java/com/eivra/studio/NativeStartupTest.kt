@@ -18,11 +18,18 @@ class NativeStartupTest {
         }
     }
 
+    private fun waitPage(title: String) {
+        rule.waitUntil(timeoutMillis = 15_000) {
+            runCatching { rule.onNodeWithTag("page-title").assertTextEquals(title) }.isSuccess
+        }
+    }
+
     private fun navigate(id: String) {
         if (id in listOf("history", "analysis", "metrics", "teams", "console", "quants")) {
             runCatching { rule.onNodeWithTag("nav-more").performClick() }
         }
         rule.onNodeWithTag("nav-$id").performClick()
+        rule.waitForIdle()
     }
 
     private fun capture(name: String) {
@@ -37,9 +44,11 @@ class NativeStartupTest {
         capture("phone-new")
         rule.onNodeWithText("Eivra Studio", substring = true).assertIsDisplayed()
         navigate("portfolio")
+        waitPage("组合配置")
         capture("phone-portfolio")
         rule.onNodeWithTag("page-title").assertTextEquals("组合配置")
         navigate("dashboard")
+        waitPage("判断，留下了什么")
         capture("phone-dashboard")
         rule.onNodeWithTag("page-title").assertTextEquals("判断，留下了什么")
         Espresso.pressBack()
@@ -69,9 +78,11 @@ class NativeStartupTest {
     @Test fun historyRetainsOriginalForecastEvidence() {
         waitHome()
         navigate("history")
+        waitPage("历史与证据")
         capture("phone-history")
         rule.onNodeWithTag("page-title").assertTextEquals("历史与证据")
         rule.onAllNodesWithText("展开 Entries、预测与时间戳", substring = true).onFirst().performClick()
+        rule.onNodeWithText("结算时间", substring = true).performScrollTo()
         rule.onNodeWithText("结算时间", substring = true).assertIsDisplayed()
     }
 }

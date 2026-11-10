@@ -60,7 +60,7 @@ fun Metric(label: String, value: String, note: String? = null, modifier: Modifie
 
 @Composable
 fun LabeledField(label: String, value: String, onValueChange: (String) -> Unit, hint: String = "", modifier: Modifier = Modifier, numeric: Boolean = false) {
-    Column(modifier.testTag("field-$label"), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(7.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = LocalEivraSurface.current.muted)
         OutlinedTextField(
             value = value,
@@ -75,7 +75,7 @@ fun LabeledField(label: String, value: String, onValueChange: (String) -> Unit, 
                 unfocusedBorderColor = Eivra.Rule,
                 focusedBorderColor = LocalEivraSurface.current.accent
             ),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("field-$label")
         )
     }
 }
