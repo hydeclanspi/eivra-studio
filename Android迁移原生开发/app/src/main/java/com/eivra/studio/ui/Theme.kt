@@ -30,8 +30,8 @@ object Eivra {
 }
 
 val EivraTypography = androidx.compose.material3.Typography(
-    displaySmall = TextStyle(fontFamily = FontFamily.Serif, fontWeight = FontWeight.Normal, fontSize = 38.sp, lineHeight = 46.sp, letterSpacing = (-0.8).sp),
-    headlineMedium = TextStyle(fontFamily = FontFamily.Serif, fontWeight = FontWeight.Medium, fontSize = 28.sp, lineHeight = 36.sp),
+    displaySmall = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold, fontSize = 26.sp, lineHeight = 32.sp, letterSpacing = (-0.3).sp),
+    headlineMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.SemiBold, fontSize = 24.sp, lineHeight = 31.sp),
     titleLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 21.sp, lineHeight = 29.sp),
     titleMedium = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 16.sp, lineHeight = 23.sp),
     bodyLarge = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 15.sp, lineHeight = 24.sp),
@@ -58,7 +58,7 @@ fun EivraTheme(content: @Composable () -> Unit) {
 enum class InspirationMaterial { Folio, Glacier, Prism, Modern }
 data class EivraSurface(val canvas: Color, val card: Color, val well: Color, val ink: Color, val muted: Color, val accent: Color, val rim: Color, val radius: Int)
 val LocalEivraSurface = staticCompositionLocalOf {
-    EivraSurface(Color(0xFFD9D9D5), Color(0xE3F1F0E9), Color(0xADFFFFFA), Color(0xFF393E42), Color(0xFF686D73), Color(0xFF527B93), Color(0xDBFFFFFF), 22)
+    EivraSurface(Color(0xFFD9D9D5), Color(0xE3F1F0E9), Color(0xADFFFFFA), Color(0xFF393E42), Color(0xFF686D73), Color(0xFF527B93), Color(0xDBFFFFFF), 27)
 }
 fun inspirationMaterial(route: String) = when {
     route == "new" || route == "combo" -> InspirationMaterial.Folio
@@ -71,9 +71,9 @@ fun inspirationMaterial(route: String) = when {
 @Composable
 fun InspirationTheme(route: String, content: @Composable () -> Unit) {
     val surface = when (inspirationMaterial(route)) {
-        InspirationMaterial.Folio -> EivraSurface(Color(0xFFD9D9D5), Color(0xE3F1F0E9), Color(0xADFFFFFA), Color(0xFF393E42), Color(0xFF686D73), Color(0xFF527B93), Color(0xDBFFFFFF), 22)
+        InspirationMaterial.Folio -> EivraSurface(Color(0xFFD9D9D5), Color(0xE3F1F0E9), Color(0xADFFFFFA), Color(0xFF393E42), Color(0xFF686D73), Color(0xFF527B93), Color(0xDBFFFFFF), 27)
         InspirationMaterial.Glacier -> EivraSurface(Color(0xFFB6DCE7), Color(0xD6DCF4F6), Color(0xC4EDFBFC), Color(0xFF163E51), Color(0xFF476D7E), Color(0xFF007D9F), Color(0xDBFFFFFF), 26)
-        InspirationMaterial.Prism -> EivraSurface(Color(0xFFCEDBE6), Color(0xE0EEF4F9), Color(0x9CFFFFFF), Color(0xFF233747), Color(0xFF5F7383), Color(0xFF3475A7), Color(0xDBFFFFFF), 10)
+        InspirationMaterial.Prism -> EivraSurface(Color(0xFFD4E0E9), Color(0xE0EEF4F9), Color(0x9CFFFFFF), Color(0xFF233747), Color(0xFF5F7383), Color(0xFF3475A7), Color(0xDBFFFFFF), 10)
         InspirationMaterial.Modern -> EivraSurface(Color(0xFFF7F8FA), Color(0xFFFFFFFF), Color(0xFFFFFFFF), Color(0xFF273B35), Color(0xFF71817A), Color(0xFF527B93), Color(0xDBFFFFFF), 18)
     }
     CompositionLocalProvider(LocalEivraSurface provides surface) {

@@ -1,8 +1,11 @@
 {
-  "latestCiRun": 42853386498,
-  "latestCiConclusion": "success",
-  "coreNativeUiSmoke": "passed",
-  "visualAcceptance": "not_passed_screenshots_pending_review",
+  "latestCiRun": 42858333376,
+  "latestCiConclusion": "in_progress",
+  "coreNativeUiSmoke": "passed_in_CI_42851118176_and_42853386498",
+  "visualAcceptance": "pending_real_png",
   "performanceAcceptance": "not_measured",
-  "fullMigrationComplete": false
+  "fullMigrationComplete": false,
+  "latestUiEvidenceRun": 42855100256,
+  "latestUiFailureScope": "screenshot_capture_path_only",
+  "physicalDeviceAcceptance": "not_started"
 }

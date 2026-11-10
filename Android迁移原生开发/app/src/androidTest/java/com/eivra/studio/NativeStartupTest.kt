@@ -51,6 +51,7 @@ class NativeStartupTest {
         rule.onNodeWithTag("page-title").assertTextEquals("组合配置")
         navigate("dashboard")
         runCatching { waitPage("判断，留下了什么") }.onFailure { diagnose(); throw it }
+        rule.waitUntil(timeoutMillis = 30_000) { runCatching { rule.onNodeWithTag("dashboard-loaded").assertExists() }.isSuccess }
         capture("phone-dashboard")
         rule.onNodeWithTag("page-title").assertTextEquals("判断，留下了什么")
         Espresso.pressBack()

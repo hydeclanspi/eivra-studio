@@ -60,6 +60,9 @@ fun NewInvestmentScreen(tablet: Boolean, bundle: JSONObject, repository: Workspa
                 LabeledField("客队", match.away, { matches = matches.edit(index) { copy(away = it) } }, "球队名 / 缩写", Modifier.weight(1f))
             } else {
                 LabeledField("主队", match.home, { matches = matches.edit(index) { copy(home = it) } }, "球队名 / 缩写")
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    Text("VS", style = MaterialTheme.typography.labelMedium, color = Eivra.Secondary, modifier = Modifier.padding(vertical = 1.dp))
+                }
                 LabeledField("客队", match.away, { matches = matches.edit(index) { copy(away = it) } }, "球队名 / 缩写")
             }
             Text("Entries · 同场可并列多个盘口，每条有自己的赔率", style = MaterialTheme.typography.titleMedium)

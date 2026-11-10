@@ -26,11 +26,11 @@ import androidx.compose.ui.platform.testTag
 @Composable
 fun GlassCard(modifier: Modifier = Modifier, padding: Dp = 22.dp, content: @Composable ColumnScope.() -> Unit) {
     val surface = LocalEivraSurface.current
-    val shape = RoundedCornerShape(surface.radius.dp)
-    Column(modifier.shadow(12.dp, shape, ambientColor = surface.ink.copy(alpha = .12f), spotColor = surface.ink.copy(alpha = .1f))
+    val shape = RoundedCornerShape(topStart = 7.dp, topEnd = surface.radius.dp, bottomEnd = 7.dp, bottomStart = 7.dp)
+    Column(modifier.shadow(9.dp, shape, ambientColor = surface.ink.copy(alpha = .08f), spotColor = surface.ink.copy(alpha = .07f))
         .clip(shape)
         .background(Brush.linearGradient(listOf(surface.card, surface.well.copy(alpha = .72f), surface.card)))
-        .border(1.dp, surface.rim, shape)
+        .border(0.5.dp, surface.rim, shape)
         .padding(padding), verticalArrangement = Arrangement.spacedBy(14.dp), content = content)
 }
 
@@ -68,7 +68,7 @@ fun LabeledField(label: String, value: String, onValueChange: (String) -> Unit, 
             placeholder = { Text(hint) },
             singleLine = true,
             textStyle = MaterialTheme.typography.bodyLarge,
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(7.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 unfocusedContainerColor = Color.White.copy(alpha = .7f),
                 focusedContainerColor = Color.White,

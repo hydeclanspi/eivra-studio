@@ -125,7 +125,7 @@ fun EivraApp(tablet: Boolean) {
 
 @Composable
 private fun EivraTopBar(tablet: Boolean, route: String, status: String, onNavigate: (String) -> Unit) {
-    Column(Modifier.background(Eivra.Canvas).padding(horizontal = if (tablet) 28.dp else 18.dp, vertical = 13.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.background(if (route == "new") Color(0xFFF1F0E9) else if (route == "settle") Color(0xFFEAF4F7) else Color(0xFFEAF1F7)).padding(horizontal = if (tablet) 28.dp else 18.dp, vertical = 13.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Box(Modifier.size(if (tablet) 40.dp else 34.dp).clip(CircleShape).background(Eivra.Green), contentAlignment = Alignment.Center) { Text("E", color = Color(0xFFE4CDA6), fontFamily = FontFamily.Serif, fontSize = if (tablet) 26.sp else 21.sp) }
             Column(Modifier.weight(1f)) { Text("Eivra Studio", style = MaterialTheme.typography.titleMedium); Text("Intuition, calibrated.", style = MaterialTheme.typography.labelMedium, color = Eivra.Secondary) }

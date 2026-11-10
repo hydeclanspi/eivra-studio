@@ -83,7 +83,7 @@ jobs:
             sleep 2
             adb exec-out screencap -p > Android迁移原生开发/app/build/outputs/native-screenshots/native-portfolio.png || true
             adb shell input tap 224 600 >/dev/null || true
-            sleep 2
+            sleep 8
             adb exec-out screencap -p > Android迁移原生开发/app/build/outputs/native-screenshots/native-dashboard.png || true
             adb shell input tap 288 600 >/dev/null || true
             sleep 1

@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
 import com.eivra.studio.ui.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -23,9 +24,10 @@ fun DashboardScreen(tablet: Boolean, bundle: JSONObject, repository: WorkspaceRe
     var error by remember(bundle, period) { mutableStateOf("") }
     LaunchedEffect(bundle, period) { try { snapshot = repository.dashboard(period) } catch (e: Exception) { error = e.message ?: "无法读取分析结果" } }
     val current = snapshot
-    if (current == null) GlassCard { Text(if (error.isEmpty()) "正在由原始分析内核计算…" else error, color = LocalEivraSurface.current.muted) }
+    if (current == null) GlassCard(Modifier.testTag("dashboard-loading")) { Text(if (error.isEmpty()) "正在由原始分析内核计算…" else error, color = LocalEivraSurface.current.muted) }
     else {
         ChoiceRow(listOf("all", "2w", "4w", "season"), period, onSelect = { period = it })
+        Text("", modifier = Modifier.testTag("dashboard-loaded"))
         val settled = current.optInt("settledPeriod")
         val hitRate = current.optDouble("hitRatePeriod")
         val pnl = current.optDouble("cycleProfit")
