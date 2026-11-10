@@ -98,7 +98,7 @@ fun EivraApp(tablet: Boolean) {
     ) { insets ->
         Row(Modifier.fillMaxSize().padding(insets)) {
             if (tablet) TabletNavigation(route) { navigate(it) }
-            Box(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(horizontal = if (tablet) 32.dp else 17.dp, vertical = if (tablet) 26.dp else 19.dp)) {
+            Box(Modifier.weight(1f).fillMaxHeight().then(if (route == "history") Modifier else Modifier.verticalScroll(rememberScrollState())).padding(horizontal = if (tablet) 32.dp else 17.dp, vertical = if (tablet) 26.dp else 19.dp)) {
                 Column(Modifier.fillMaxWidth().widthIn(max = 1320.dp).align(Alignment.TopCenter), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     bundle?.let { current ->
                     when (route) {

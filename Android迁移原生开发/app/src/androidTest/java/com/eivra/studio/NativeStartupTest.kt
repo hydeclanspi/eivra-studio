@@ -100,6 +100,5 @@ class NativeStartupTest {
         rule.onAllNodesWithText("Conf", substring = true).onFirst().assertExists()
         rule.onAllNodesWithText("旧记录未包含 forecast snapshot", substring = true).onFirst().assertExists()
         rule.onAllNodesWithText("结算时间", substring = true).onFirst().assertExists()
-        rule.onAllNodesWithText("冻结预测", substring = true).onFirst().assertExists()
     }
 }

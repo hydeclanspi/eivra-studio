@@ -1,6 +1,8 @@
 package com.eivra.studio
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -24,8 +26,14 @@ fun HistoryScreen(bundle: JSONObject) {
             (query.isBlank() || record.toString().contains(query, ignoreCase = true))
     }.sortedByDescending { it.optString("created_at") }
     Text("${rows.size} / ${records.length()} 笔记录", color = Eivra.Secondary)
-    rows.forEach { record -> HistoryRecord(record) }
-    if (rows.isEmpty()) GlassCard { Text("没有匹配的记录。换一个关键词或状态。", color = Eivra.Secondary) }
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth().fillMaxHeight(),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+        contentPadding = PaddingValues(bottom = 24.dp)
+    ) {
+        items(rows, key = { it.optString("id") }) { record -> HistoryRecord(record) }
+        if (rows.isEmpty()) item { GlassCard { Text("没有匹配的记录。换一个关键词或状态。", color = Eivra.Secondary) } }
+    }
 }
 
 @Composable
