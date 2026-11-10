@@ -61,7 +61,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         timeout-minutes: 12
         with:
-          api-level: 36
+          api-level: 35
           arch: x86_64
           target: google_apis
           script: |
