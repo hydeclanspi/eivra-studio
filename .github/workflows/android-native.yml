@@ -68,7 +68,7 @@ jobs:
             cd "$GITHUB_WORKSPACE"
             chmod +x Android迁移原生开发/gradlew
             ./Android迁移原生开发/gradlew -p Android迁移原生开发 connectedDebugAndroidTest
-            adb shell run-as com.eivra.studio tar -cf - -C files/ acceptance | tar -xf - -C /tmp/eivra-native-screenshots || true
+            adb shell run-as com.eivra.studio tar -cf - -C /sdcard/Android/data/com.eivra.studio/files acceptance | tar -xf - -C /tmp/eivra-native-screenshots || true
             mkdir -p app/build/outputs/native-screenshots
             cp -r /tmp/eivra-native-screenshots/. app/build/outputs/native-screenshots/ || true
       - name: Upload emulator evidence

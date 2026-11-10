@@ -41,7 +41,9 @@ class NativeStartupTest {
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
         val dir = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "acceptance")
         dir.mkdirs()
-        val saved = device.takeScreenshot(File(dir, "$name.png"))
+        val output = File(dir, "$name.png")
+        android.util.Log.i("EivraNative", "screenshot path=${output.absolutePath}")
+        val saved = device.takeScreenshot(output)
         if (!saved) throw IllegalStateException("无法保存原生截图 $name")
     }
 
@@ -92,7 +94,9 @@ class NativeStartupTest {
         capture("phone-history")
         rule.onNodeWithTag("page-title").assertTextEquals("历史与证据")
         rule.onAllNodesWithText("展开 Entries、预测与时间戳", substring = true).onFirst().performClick()
+        rule.waitForIdle()
         rule.onAllNodesWithText("Entries", substring = true).onFirst().assertExists()
+        runCatching { rule.onAllNodesWithText("冻结预测", substring = true).onFirst().assertExists() }.onFailure { diagnose(); throw it }
         rule.onAllNodesWithText("冻结预测", substring = true).onFirst().assertExists()
     }
 }
