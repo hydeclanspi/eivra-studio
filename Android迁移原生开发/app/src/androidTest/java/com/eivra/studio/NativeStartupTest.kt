@@ -40,9 +40,9 @@ class NativeStartupTest {
     private fun capture(name: String) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val device = UiDevice.getInstance(instrumentation)
-        // Screenshot is written by the instrumentation process, not the shell
-        // account used by UiAutomator's system service on API 35.
-        val dir = File(instrumentation.context.getExternalFilesDir(null), "acceptance")
+        // Use the instrumentation app's private files directory. On this runner
+        // getExternalFilesDir(null) is null; external storage is not required.
+        val dir = File(instrumentation.context.filesDir, "acceptance")
         check(dir.mkdirs() || dir.isDirectory) { "无法创建截图目录 ${dir.absolutePath}" }
         val output = File(dir, "$name.png")
         val saved = device.takeScreenshot(output)
