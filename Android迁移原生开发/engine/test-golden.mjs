@@ -71,6 +71,13 @@ assert.equal(typeof forecast.combinedProfile.valid, 'boolean')
 assert.equal(forecast.forecastSnapshot.generated_at, '2026-11-09T12:00:00.000Z')
 assert.equal(forecast.forecastSnapshot.legs[0].entries.length, 2)
 
+const singleEntryForecast = JSON.parse(api.invokeJSON('forecast.buildDraft', JSON.stringify([[{
+  home_team: 'Arsenal', away_team: 'Chelsea', conf: 0.6, mode: '常规-杠杆',
+  entries: [{ name: '主胜', odds: 2 }], tys_home: 'M', tys_away: 'M', fid: 0.4, fse_home: 0.5, fse_away: 0.5,
+}], '2026-11-10T12:00:00.000Z'])))
+assert.equal(singleEntryForecast.profiles.length, 1)
+assert.equal(singleEntryForecast.forecastSnapshot.legs.length, 1)
+
 console.log(JSON.stringify({ ok: true, originalInvestments: original.investments.length, saved, updated, dashboardKeys: Object.keys(dashboard).slice(0, 20) }))
 
 assert.throws(() => api.invokeJSON('forecast.buildDraft', JSON.stringify([[{ home_team: 'A', away_team: 'B', conf: null, entries: [{ name: '主胜', odds: 2 }] }]])), /explicit conf/)

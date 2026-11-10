@@ -104,7 +104,7 @@ globalThis.eivraEngine = {
   forecast: {
     buildDraft(matches, generatedAt = new Date().toISOString()) {
       const config = localData.getSystemConfig()
-      const calibrationContext = analytics.getPredictionCalibrationContext()
+      const calibrationContext = analytics.getPredictionCalibrationContext({ detail: 'lite' })
       if (!Array.isArray(matches) || matches.length === 0) throw new Error("At least one match is required")
       if (matches.some(match => match.conf == null || match.conf === "" || !Number.isFinite(Number(match.conf)) || Number(match.conf) < 0 || Number(match.conf) > 1)) throw new Error("Each match requires an explicit conf in 0..1; unrated is not 0.5")
       const profiles = (matches || []).map(match => {
