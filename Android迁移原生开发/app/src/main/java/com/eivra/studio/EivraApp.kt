@@ -103,7 +103,7 @@ fun EivraApp(tablet: Boolean) {
                     bundle?.let { current ->
                     Text("", modifier = Modifier.testTag("workspace-ready"))
                     when (route) {
-                        "new" -> NewInvestmentScreen(tablet, current, repository, ::saveInvestment, recordIdFactory = { if (BuildConfig.DEBUG) "android-ui-e2e-${System.currentTimeMillis()}" else "android-${System.currentTimeMillis()}" })
+                        "new" -> NewInvestmentScreen(tablet, current, repository, ::saveInvestment, recordIdFactory = { "android-${System.currentTimeMillis()}" })
                         "portfolio" -> PortfolioScreen(current)
                         "settle" -> SettleScreen(current, ::settleInvestment)
                         "dashboard" -> DashboardScreen(tablet, current, repository)
