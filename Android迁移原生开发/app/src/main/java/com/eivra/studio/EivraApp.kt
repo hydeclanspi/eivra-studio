@@ -82,13 +82,13 @@ fun EivraApp(tablet: Boolean) {
     fun saveInvestment(record: JSONObject) {
         scope.launch {
             try { bundle = repository.saveInvestment(record); notice = "已按原数据契约保存"; navigate("portfolio") }
-            catch (e: Exception) { notice = "保存失败：${e.message}" }
+            catch (e: Exception) { notice = "保存失败：${e.message}"; android.util.Log.e("EivraNative", "Native save failed", e) }
         }
     }
     fun settleInvestment(id: String, form: JSONObject) {
         scope.launch {
             try { bundle = repository.settleInvestment(id, form); notice = "已写入结算与结算时间" }
-            catch (e: Exception) { notice = "结算失败：${e.message}" }
+            catch (e: Exception) { notice = "结算失败：${e.message}"; android.util.Log.e("EivraNative", "Native settlement failed", e) }
         }
     }
     Scaffold(
@@ -115,7 +115,7 @@ fun EivraApp(tablet: Boolean) {
                         "console" -> ConsoleScreen(current, repository) { next -> bundle = next ?: repository.load(); notice = "本地工作区已更新" }
                     }
                     } ?: GlassCard { Text("正在启动原生计算与工作区…", color = Eivra.Secondary) }
-                    if (notice.isNotEmpty()) Text(notice, color = Eivra.Green, style = MaterialTheme.typography.bodyMedium)
+                    if (notice.isNotEmpty()) Text(notice, color = Eivra.Green, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.testTag("workspace-notice"))
                     Text("Precision in uncertainty · 信息期权配仓", style = MaterialTheme.typography.labelMedium, color = Eivra.Secondary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp))
                 }
             }

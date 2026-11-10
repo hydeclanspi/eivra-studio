@@ -24,9 +24,15 @@ class NativeStartupTest {
         }
     }
 
-    private fun diagnose() {
+    private fun diagnose(stage: String = "failure") {
         runCatching { rule.onRoot().printToLog("EivraTree") }
-        capture("failure-diagnostic")
+        runCatching { capture("$stage-diagnostic") }
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val dir = File(context.filesDir, "native-screenshots").apply { mkdirs() }
+        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        device.executeShellCommand("logcat -d -t 400 -v threadtime").lineSequence().filter {
+            it.contains("EivraNative") || it.contains("AndroidRuntime") || it.contains("QuickJS")
+        }.joinToString("\n").let { File(dir, "$stage-logcat.txt").writeText(it) }
     }
 
     private fun navigate(id: String) {
@@ -112,7 +118,7 @@ class NativeStartupTest {
         waitHome()
         rule.onNodeWithTag("pre-match-hero").assertExists()
         rule.onNodeWithTag("team-pane-home").assertIsDisplayed()
-        rule.onNodeWithTag("team-pane-away").assertIsDisplayed()
+        rule.onNodeWithTag("team-pane-away").performScrollTo().assertIsDisplayed()
         rule.onNodeWithTag("field-主队").assertTextContains("主队")
         rule.onNodeWithTag("field-客队").assertTextContains("客队")
         scrollAndInput("field-主队", "Arsenal")
@@ -129,9 +135,11 @@ class NativeStartupTest {
         scrollAndInput("field-我的原始 Conf", "0.6")
         scrollAndInput("field-实际投入 ¥", "10")
         rule.onNodeWithText("确认投资", substring = true).performScrollTo().performClick()
-        rule.waitUntil(timeoutMillis = 30_000) {
-            runCatching { rule.onNodeWithTag("page-title").assertTextEquals("组合配置") }.isSuccess
-        }
+        runCatching {
+            rule.waitUntil(timeoutMillis = 30_000) {
+                runCatching { rule.onNodeWithTag("page-title").assertTextEquals("组合配置") }.isSuccess
+            }
+        }.onFailure { diagnose("save"); throw it }
         navigate("settle")
         waitPage("结算记录")
         rule.onNodeWithText("Arsenal vs Chelsea", substring = true).performScrollTo().assertIsDisplayed()
@@ -139,9 +147,11 @@ class NativeStartupTest {
         scrollAndInput("field-实际比分 / 结果", "2-1")
         scrollAndInput("field-Revenue · 实际回款 ¥", "20")
         rule.onNodeWithText("确认结算", substring = true).performScrollTo().performClick()
-        rule.waitUntil(timeoutMillis = 30_000) {
-            runCatching { rule.onNodeWithText("没有待结算的判断。", substring = true).assertExists() }.isSuccess
-        }
+        runCatching {
+            rule.waitUntil(timeoutMillis = 30_000) {
+                runCatching { rule.onNodeWithText("没有待结算的判断。", substring = true).assertExists() }.isSuccess
+            }
+        }.onFailure { diagnose("settle"); throw it }
         navigate("dashboard")
         rule.waitUntil(timeoutMillis = 30_000) { runCatching { rule.onNodeWithTag("dashboard-loaded").assertExists() }.isSuccess }
         navigate("history")

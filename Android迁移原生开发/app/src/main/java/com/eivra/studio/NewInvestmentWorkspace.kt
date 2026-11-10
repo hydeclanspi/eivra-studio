@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
 import com.eivra.studio.ui.*
 import kotlinx.coroutines.delay
 import org.json.JSONArray
@@ -124,7 +125,7 @@ fun NewInvestmentScreen(tablet: Boolean, bundle: JSONObject, repository: Workspa
             }
             current.optJSONObject("forecastSnapshot")?.let { Text("预测将在保存时冻结：${it.optString("generated_at")}", color = Eivra.Secondary, style = MaterialTheme.typography.bodySmall) }
         }
-        if (validation.isNotBlank()) Text(validation, color = MaterialTheme.colorScheme.error)
+        if (validation.isNotBlank()) Text(validation, color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag("new-validation"))
         EivraButton("确认投资 · 冻结预测", {
             val amount = stake.toDoubleOrNull()
             when {
