@@ -38,7 +38,19 @@ class NativeStartupTest {
     }
 
     private fun capture(name: String) {
-        android.util.Log.i("EivraNative", "capture requested=$name")
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val dir = File(context.filesDir, "native-screenshots").apply { mkdirs() }
+        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        val output = File(dir, "$name.png")
+        check(device.takeScreenshot(output)) { "无法保存原生截图：${output.absolutePath}" }
+        check(output.length() > 0L) { "原生截图为空：${output.absolutePath}" }
+        android.util.Log.i("EivraNative", "capture saved=${output.absolutePath} bytes=${output.length()}")
+    }
+
+    private fun scrollAndInput(tag: String, text: String) {
+        val node = rule.onNodeWithTag(tag)
+        runCatching { node.performScrollTo() }
+        node.performTextInput(text)
     }
 
     @Test fun startsNativeAndNavigatesCoreWorkspace() {
@@ -96,4 +108,46 @@ class NativeStartupTest {
         rule.onAllNodesWithText("旧记录未包含 forecast snapshot", substring = true).onFirst().assertExists()
         rule.onAllNodesWithText("结算时间", substring = true).onFirst().assertExists()
     }
+    @Test fun preMatchGlassRetainsBothTeamInputs() {
+        waitHome()
+        rule.onNodeWithTag("pre-match-hero").assertExists()
+        rule.onNodeWithTag("team-pane-home").assertIsDisplayed()
+        rule.onNodeWithTag("team-pane-away").assertIsDisplayed()
+        rule.onNodeWithTag("field-主队").assertTextContains("主队")
+        rule.onNodeWithTag("field-客队").assertTextContains("客队")
+        scrollAndInput("field-主队", "Arsenal")
+        scrollAndInput("field-客队", "Chelsea")
+        rule.onNodeWithTag("field-主队").assertTextContains("Arsenal")
+        rule.onNodeWithTag("field-客队").assertTextContains("Chelsea")
+        capture("phone-new-glass")
+    }
+
+    @Test fun newInvestmentCanBeSavedAndSettledLegByLeg() {
+        waitHome()
+        scrollAndInput("field-主队", "Arsenal")
+        scrollAndInput("field-客队", "Chelsea")
+        scrollAndInput("field-我的原始 Conf", "0.6")
+        scrollAndInput("field-实际投入 ¥", "10")
+        rule.onNodeWithText("确认投资", substring = true).performScrollTo().performClick()
+        rule.waitUntil(timeoutMillis = 30_000) {
+            runCatching { rule.onNodeWithTag("page-title").assertTextEquals("组合配置") }.isSuccess
+        }
+        navigate("settle")
+        waitPage("结算记录")
+        rule.onNodeWithText("Arsenal vs Chelsea", substring = true).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("命中", substring = false).performScrollTo().performClick()
+        scrollAndInput("field-实际比分 / 结果", "2-1")
+        scrollAndInput("field-Revenue · 实际回款 ¥", "20")
+        rule.onNodeWithText("确认结算", substring = true).performScrollTo().performClick()
+        rule.waitUntil(timeoutMillis = 30_000) {
+            runCatching { rule.onNodeWithText("没有待结算的判断。", substring = true).assertExists() }.isSuccess
+        }
+        navigate("dashboard")
+        rule.waitUntil(timeoutMillis = 30_000) { runCatching { rule.onNodeWithTag("dashboard-loaded").assertExists() }.isSuccess }
+        navigate("history")
+        waitPage("历史与证据")
+        rule.onAllNodesWithText("Arsenal", substring = true).onFirst().assertExists()
+        rule.onAllNodesWithText("Chelsea", substring = true).onFirst().assertExists()
+    }
+
 }
