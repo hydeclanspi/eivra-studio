@@ -5,6 +5,9 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.espresso.Espresso
 import org.junit.Rule
 import org.junit.Test
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.UiDevice
+import java.io.File
 
 class NativeStartupTest {
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
@@ -22,12 +25,22 @@ class NativeStartupTest {
         rule.onNodeWithTag("nav-$id").performClick()
     }
 
+    private fun capture(name: String) {
+        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        val dir = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "acceptance")
+        dir.mkdirs()
+        device.takeScreenshot(File(dir, "$name.png"))
+    }
+
     @Test fun startsNativeAndNavigatesCoreWorkspace() {
         waitHome()
+        capture("phone-new")
         rule.onNodeWithText("Eivra Studio", substring = true).assertIsDisplayed()
         navigate("portfolio")
+        capture("phone-portfolio")
         rule.onNodeWithTag("page-title").assertTextEquals("组合配置")
         navigate("dashboard")
+        capture("phone-dashboard")
         rule.onNodeWithTag("page-title").assertTextEquals("判断，留下了什么")
         Espresso.pressBack()
         rule.onNodeWithText("新建投资", substring = true).assertIsDisplayed()
@@ -56,6 +69,7 @@ class NativeStartupTest {
     @Test fun historyRetainsOriginalForecastEvidence() {
         waitHome()
         navigate("history")
+        capture("phone-history")
         rule.onNodeWithTag("page-title").assertTextEquals("历史与证据")
         rule.onAllNodesWithText("展开 Entries、预测与时间戳", substring = true).onFirst().performClick()
         rule.onNodeWithText("结算时间", substring = true).assertIsDisplayed()

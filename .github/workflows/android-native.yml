@@ -64,7 +64,12 @@ jobs:
           api-level: 36
           arch: x86_64
           target: google_apis
-          script: cd Android迁移原生开发 && ./gradlew connectedDebugAndroidTest
+          script: |
+            cd Android迁移原生开发
+            ./gradlew connectedDebugAndroidTest
+            adb pull /sdcard/Android/data/com.eivra.studio/files/acceptance /tmp/eivra-native-screenshots || true
+            mkdir -p app/build/outputs/native-screenshots
+            cp -r /tmp/eivra-native-screenshots/. app/build/outputs/native-screenshots/ || true
       - name: Upload emulator evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -74,6 +79,7 @@ jobs:
             Android迁移原生开发/app/build/outputs/androidTest-results/
             Android迁移原生开发/app/build/reports/androidTests/
             Android迁移原生开发/app/build/outputs/apk/androidTest/
+            Android迁移原生开发/app/build/outputs/native-screenshots/
           retention-days: 30
       - name: Verify APK and test reports
         if: always()
