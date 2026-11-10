@@ -72,7 +72,8 @@ jobs:
             TEST_STATUS=$?
             set -e
             mkdir -p Android迁移原生开发/app/build/outputs/native-screenshots
-            adb shell monkey -p com.eivra.studio 1 || true
+            adb install -r Android迁移原生开发/app/build/outputs/apk/debug/app-debug.apk
+            adb shell monkey -p com.eivra.studio 1
             sleep 5
             adb shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' || true
             mkdir -p Android迁移原生开发/app/build/outputs/native-screenshots
