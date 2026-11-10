@@ -65,7 +65,8 @@ jobs:
           arch: x86_64
           target: google_apis
           script: |
-            cd Android迁移原生开发
+            cd "$GITHUB_WORKSPACE/Android迁移原生开发"
+            chmod +x gradlew
             ./gradlew connectedDebugAndroidTest
             adb pull /sdcard/Android/data/com.eivra.studio/files/acceptance /tmp/eivra-native-screenshots || true
             mkdir -p app/build/outputs/native-screenshots
