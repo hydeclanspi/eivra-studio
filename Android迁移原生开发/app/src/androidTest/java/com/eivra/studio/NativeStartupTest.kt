@@ -93,8 +93,9 @@ class NativeStartupTest {
         runCatching { waitPage("历史与证据") }.onFailure { diagnose(); throw it }
         capture("phone-history")
         rule.onNodeWithTag("page-title").assertTextEquals("历史与证据")
-        rule.onAllNodesWithText("展开 Entries、预测与时间戳", substring = true).onFirst().performClick()
+        rule.onAllNodesWithText("展开 Entries、预测与时间戳", substring = true).onFirst().performScrollTo().performClick()
         rule.waitForIdle()
+        rule.onAllNodesWithText("收起证据", substring = true).onFirst().assertExists()
         rule.onAllNodesWithText("Entries", substring = true).onFirst().assertExists()
         runCatching { rule.onAllNodesWithText("冻结预测", substring = true).onFirst().assertExists() }.onFailure { diagnose(); throw it }
         rule.onAllNodesWithText("冻结预测", substring = true).onFirst().assertExists()
