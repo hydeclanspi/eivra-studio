@@ -67,11 +67,16 @@ jobs:
           script: |
             cd "$GITHUB_WORKSPACE"
             chmod +x Android迁移原生开发/gradlew
+            set +e
             ./Android迁移原生开发/gradlew -p Android迁移原生开发 connectedDebugAndroidTest
+            TEST_STATUS=$?
+            set -e
             adb shell ls -l /sdcard/Android/data/com.eivra.studio/files/acceptance || true
+            mkdir -p /tmp/eivra-native-screenshots
             adb pull /sdcard/Android/data/com.eivra.studio/files/acceptance /tmp/eivra-native-screenshots || true
-            mkdir -p app/build/outputs/native-screenshots
-            cp -r /tmp/eivra-native-screenshots/. app/build/outputs/native-screenshots/ || true
+            mkdir -p Android迁移原生开发/app/build/outputs/native-screenshots
+            cp -r /tmp/eivra-native-screenshots/. Android迁移原生开发/app/build/outputs/native-screenshots/ || true
+            exit $TEST_STATUS
       - name: Upload emulator evidence
         if: always()
         uses: actions/upload-artifact@v4
