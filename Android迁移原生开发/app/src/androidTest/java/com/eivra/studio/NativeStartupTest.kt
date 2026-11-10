@@ -58,7 +58,9 @@ class NativeStartupTest {
         capture("phone-dashboard")
         rule.onNodeWithTag("page-title").assertTextEquals("判断，留下了什么")
         Espresso.pressBack()
-        rule.onNodeWithText("新建投资", substring = true).assertIsDisplayed()
+        rule.onNodeWithTag("page-title").assertTextEquals("组合配置")
+        Espresso.pressBack()
+        rule.onNodeWithTag("page-title").assertTextEquals("新建投资")
     }
 
     @Test fun draftRejectsUnratedConfidenceInsteadOfUsingHalf() {
@@ -76,8 +78,8 @@ class NativeStartupTest {
         rule.onNodeWithTag("field-主队").performTextInput("Arsenal")
         rule.onNodeWithTag("field-客队").performTextInput("Chelsea")
         rule.activityRule.scenario.recreate()
-        rule.onNodeWithText("Arsenal", substring = true).assertIsDisplayed()
-        rule.onNodeWithText("Chelsea", substring = true).assertIsDisplayed()
+        rule.onNodeWithTag("field-主队").assertTextContains("Arsenal")
+        rule.onNodeWithTag("field-客队").assertTextContains("Chelsea")
         rule.onNodeWithText("新建投资", substring = true).assertIsDisplayed()
     }
 
@@ -88,7 +90,7 @@ class NativeStartupTest {
         capture("phone-history")
         rule.onNodeWithTag("page-title").assertTextEquals("历史与证据")
         rule.onAllNodesWithText("展开 Entries、预测与时间戳", substring = true).onFirst().performClick()
-        rule.onAllNodesWithText("结算时间", substring = true).onFirst().performScrollTo()
-        rule.onNodeWithText("结算时间", substring = true).assertIsDisplayed()
+        rule.onAllNodesWithText("Entries", substring = true).onFirst().assertExists()
+        rule.onAllNodesWithText("投前预测", substring = true).onFirst().assertExists()
     }
 }

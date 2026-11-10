@@ -21,6 +21,10 @@ export const nativeWindow = {
   removeEventListener(type, callback) { listeners.get(type)?.delete(callback) },
   dispatchEvent(event) { listeners.get(event.type)?.forEach(fn => fn(event)); return true },
   matchMedia() { return { matches: false, addEventListener() {}, removeEventListener() {} } },
+  setTimeout(callback, delay, ...args) { return globalThis.setTimeout(callback, delay, ...args) },
+  clearTimeout(id) { globalThis.clearTimeout(id) },
+  setInterval(callback, delay, ...args) { return globalThis.setInterval(callback, delay, ...args) },
+  clearInterval(id) { globalThis.clearInterval(id) },
 }
 export class NativeCustomEvent { constructor(type, options = {}) { this.type = type; this.detail = options.detail } }
 export function installEngineGlobals() {
