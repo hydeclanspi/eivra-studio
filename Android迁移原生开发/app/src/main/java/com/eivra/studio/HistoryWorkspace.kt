@@ -27,7 +27,7 @@ fun HistoryScreen(bundle: JSONObject) {
     }.sortedByDescending { it.optString("created_at") }
     Text("${rows.size} / ${records.length()} 笔记录", color = Eivra.Secondary)
     LazyColumn(
-        modifier = Modifier.fillMaxWidth().fillMaxHeight(),
+        modifier = Modifier.fillMaxWidth().fillMaxHeight().testTag("history-list"),
         verticalArrangement = Arrangement.spacedBy(18.dp),
         contentPadding = PaddingValues(bottom = 24.dp)
     ) {
