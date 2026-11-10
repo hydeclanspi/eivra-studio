@@ -96,8 +96,10 @@ class NativeStartupTest {
         rule.onAllNodesWithText("展开 Entries、预测与时间戳", substring = true).onFirst().performScrollTo().performClick()
         rule.waitForIdle()
         rule.onAllNodesWithText("收起证据", substring = true).onFirst().assertExists()
-        rule.onAllNodesWithText("Entries", substring = true).onFirst().assertExists()
-        runCatching { rule.onAllNodesWithText("冻结预测", substring = true).onFirst().assertExists() }.onFailure { diagnose(); throw it }
+        rule.onAllNodesWithText("Entry 1", substring = true).onFirst().assertExists()
+        rule.onAllNodesWithText("Conf", substring = true).onFirst().assertExists()
+        rule.onAllNodesWithText("旧记录未包含 forecast snapshot", substring = true).onFirst().assertExists()
+        rule.onAllNodesWithText("结算时间", substring = true).onFirst().assertExists()
         rule.onAllNodesWithText("冻结预测", substring = true).onFirst().assertExists()
     }
 }
