@@ -20,6 +20,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.testTag
 
 @Composable
 fun GlassCard(modifier: Modifier = Modifier, padding: Dp = 22.dp, content: @Composable ColumnScope.() -> Unit) {
@@ -92,7 +93,7 @@ fun SectionHeading(index: String, title: String, subtitle: String? = null) {
 fun PageIntro(eyebrow: String, title: String, description: String) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Eyebrow(eyebrow)
-        Text(title, style = MaterialTheme.typography.displaySmall, color = LocalEivraSurface.current.ink)
+        Text(title, style = MaterialTheme.typography.displaySmall, color = LocalEivraSurface.current.ink, modifier = Modifier.testTag("page-title"))
         Text(description, style = MaterialTheme.typography.bodyMedium, color = LocalEivraSurface.current.muted)
     }
 }

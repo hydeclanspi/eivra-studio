@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.testTag
 import com.eivra.studio.ui.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -137,7 +138,7 @@ private fun EivraTopBar(tablet: Boolean, route: String, status: String, onNaviga
 
 @Composable
 private fun NavPill(destination: Destination, active: Boolean, onClick: () -> Unit) {
-    Box(Modifier.clip(RoundedCornerShape(10.dp)).background(if (active) Eivra.Mint else Color.Transparent).clickable(onClick = onClick).padding(horizontal = 11.dp, vertical = 8.dp)) {
+    Box(Modifier.testTag("nav-${destination.id}").clip(RoundedCornerShape(10.dp)).background(if (active) Eivra.Mint else Color.Transparent).clickable(onClick = onClick).padding(horizontal = 11.dp, vertical = 8.dp)) {
         Text(destination.title, style = MaterialTheme.typography.bodyMedium, color = if (active) Eivra.Green else Eivra.Secondary)
     }
 }
@@ -146,7 +147,7 @@ private fun NavPill(destination: Destination, active: Boolean, onClick: () -> Un
 private fun TabletNavigation(route: String, onNavigate: (String) -> Unit) {
     Column(Modifier.width(184.dp).fillMaxHeight().padding(start = 22.dp, top = 22.dp, end = 8.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
         destinations.forEach { item ->
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).background(if (route == item.id) Eivra.Mint else Color.Transparent).clickable { onNavigate(item.id) }.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().testTag("nav-${item.id}").clip(RoundedCornerShape(13.dp)).background(if (route == item.id) Eivra.Mint else Color.Transparent).clickable { onNavigate(item.id) }.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(item.icon, item.subtitle, Modifier.size(18.dp), tint = Eivra.Green)
                 Column { Text(item.title, style = MaterialTheme.typography.bodyMedium); Text(item.subtitle, style = MaterialTheme.typography.labelMedium, color = Eivra.Secondary) }
             }
@@ -158,14 +159,14 @@ private fun TabletNavigation(route: String, onNavigate: (String) -> Unit) {
 private fun PhoneNavigation(route: String, onNavigate: (String) -> Unit) {
     NavigationBar(containerColor = Eivra.Surface, tonalElevation = 0.dp) {
         destinations.filter { it.id in listOf("new", "portfolio", "settle", "dashboard") }.forEach { item ->
-            NavigationBarItem(selected = route == item.id, onClick = { onNavigate(item.id) }, icon = { Icon(item.icon, item.title, Modifier.size(21.dp)) }, label = { Text(item.title, fontSize = 10.sp) }, colors = NavigationBarItemDefaults.colors(selectedIconColor = Eivra.Green, selectedTextColor = Eivra.Green, indicatorColor = Eivra.Mint, unselectedIconColor = Eivra.Secondary, unselectedTextColor = Eivra.Secondary))
+            NavigationBarItem(selected = route == item.id, onClick = { onNavigate(item.id) }, modifier = Modifier.testTag("nav-${item.id}"), icon = { Icon(item.icon, item.title, Modifier.size(21.dp)) }, label = { Text(item.title, fontSize = 10.sp) }, colors = NavigationBarItemDefaults.colors(selectedIconColor = Eivra.Green, selectedTextColor = Eivra.Green, indicatorColor = Eivra.Mint, unselectedIconColor = Eivra.Secondary, unselectedTextColor = Eivra.Secondary))
         }
         Row {
             var moreOpen by remember { mutableStateOf(false) }
             val secondary = destinations.drop(4)
-            NavigationBarItem(selected = route in secondary.map { it.id }, onClick = { moreOpen = true }, icon = { Icon(Icons.Outlined.MoreHoriz, "更多", Modifier.size(21.dp)) }, label = { Text("More", fontSize = 10.sp) }, colors = NavigationBarItemDefaults.colors(selectedIconColor = Eivra.Green, selectedTextColor = Eivra.Green, indicatorColor = Eivra.Mint, unselectedIconColor = Eivra.Secondary, unselectedTextColor = Eivra.Secondary))
+            NavigationBarItem(selected = route in secondary.map { it.id }, onClick = { moreOpen = true }, modifier = Modifier.testTag("nav-more"), icon = { Icon(Icons.Outlined.MoreHoriz, "更多", Modifier.size(21.dp)) }, label = { Text("More", fontSize = 10.sp) }, colors = NavigationBarItemDefaults.colors(selectedIconColor = Eivra.Green, selectedTextColor = Eivra.Green, indicatorColor = Eivra.Mint, unselectedIconColor = Eivra.Secondary, unselectedTextColor = Eivra.Secondary))
             DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
-                secondary.forEach { item -> DropdownMenuItem(text = { Text("${item.title} · ${item.subtitle}") }, leadingIcon = { Icon(item.icon, null) }, onClick = { moreOpen = false; onNavigate(item.id) }) }
+                secondary.forEach { item -> DropdownMenuItem(modifier = Modifier.testTag("nav-${item.id}"), text = { Text("${item.title} · ${item.subtitle}") }, leadingIcon = { Icon(item.icon, null) }, onClick = { moreOpen = false; onNavigate(item.id) }) }
             }
         }
     }
