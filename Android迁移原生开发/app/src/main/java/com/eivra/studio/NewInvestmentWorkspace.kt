@@ -43,12 +43,23 @@ fun NewInvestmentScreen(tablet: Boolean, bundle: JSONObject, repository: Workspa
     }
     LaunchedEffect(payload.toString()) {
         val key = ++computingKey
-        if (!matches.any { it.home.isNotBlank() && it.away.isNotBlank() }) { prediction = null; return@LaunchedEffect }
-        delay(220)
+        // An incomplete draft must not start a model request, and cancelling an
+        // older request must not leave its spinner permanently switched on.
+        prediction = null
+        computing = false
+        if (!matches.any { it.home.isNotBlank() && it.away.isNotBlank() }) return@LaunchedEffect
         computing = true
-        try { prediction = repository.forecast(payload, previewTime); validation = "" }
-        catch (e: Exception) { prediction = null; validation = "投前模型暂不可用：${e.message ?: "请检查输入"}" }
-        if (key == computingKey) computing = false
+        try {
+            delay(220)
+            val result = repository.forecast(payload, Instant.now().toString())
+            if (key == computingKey) { prediction = result; validation = "" }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (key == computingKey) { prediction = null; validation = "投前模型暂不可用：${e.message ?: "请检查输入"}" }
+        } finally {
+            if (key == computingKey) computing = false
+        }
     }
     PageIntro("NEW INVESTMENT · 投前研判", "新建投资", "把每场的判断拆成可复核的 Entries，再用同一套原始模型冻结预测。")
     matches.forEachIndexed { index, match ->

@@ -134,6 +134,9 @@ class NativeStartupTest {
         scrollAndInput("field-客队", "Chelsea")
         scrollAndInput("field-我的原始 Conf", "0.6")
         scrollAndInput("field-实际投入 ¥", "10")
+        rule.waitUntil(timeoutMillis = 30_000) {
+            runCatching { rule.onNodeWithText("Expected Rating", substring = true).assertExists() }.isSuccess
+        }
         rule.onNodeWithText("确认投资", substring = true).performScrollTo().performClick()
         runCatching {
             rule.waitUntil(timeoutMillis = 30_000) {
