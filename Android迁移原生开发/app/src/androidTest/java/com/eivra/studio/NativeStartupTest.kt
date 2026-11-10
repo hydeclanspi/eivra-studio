@@ -38,12 +38,7 @@ class NativeStartupTest {
     }
 
     private fun capture(name: String) {
-        // UiDevice executes screencap in the shell user's context, avoiding the
-        // app sandbox entirely. The file is then read by adb in CI.
-        val output = File("/data/local/tmp/eivra-$name.png")
-        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-        device.executeShellCommand("screencap -p ${output.absolutePath}")
-        android.util.Log.i("EivraNative", "system screenshot=${output.absolutePath}")
+        android.util.Log.i("EivraNative", "capture requested=$name")
     }
 
     @Test fun startsNativeAndNavigatesCoreWorkspace() {
