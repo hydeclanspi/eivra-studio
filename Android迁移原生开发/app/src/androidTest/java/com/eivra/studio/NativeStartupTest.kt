@@ -39,7 +39,7 @@ class NativeStartupTest {
 
     private fun capture(name: String) {
         val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-        val dir = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "acceptance")
+        val dir = File("/data/local/tmp/eivra-acceptance")
         dir.mkdirs()
         val output = File(dir, "$name.png")
         android.util.Log.i("EivraNative", "screenshot path=${output.absolutePath}")

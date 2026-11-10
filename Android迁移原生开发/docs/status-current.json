@@ -1,0 +1,8 @@
+{
+  "latestCiRun": 42853386498,
+  "latestCiConclusion": "success",
+  "coreNativeUiSmoke": "passed",
+  "visualAcceptance": "not_passed_screenshots_pending_review",
+  "performanceAcceptance": "not_measured",
+  "fullMigrationComplete": false
+}
