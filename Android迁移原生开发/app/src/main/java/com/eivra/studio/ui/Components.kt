@@ -62,11 +62,21 @@ fun Metric(label: String, value: String, note: String? = null, modifier: Modifie
 fun LabeledField(label: String, value: String, onValueChange: (String) -> Unit, hint: String = "", modifier: Modifier = Modifier, numeric: Boolean = false) {
     Column(modifier.testTag("field-$label"), verticalArrangement = Arrangement.spacedBy(7.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = LocalEivraSurface.current.muted)
-        OutlinedTextField(modifier = Modifier.testTag("field-$label"),value = value, onValueChange = onValueChange, placeholder = { Text(hint) }, singleLine = true,
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            placeholder = { Text(hint) },
+            singleLine = true,
             textStyle = MaterialTheme.typography.bodyLarge,
             shape = RoundedCornerShape(12.dp),
-            colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = Color.White.copy(alpha = .7f), focusedContainerColor = Color.White, unfocusedBorderColor = Eivra.Rule, focusedBorderColor = LocalEivraSurface.current.accent),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp))
+            colors = OutlinedTextFieldDefaults.colors(
+                unfocusedContainerColor = Color.White.copy(alpha = .7f),
+                focusedContainerColor = Color.White,
+                unfocusedBorderColor = Eivra.Rule,
+                focusedBorderColor = LocalEivraSurface.current.accent
+            ),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+        )
     }
 }
 
