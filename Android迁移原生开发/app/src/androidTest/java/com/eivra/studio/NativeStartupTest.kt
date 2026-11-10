@@ -78,6 +78,8 @@ class NativeStartupTest {
         rule.onNodeWithTag("field-主队").performTextInput("Arsenal")
         rule.onNodeWithTag("field-客队").performTextInput("Chelsea")
         rule.activityRule.scenario.recreate()
+        waitHome()
+        rule.waitUntil(timeoutMillis = 15_000) { runCatching { rule.onNodeWithTag("field-主队").assertExists() }.isSuccess }
         rule.onNodeWithTag("field-主队").assertTextContains("Arsenal")
         rule.onNodeWithTag("field-客队").assertTextContains("Chelsea")
         rule.onNodeWithText("新建投资", substring = true).assertIsDisplayed()
@@ -91,6 +93,6 @@ class NativeStartupTest {
         rule.onNodeWithTag("page-title").assertTextEquals("历史与证据")
         rule.onAllNodesWithText("展开 Entries、预测与时间戳", substring = true).onFirst().performClick()
         rule.onAllNodesWithText("Entries", substring = true).onFirst().assertExists()
-        rule.onAllNodesWithText("投前预测", substring = true).onFirst().assertExists()
+        rule.onAllNodesWithText("冻结预测", substring = true).onFirst().assertExists()
     }
 }
