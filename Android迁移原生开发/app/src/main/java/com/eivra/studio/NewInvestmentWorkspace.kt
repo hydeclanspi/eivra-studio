@@ -21,6 +21,7 @@ import java.time.Instant
 private data class EntryDraft(val name: String = "主胜", val odds: String = "2.00") : android.os.Parcelable
 @kotlinx.parcelize.Parcelize
 private data class MatchDraft(
+    val id: String = "draft-${System.currentTimeMillis()}-${(Math.random() * 1_000_000).toInt()}",
     val home: String = "", val away: String = "", val entries: List<EntryDraft> = listOf(EntryDraft()),
     val conf: String = "", val mode: String = "常规-杠杆", val tysHome: String = "M", val tysAway: String = "M",
     val fid: String = "0.40", val fseHome: String = "0.50", val fseAway: String = "0.50", val note: String = "",
@@ -55,16 +56,13 @@ fun NewInvestmentScreen(tablet: Boolean, bundle: JSONObject, repository: Workspa
                 SectionHeading("${index + 1}", if (match.home.isBlank() && match.away.isBlank()) "对阵 · 等待输入" else "${match.home} vs ${match.away}", "原始概率、Entries 与判断参数")
                 if (matches.size > 1) IconButton(onClick = { matches = matches.filterIndexed { i, _ -> i != index } }) { Icon(Icons.Outlined.Delete, "移除本场", tint = Eivra.Secondary) }
             }
-            if (tablet) Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                LabeledField("主队", match.home, { matches = matches.edit(index) { copy(home = it) } }, "球队名 / 缩写", Modifier.weight(1f))
-                LabeledField("客队", match.away, { matches = matches.edit(index) { copy(away = it) } }, "球队名 / 缩写", Modifier.weight(1f))
-            } else {
-                LabeledField("主队", match.home, { matches = matches.edit(index) { copy(home = it) } }, "球队名 / 缩写")
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                    Text("VS", style = MaterialTheme.typography.labelMedium, color = Eivra.Secondary, modifier = Modifier.padding(vertical = 1.dp))
-                }
-                LabeledField("客队", match.away, { matches = matches.edit(index) { copy(away = it) } }, "球队名 / 缩写")
-            }
+            PreMatchHero(
+                home = match.home,
+                away = match.away,
+                onHomeChange = { matches = matches.edit(index) { copy(home = it) } },
+                onAwayChange = { matches = matches.edit(index) { copy(away = it) } },
+                tablet = tablet,
+            )
             Text("Entries · 同场可并列多个盘口，每条有自己的赔率", style = MaterialTheme.typography.titleMedium)
             match.entries.forEachIndexed { entryIndex, entry ->
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -153,7 +151,7 @@ fun NewInvestmentScreen(tablet: Boolean, bundle: JSONObject, repository: Workspa
 }
 
 private fun MatchDraft.toJSON(index: Int) = JSONObject()
-    .put("id", "android-match-${System.currentTimeMillis()}-$index")
+    .put("id", id)
     .put("home_team", home.trim()).put("away_team", away.trim())
     .put("entries", JSONArray().apply { entries.forEach { put(JSONObject().put("name", it.name.trim()).put("odds", it.odds.toDouble())) } })
     .put("entry_text", entries.joinToString(" / ") { it.name.trim() })
