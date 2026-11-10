@@ -13,7 +13,9 @@
 
 Eivra Studio 将一份主观判断转化为可追溯的预测、配置、结果与修正记录。它把概率校准、组合构建与实证检验放进同一个交互工作空间，让研究者既能理解一笔决策，也能审视支撑它的证据。
 
-[在线体验工作台 eivra.vercel.app](https://eivra.vercel.app) · [模型内核](#模型内核) · [策略实验室](#策略实验室) · [本地运行](#本地运行) · [品牌记录](eivra-studio/docs/brand-identity.md)
+[在线体验工作台 eivra.vercel.app](https://eivra.vercel.app)
+
+[模型内核](#模型内核) · [策略实验室](#策略实验室) · [本地运行](#本地运行) · [品牌记录](eivra-studio/docs/brand-identity.md)
 
 
 **概率校准 · 分数凯利 · 共享事件蒙特卡洛 · 滚动前推验证**
