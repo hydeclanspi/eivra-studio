@@ -72,8 +72,9 @@ jobs:
             TEST_STATUS=$?
             set -e
             mkdir -p Android迁移原生开发/app/build/outputs/native-screenshots
-            adb shell am start -n com.eivra.studio/.MainActivity >/dev/null || true
-            sleep 3
+            adb shell monkey -p com.eivra.studio 1 || true
+            sleep 5
+            adb shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' || true
             mkdir -p Android迁移原生开发/app/build/outputs/native-screenshots
             adb exec-out screencap -p > Android迁移原生开发/app/build/outputs/native-screenshots/native-current-screen.png || true
             ls -l Android迁移原生开发/app/build/outputs/native-screenshots || true
