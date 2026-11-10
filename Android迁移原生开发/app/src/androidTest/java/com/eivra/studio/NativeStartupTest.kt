@@ -164,12 +164,7 @@ class NativeStartupTest {
         navigate("history")
         waitPage("历史与证据")
         scrollAndInput("field-搜索球队、盘口、组合或备注", "Chelsea")
-        rule.onNodeWithTag("history-list").performScrollToNode { node ->
-            (node.config[androidx.compose.ui.semantics.SemanticsProperties.Text] +
-                node.config[androidx.compose.ui.semantics.SemanticsProperties.EditableText]).any {
-                it.contains("Chelsea")
-            }
-        }
+        rule.onNodeWithTag("history-list").performScrollToNode(hasText("Chelsea", substring = true))
         rule.onAllNodesWithText("Arsenal vs Chelsea", substring = true).onFirst().assertIsDisplayed()
         rule.onAllNodesWithText("实际 2-1", substring = true).onFirst().assertExists()
         rule.onAllNodesWithText("命中", substring = false).onFirst().assertExists()
