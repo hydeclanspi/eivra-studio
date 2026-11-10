@@ -6,6 +6,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
 import com.eivra.studio.ui.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -57,6 +58,6 @@ private fun HistoryRecord(record: JSONObject) {
             } ?: Text("旧记录未包含 forecast snapshot；不以当前模型反填历史。", color = Eivra.Secondary)
             Text("结算时间 ${record.optString("settled_at", "未结算")} · 结果可用 ${record.optString("outcome_available_at", "未记录")}", color = Eivra.Secondary)
         }
-        EivraButton(if (expanded) "收起证据" else "展开 Entries、预测与时间戳", { expanded = !expanded }, Modifier.fillMaxWidth(), subtle = true)
+        EivraButton(if (expanded) "收起证据" else "展开 Entries、预测与时间戳", { expanded = !expanded }, Modifier.fillMaxWidth().testTag("history-expand-${record.optString("id")}"), subtle = true)
     }
 }

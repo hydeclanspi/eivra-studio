@@ -26,18 +26,18 @@ class NativeStartupTest {
         waitHome()
         rule.onNodeWithText("Eivra Studio", substring = true).assertIsDisplayed()
         navigate("portfolio")
-        rule.onNodeWithText("组合配置", substring = true).assertIsDisplayed()
+        rule.onNodeWithTag("page-title").assertTextEquals("组合配置")
         navigate("dashboard")
-        rule.onNodeWithText("判断，留下了什么", substring = true).assertIsDisplayed()
+        rule.onNodeWithTag("page-title").assertTextEquals("判断，留下了什么")
         Espresso.pressBack()
         rule.onNodeWithText("新建投资", substring = true).assertIsDisplayed()
     }
 
     @Test fun draftRejectsUnratedConfidenceInsteadOfUsingHalf() {
         waitHome()
-        rule.onNodeWithText("主队", substring = true).performTextInput("Arsenal")
-        rule.onNodeWithText("客队", substring = true).performTextInput("Chelsea")
-        rule.onNodeWithText("实际投入", substring = true).performTextInput("10")
+        rule.onNodeWithTag("field-主队").performTextInput("Arsenal")
+        rule.onNodeWithTag("field-客队").performTextInput("Chelsea")
+        rule.onNodeWithTag("field-实际投入 ¥").performTextInput("10")
         rule.onNodeWithText("确认投资", substring = true).performScrollTo().performClick()
         rule.onNodeWithText("原始 Conf", substring = true).assertExists()
         rule.onNodeWithText("未确认时不会替你填 0.5", substring = true).assertIsDisplayed()
@@ -45,8 +45,8 @@ class NativeStartupTest {
 
     @Test fun rotationRetainsDraftAndRoute() {
         waitHome()
-        rule.onNodeWithText("主队", substring = true).performTextInput("Arsenal")
-        rule.onNodeWithText("客队", substring = true).performTextInput("Chelsea")
+        rule.onNodeWithTag("field-主队").performTextInput("Arsenal")
+        rule.onNodeWithTag("field-客队").performTextInput("Chelsea")
         rule.activityRule.scenario.recreate()
         rule.onNodeWithText("Arsenal", substring = true).assertIsDisplayed()
         rule.onNodeWithText("Chelsea", substring = true).assertIsDisplayed()
@@ -56,8 +56,8 @@ class NativeStartupTest {
     @Test fun historyRetainsOriginalForecastEvidence() {
         waitHome()
         navigate("history")
-        rule.onNodeWithText("历史与证据", substring = true).assertIsDisplayed()
-        rule.onNodeWithText("展开 Entries、预测与时间戳", substring = true).performScrollTo().performClick()
+        rule.onNodeWithTag("page-title").assertTextEquals("历史与证据")
+        rule.onAllNodesWithText("展开 Entries、预测与时间戳", substring = true).onFirst().performClick()
         rule.onNodeWithText("结算时间", substring = true).assertIsDisplayed()
     }
 }

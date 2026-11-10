@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.testTag
 
 @Composable
 fun GlassCard(modifier: Modifier = Modifier, padding: Dp = 22.dp, content: @Composable ColumnScope.() -> Unit) {
@@ -61,11 +62,11 @@ fun Metric(label: String, value: String, note: String? = null, modifier: Modifie
 fun LabeledField(label: String, value: String, onValueChange: (String) -> Unit, hint: String = "", modifier: Modifier = Modifier, numeric: Boolean = false) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(7.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = LocalEivraSurface.current.muted)
-        OutlinedTextField(value = value, onValueChange = onValueChange, placeholder = { Text(hint) }, singleLine = true,
+        OutlinedTextField(modifier = Modifier.testTag("field-$label"),value = value, onValueChange = onValueChange, placeholder = { Text(hint) }, singleLine = true,
             textStyle = MaterialTheme.typography.bodyLarge,
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = Color.White.copy(alpha = .7f), focusedContainerColor = Color.White, unfocusedBorderColor = Eivra.Rule, focusedBorderColor = LocalEivraSurface.current.accent),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp))
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("field-$label"))
     }
 }
 
