@@ -64,14 +64,12 @@ jobs:
           api-level: 35
           arch: x86_64
           target: google_apis
-          screen-size: 390x844
-          density: 420
           script: |
             cd "$GITHUB_WORKSPACE"
             chmod +x Android迁移原生开发/gradlew
             adb wait-for-device
             adb shell wm size 390x844
-            adb shell wm density 420
+            adb shell wm density 160
             sleep 2
             echo "Actual emulator viewport:"
             adb shell wm size
