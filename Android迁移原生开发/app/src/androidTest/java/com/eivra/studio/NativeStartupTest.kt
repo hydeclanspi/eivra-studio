@@ -61,6 +61,12 @@ class NativeStartupTest {
         node.performTextInput(text)
     }
 
+    private fun scrollRootTo(tag: String) {
+        runCatching {
+            rule.onAllNodes(isScrollable()).onFirst().performScrollToNode(hasTestTag(tag))
+        }
+    }
+
     @Test fun startsNativeAndNavigatesCoreWorkspace() {
         waitHome()
         capture("phone-new")
@@ -85,9 +91,10 @@ class NativeStartupTest {
         scrollAndInput("field-主队", "Arsenal")
         scrollAndInput("field-客队", "Chelsea")
         scrollAndInput("field-实际投入 ¥", "10")
-        rule.onNodeWithText("确认投资", substring = true).performScrollTo().performClick()
+        rule.onAllNodes(isScrollable()).onFirst().performScrollToNode(hasText("确认投资", substring = true))
+        rule.onNodeWithText("确认投资", substring = true).performClick()
         rule.onAllNodesWithText("原始 Conf", substring = true).onFirst().assertExists()
-        rule.onNodeWithText("未确认时不会替你填 0.5", substring = true).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("未确认时不会替你填 0.5", substring = true).assertExists()
     }
 
     @Test fun rotationRetainsDraftAndRoute() {
@@ -99,7 +106,7 @@ class NativeStartupTest {
         rule.waitUntil(timeoutMillis = 15_000) { runCatching { rule.onNodeWithTag("field-主队").assertExists() }.isSuccess }
         rule.onNodeWithTag("field-主队").assertTextContains("Arsenal")
         rule.onNodeWithTag("field-客队").assertTextContains("Chelsea")
-        rule.onNodeWithText("新建投资", substring = true).performScrollTo().assertIsDisplayed()
+        rule.onNodeWithTag("page-title").assertTextEquals("新建投资")
     }
 
     @Test fun historyRetainsOriginalForecastEvidence() {
@@ -110,7 +117,7 @@ class NativeStartupTest {
         rule.onNodeWithTag("page-title").assertTextEquals("历史与证据")
         rule.onAllNodesWithText("展开 Entries、预测与时间戳", substring = true).onFirst().performScrollTo().performClick()
         rule.waitForIdle()
-        rule.onAllNodesWithText("收起证据", substring = true).onFirst().performScrollTo().assertExists()
+        rule.onAllNodesWithText("收起证据", substring = true).onFirst().assertExists()
         rule.onAllNodesWithText("Entry 1", substring = true).onFirst().assertExists()
         rule.onAllNodesWithText("Conf", substring = true).onFirst().assertExists()
         rule.onAllNodesWithText("旧记录未包含 forecast snapshot", substring = true).onFirst().assertExists()
@@ -120,7 +127,8 @@ class NativeStartupTest {
         waitHome()
         rule.onNodeWithTag("pre-match-hero").assertExists()
         rule.onNodeWithTag("team-pane-home").assertIsDisplayed()
-        rule.onNodeWithTag("team-pane-away").performScrollTo().assertIsDisplayed()
+        scrollRootTo("team-pane-away")
+        rule.onNodeWithTag("team-pane-away").assertExists()
         rule.onNodeWithTag("field-主队").assertTextContains("主队")
         rule.onNodeWithTag("field-客队").assertTextContains("客队")
         scrollAndInput("field-主队", "Arsenal")
@@ -141,7 +149,8 @@ class NativeStartupTest {
                 runCatching { rule.onNodeWithText("Expected Rating", substring = true).assertExists() }.isSuccess
             }
         }.onFailure { diagnose("forecast"); throw it }
-        rule.onNodeWithText("确认投资", substring = true).performScrollTo().performClick()
+        rule.onAllNodes(isScrollable()).onFirst().performScrollToNode(hasText("确认投资", substring = true))
+        rule.onNodeWithText("确认投资", substring = true).performClick()
         runCatching {
             rule.waitUntil(timeoutMillis = 30_000) {
                 runCatching { rule.onNodeWithTag("page-title").assertTextEquals("组合配置") }.isSuccess

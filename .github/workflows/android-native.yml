@@ -83,6 +83,7 @@ jobs:
             set -e
             mkdir -p Android迁移原生开发/app/build/outputs/native-screenshots
             adb pull /sdcard/Download/ Android迁移原生开发/app/build/outputs/native-screenshots/ || true
+            adb exec-out screencap -p > Android迁移原生开发/app/build/outputs/native-screenshots/native-final.png || true
             adb logcat -d -v threadtime > Android迁移原生开发/app/build/outputs/native-screenshots/full-logcat.txt || true
             bash Android迁移原生开发/scripts/capture-native-workspaces.sh
             adb pull /sdcard/Download/ Android迁移原生开发/app/build/outputs/native-screenshots/ || true
