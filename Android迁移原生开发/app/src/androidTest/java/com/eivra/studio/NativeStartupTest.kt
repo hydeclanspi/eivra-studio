@@ -154,12 +154,9 @@ class NativeStartupTest {
         rule.onNodeWithTag("settle-result-android-native-e2e-0").performScrollTo().performTextInput("2-1")
         rule.onNodeWithTag("settle-revenue-android-native-e2e").performScrollTo().performTextInput("20")
         rule.onNodeWithTag("settle-confirm-android-native-e2e").performScrollTo().performClick()
-        runCatching {
-            rule.waitUntil(timeoutMillis = 30_000) {
-                runCatching { rule.onNodeWithText("没有待结算的判断。", substring = true).assertExists() }.isSuccess
-            }
-        }.onFailure { diagnose("settle"); throw it }
-        rule.onNodeWithText("没有待结算的判断。", substring = true).assertExists()
+        rule.waitUntil(timeoutMillis = 30_000) {
+            runCatching { rule.onNodeWithText("已写入结算与结算时间", substring = true).assertExists() }.isSuccess
+        }
         navigate("dashboard")
         waitPage("判断，留下了什么")
         rule.waitUntil(timeoutMillis = 30_000) { runCatching { rule.onNodeWithTag("dashboard-loaded").assertExists() }.isSuccess }
