@@ -69,6 +69,13 @@ jobs:
           script: |
             cd "$GITHUB_WORKSPACE"
             chmod +x Android迁移原生开发/gradlew
+            adb wait-for-device
+            adb shell wm size 390x844
+            adb shell wm density 420
+            sleep 2
+            echo "Actual emulator viewport:"
+            adb shell wm size
+            adb shell wm density
             set +e
             ./Android迁移原生开发/gradlew -p Android迁移原生开发 connectedDebugAndroidTest
             TEST_STATUS=$?
