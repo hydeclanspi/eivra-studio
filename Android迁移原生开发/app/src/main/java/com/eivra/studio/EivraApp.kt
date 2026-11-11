@@ -49,7 +49,7 @@ private val destinations = listOf(
 )
 
 @Composable
-fun EivraApp(tablet: Boolean) {
+fun EivraApp(tablet: Boolean, recordIdFactory: () -> String = { "android-${System.currentTimeMillis()}" }) {
     var route by rememberSaveable { mutableStateOf("new") }
     val routeHistory = rememberSaveable { mutableStateOf(listOf<String>()) }
     fun navigate(next: String) {
@@ -116,7 +116,7 @@ fun EivraApp(tablet: Boolean) {
                     bundle?.let { current ->
                     Text("", modifier = Modifier.testTag("workspace-ready"))
                     when (route) {
-                        "new" -> NewInvestmentScreen(tablet, current, repository, ::saveInvestment, recordIdFactory = { "android-${System.currentTimeMillis()}" })
+                        "new" -> NewInvestmentScreen(tablet, current, repository, ::saveInvestment, recordIdFactory = recordIdFactory)
                         "portfolio" -> PortfolioScreen(current)
                         "settle" -> SettleScreen(current, ::settleInvestment)
                         "dashboard" -> DashboardScreen(tablet, current, repository)

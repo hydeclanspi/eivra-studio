@@ -17,7 +17,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             EivraTheme {
                 Surface(color = Eivra.Canvas) {
-                    BoxWithConstraints { EivraApp(tablet = maxWidth.value >= 840) }
+                    BoxWithConstraints { EivraApp(tablet = maxWidth.value >= 840, recordIdFactory = { "android-native-e2e" }) }
                 }
             }
         }
