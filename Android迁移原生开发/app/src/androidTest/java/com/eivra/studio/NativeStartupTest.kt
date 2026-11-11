@@ -159,7 +159,9 @@ class NativeStartupTest {
                 runCatching { rule.onNodeWithText("没有待结算的判断。", substring = true).assertExists() }.isSuccess
             }
         }.onFailure { diagnose("settle"); throw it }
+        rule.onNodeWithText("没有待结算的判断。", substring = true).assertExists()
         navigate("dashboard")
+        waitPage("判断，留下了什么")
         rule.waitUntil(timeoutMillis = 30_000) { runCatching { rule.onNodeWithTag("dashboard-loaded").assertExists() }.isSuccess }
         navigate("history")
         waitPage("历史与证据")
