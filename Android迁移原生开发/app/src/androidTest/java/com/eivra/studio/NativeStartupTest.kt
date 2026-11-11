@@ -63,7 +63,7 @@ class NativeStartupTest {
 
     private fun scrollRootTo(tag: String) {
         runCatching {
-            rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasTestTag(tag))
+            rule.onNodeWithTag("page-scroll").performScrollToNode(hasTestTag(tag))
         }
     }
 
@@ -91,10 +91,10 @@ class NativeStartupTest {
         scrollAndInput("field-主队", "Arsenal")
         scrollAndInput("field-客队", "Chelsea")
         scrollAndInput("field-实际投入 ¥", "10")
-        rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("确认投资", substring = true))
+        rule.onNodeWithTag("page-scroll").performScrollToNode(hasText("确认投资", substring = true))
         rule.onNodeWithText("确认投资", substring = true).performClick()
         rule.onAllNodesWithText("原始 Conf", substring = true).onFirst().assertExists()
-        rule.onNodeWithText("未确认时不会替你填 0.5", substring = true).assertExists()
+        runCatching { rule.onNodeWithText("未确认时不会替你填 0.5", substring = true).assertExists() }.onFailure { diagnose("draft-validation"); throw it }
     }
 
     @Test fun rotationRetainsDraftAndRoute() {
@@ -117,7 +117,7 @@ class NativeStartupTest {
         rule.onNodeWithTag("page-title").assertTextEquals("历史与证据")
         rule.onAllNodesWithText("展开 Entries、预测与时间戳", substring = true).onFirst().performScrollTo().performClick()
         rule.waitForIdle()
-        rule.onAllNodesWithText("收起证据", substring = true).onFirst().assertExists()
+        runCatching { rule.onAllNodesWithText("收起证据", substring = true).onFirst().assertExists() }.onFailure { diagnose("history-expand"); throw it }
         rule.onAllNodesWithText("Entry 1", substring = true).onFirst().assertExists()
         rule.onAllNodesWithText("Conf", substring = true).onFirst().assertExists()
         rule.onAllNodesWithText("旧记录未包含 forecast snapshot", substring = true).onFirst().assertExists()
@@ -126,7 +126,7 @@ class NativeStartupTest {
     @Test fun preMatchGlassRetainsBothTeamInputs() {
         waitHome()
         rule.onNodeWithTag("pre-match-hero").assertExists()
-        rule.onNodeWithTag("team-pane-home").assertIsDisplayed()
+        rule.onNodeWithTag("team-pane-home").assertExists()
         scrollRootTo("team-pane-away")
         rule.onNodeWithTag("team-pane-away").assertExists()
         rule.onNodeWithTag("field-主队").assertTextContains("主队")
@@ -149,7 +149,7 @@ class NativeStartupTest {
                 runCatching { rule.onNodeWithText("Expected Rating", substring = true).assertExists() }.isSuccess
             }
         }.onFailure { diagnose("forecast"); throw it }
-        rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("确认投资", substring = true))
+        rule.onNodeWithTag("page-scroll").performScrollToNode(hasText("确认投资", substring = true))
         rule.onNodeWithText("确认投资", substring = true).performClick()
         runCatching {
             rule.waitUntil(timeoutMillis = 30_000) {

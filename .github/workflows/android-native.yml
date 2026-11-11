@@ -78,6 +78,11 @@ jobs:
             adb shell wm density
             mkdir -p Android迁移原生开发/app/build/outputs/native-screenshots
             set +e
+            adb install -r Android迁移原生开发/app/build/outputs/apk/debug/app-debug.apk
+            adb shell am start -n com.eivra.studio/.MainActivity
+            sleep 8
+            adb exec-out screencap -p > Android迁移原生开发/app/build/outputs/native-screenshots/phone-initial.png
+            adb shell wm size
             ./Android迁移原生开发/gradlew -p Android迁移原生开发 connectedDebugAndroidTest
             TEST_STATUS=$?
             set -e
