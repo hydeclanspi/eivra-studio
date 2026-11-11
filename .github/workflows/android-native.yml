@@ -77,11 +77,6 @@ jobs:
             adb shell wm size
             adb shell wm density
             mkdir -p Android迁移原生开发/app/build/outputs/native-screenshots
-            collect_evidence() {
-              adb pull /sdcard/Download/ Android迁移原生开发/app/build/outputs/native-screenshots/ || true
-              adb logcat -d -v threadtime > Android迁移原生开发/app/build/outputs/native-screenshots/full-logcat.txt || true
-            }
-            trap collect_evidence 0
             set +e
             ./Android迁移原生开发/gradlew -p Android迁移原生开发 connectedDebugAndroidTest
             TEST_STATUS=$?
@@ -90,6 +85,7 @@ jobs:
             adb pull /sdcard/Download/ Android迁移原生开发/app/build/outputs/native-screenshots/ || true
             adb logcat -d -v threadtime > Android迁移原生开发/app/build/outputs/native-screenshots/full-logcat.txt || true
             bash Android迁移原生开发/scripts/capture-native-workspaces.sh
+            adb pull /sdcard/Download/ Android迁移原生开发/app/build/outputs/native-screenshots/ || true
             exit $TEST_STATUS
       - name: Upload emulator evidence
         if: always()
