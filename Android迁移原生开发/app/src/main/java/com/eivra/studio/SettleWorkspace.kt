@@ -37,7 +37,7 @@ fun SettleScreen(bundle: JSONObject, onSettle: (String, JSONObject) -> Unit) {
                 val leg = legs[index]
                 Text("${match.optString("home_team")} vs ${match.optString("away_team")}", style = MaterialTheme.typography.titleMedium)
                 Text("原判断：${match.optString("entry_text")} · ${recordEntry(record)}", color = Eivra.Secondary)
-                LabeledField("实际比分 / 结果", leg.result, { legs = legs.editSettlement(index) { copy(result = it) } }, "例如 2–1；没有比分时留空", Modifier.testTag("settle-result-${record.getString("id")}-$index"))
+                LabeledField("实际比分 / 结果", leg.result, { legs = legs.editSettlement(index) { copy(result = it) } }, "例如 2–1；没有比分时留空", fieldTestTag = "settle-result-${record.getString("id")}-$index")
                 Text("该腿判断是否正确？", style = MaterialTheme.typography.bodyMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     EivraButton("命中", { legs = legs.editSettlement(index) { copy(correct = true) } }, Modifier.weight(1f).testTag("settle-hit-${record.getString("id")}-$index"), subtle = leg.correct != true)
@@ -50,7 +50,7 @@ fun SettleScreen(bundle: JSONObject, onSettle: (String, JSONObject) -> Unit) {
                 LabeledField("赛后备注 · 可选", leg.note, { legs = legs.editSettlement(index) { copy(note = it) } }, "实际结果与当时判断差在哪里？")
                 if (index < matches.length() - 1) HorizontalDivider(color = Eivra.Rule)
             }
-            LabeledField("Revenue · 实际回款 ¥", revenue, { revenue = it }, "包含本金；未回款填 0", Modifier.testTag("settle-revenue-${record.getString("id")}"))
+            LabeledField("Revenue · 实际回款 ¥", revenue, { revenue = it }, "包含本金；未回款填 0", fieldTestTag = "settle-revenue-${record.getString("id")}")
             Text("原引擎会把每腿 is_correct、results、AJR、REP、备注写回记录；全部命中才是 win，profit = 回款 − 投入。", color = Eivra.Secondary)
             if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error)
             EivraButton("确认结算", {
