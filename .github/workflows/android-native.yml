@@ -81,7 +81,7 @@ jobs:
               adb pull /sdcard/Download/ Android迁移原生开发/app/build/outputs/native-screenshots/ || true
               adb logcat -d -v threadtime > Android迁移原生开发/app/build/outputs/native-screenshots/full-logcat.txt || true
             }
-            trap collect_evidence EXIT
+            trap collect_evidence 0
             set +e
             ./Android迁移原生开发/gradlew -p Android迁移原生开发 connectedDebugAndroidTest
             TEST_STATUS=$?
