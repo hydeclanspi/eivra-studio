@@ -63,7 +63,7 @@ class NativeStartupTest {
 
     private fun scrollRootTo(tag: String) {
         runCatching {
-            rule.onAllNodes(isScrollable()).onFirst().performScrollToNode(hasTestTag(tag))
+            rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasTestTag(tag))
         }
     }
 
@@ -91,7 +91,7 @@ class NativeStartupTest {
         scrollAndInput("field-主队", "Arsenal")
         scrollAndInput("field-客队", "Chelsea")
         scrollAndInput("field-实际投入 ¥", "10")
-        rule.onAllNodes(isScrollable()).onFirst().performScrollToNode(hasText("确认投资", substring = true))
+        rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("确认投资", substring = true))
         rule.onNodeWithText("确认投资", substring = true).performClick()
         rule.onAllNodesWithText("原始 Conf", substring = true).onFirst().assertExists()
         rule.onNodeWithText("未确认时不会替你填 0.5", substring = true).assertExists()
@@ -149,7 +149,7 @@ class NativeStartupTest {
                 runCatching { rule.onNodeWithText("Expected Rating", substring = true).assertExists() }.isSuccess
             }
         }.onFailure { diagnose("forecast"); throw it }
-        rule.onAllNodes(isScrollable()).onFirst().performScrollToNode(hasText("确认投资", substring = true))
+        rule.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("确认投资", substring = true))
         rule.onNodeWithText("确认投资", substring = true).performClick()
         runCatching {
             rule.waitUntil(timeoutMillis = 30_000) {
