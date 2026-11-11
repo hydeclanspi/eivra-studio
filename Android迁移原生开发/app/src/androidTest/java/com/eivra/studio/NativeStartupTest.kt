@@ -151,9 +151,9 @@ class NativeStartupTest {
         waitPage("结算记录")
         rule.onAllNodesWithText("Arsenal vs Chelsea", substring = true).onFirst().performScrollTo().assertIsDisplayed()
         rule.onAllNodesWithText("命中", substring = false).onFirst().performScrollTo().performClick()
-        scrollAndInput("field-实际比分 / 结果", "2-1")
-        scrollAndInput("field-Revenue · 实际回款 ¥", "20")
-        rule.onNodeWithText("确认结算", substring = true).performScrollTo().performClick()
+        rule.onNodeWithTag("settle-result-android-native-e2e-0").performScrollTo().performTextInput("2-1")
+        rule.onNodeWithTag("settle-revenue-android-native-e2e").performScrollTo().performTextInput("20")
+        rule.onNodeWithTag("settle-confirm-android-native-e2e").performScrollTo().performClick()
         runCatching {
             rule.waitUntil(timeoutMillis = 30_000) {
                 runCatching { rule.onNodeWithText("没有待结算的判断。", substring = true).assertExists() }.isSuccess
