@@ -82,24 +82,24 @@ class NativeStartupTest {
 
     @Test fun draftRejectsUnratedConfidenceInsteadOfUsingHalf() {
         waitHome()
-        rule.onNodeWithTag("field-主队").performTextInput("Arsenal")
-        rule.onNodeWithTag("field-客队").performTextInput("Chelsea")
-        rule.onNodeWithTag("field-实际投入 ¥").performTextInput("10")
+        scrollAndInput("field-主队", "Arsenal")
+        scrollAndInput("field-客队", "Chelsea")
+        scrollAndInput("field-实际投入 ¥", "10")
         rule.onNodeWithText("确认投资", substring = true).performScrollTo().performClick()
         rule.onAllNodesWithText("原始 Conf", substring = true).onFirst().assertExists()
-        rule.onNodeWithText("未确认时不会替你填 0.5", substring = true).assertIsDisplayed()
+        rule.onNodeWithText("未确认时不会替你填 0.5", substring = true).performScrollTo().assertIsDisplayed()
     }
 
     @Test fun rotationRetainsDraftAndRoute() {
         waitHome()
-        rule.onNodeWithTag("field-主队").performTextInput("Arsenal")
-        rule.onNodeWithTag("field-客队").performTextInput("Chelsea")
+        scrollAndInput("field-主队", "Arsenal")
+        scrollAndInput("field-客队", "Chelsea")
         rule.activityRule.scenario.recreate()
         waitHome()
         rule.waitUntil(timeoutMillis = 15_000) { runCatching { rule.onNodeWithTag("field-主队").assertExists() }.isSuccess }
         rule.onNodeWithTag("field-主队").assertTextContains("Arsenal")
         rule.onNodeWithTag("field-客队").assertTextContains("Chelsea")
-        rule.onNodeWithText("新建投资", substring = true).assertIsDisplayed()
+        rule.onNodeWithText("新建投资", substring = true).performScrollTo().assertIsDisplayed()
     }
 
     @Test fun historyRetainsOriginalForecastEvidence() {
@@ -110,7 +110,7 @@ class NativeStartupTest {
         rule.onNodeWithTag("page-title").assertTextEquals("历史与证据")
         rule.onAllNodesWithText("展开 Entries、预测与时间戳", substring = true).onFirst().performScrollTo().performClick()
         rule.waitForIdle()
-        rule.onAllNodesWithText("收起证据", substring = true).onFirst().assertExists()
+        rule.onAllNodesWithText("收起证据", substring = true).onFirst().performScrollTo().assertExists()
         rule.onAllNodesWithText("Entry 1", substring = true).onFirst().assertExists()
         rule.onAllNodesWithText("Conf", substring = true).onFirst().assertExists()
         rule.onAllNodesWithText("旧记录未包含 forecast snapshot", substring = true).onFirst().assertExists()
