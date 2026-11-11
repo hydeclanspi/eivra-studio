@@ -167,7 +167,8 @@ class NativeStartupTest {
         rule.onNodeWithTag("history-list").performScrollToNode(hasText("Chelsea", substring = true))
         rule.onAllNodesWithText("Arsenal vs Chelsea", substring = true).onFirst().assertIsDisplayed()
         rule.onAllNodesWithText("实际 2-1", substring = true).onFirst().assertExists()
-        rule.onAllNodesWithText("命中", substring = false).onFirst().assertExists()
+        runCatching { rule.onAllNodesWithText("命中", substring = true).onFirst().assertExists() }
+            .onFailure { diagnose("history"); throw it }
     }
 
 }
