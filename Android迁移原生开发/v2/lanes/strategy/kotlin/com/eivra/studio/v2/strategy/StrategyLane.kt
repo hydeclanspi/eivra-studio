@@ -7,6 +7,10 @@ import com.eivra.studio.v2.ui.LanePending
 @Composable fun StrategyScreen(env: StudioEnv) {
     val ws by env.ports.state.collectAsState()
     key(env.ports, ws.mode, env.dest.route) {
-        if(env.dest.route==Route.Portfolio) PortfolioDesk(env,ws) else LanePending(env.dest.route.title)
+        when(env.dest.route) {
+            Route.Portfolio -> PortfolioDesk(env,ws)
+            Route.Quants -> QuantsDesk(env,ws)
+            else -> Unit
+        }
     }
 }
