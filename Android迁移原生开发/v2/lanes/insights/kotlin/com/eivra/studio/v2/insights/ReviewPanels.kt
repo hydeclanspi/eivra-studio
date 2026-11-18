@@ -20,17 +20,38 @@ import androidx.compose.ui.text.font.*
 import androidx.compose.ui.unit.*
 import com.eivra.studio.v2.api.*
 import com.eivra.studio.v2.ui.*
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.platform.testTag
 import kotlin.math.*
 
 @Composable internal fun Caption(text: String, tint: Color = Moon.Muted) { Text(text,color=tint,fontSize=12.sp,lineHeight=17.sp) }
 @Composable private fun Body(text: String) { Text(text,color=Moon.Ink,fontSize=15.sp,lineHeight=21.sp) }
 @Composable private fun Title(text: String) { Text(text,color=Moon.Ink,fontSize=18.sp,lineHeight=23.sp,fontWeight=FontWeight.SemiBold) }
 
+// One text run / baseline even when the currency or percent sign has a smaller face.
+@Composable private fun MetricValue(value: String) {
+    val face=MaterialTheme.typography.titleLarge.copy(fontFeatureSettings="tnum", fontSize=22.sp,
+        lineHeight=29.sp, letterSpacing=0.sp, fontWeight=FontWeight.SemiBold)
+    val unit=SpanStyle(fontSize=15.sp, fontWeight=FontWeight.Medium)
+    val text=remember(value) { buildAnnotatedString {
+        if(value.startsWith("¥")) { withStyle(unit){append("¥")}; append(value.drop(1)) }
+        else if(value.endsWith("%")) { append(value.dropLast(1)); withStyle(unit){append("%")} }
+        else append(value)
+    } }
+    Text(text,style=face,color=Moon.Ink)
+}
+
 @Composable internal fun DrawBlock(b: Block, wide: Boolean, go: (Dest)->Unit, choose: (String)->Unit) {
     when(b) {
         is Block.Stats -> { val cols=if(wide) b.values.size else 2
             Column(verticalArrangement=Arrangement.spacedBy(8.dp)) { for(group in b.values.chunked(cols)) Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                for(s in group) GlassPanel(Modifier.weight(1f),padding=14.dp,radius=16.dp) { Caption(s.label); Text(s.value,color=Moon.Ink,fontSize=if(wide) 29.sp else 24.sp,lineHeight=32.sp,fontWeight=FontWeight.Medium); Caption(s.basis) }
+                for(s in group) GlassPanel(Modifier.weight(1f),padding=if(wide) 21.dp else 15.dp,radius=9.dp) {
+                    Column(Modifier.testTag("stat:${s.label}").semantics(mergeDescendants=true){},verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                        Caption(s.label); MetricValue(s.value); Caption(s.basis)
+                    }
+                }
                 repeat(cols-group.size) { Spacer(Modifier.weight(1f)) }
             } }
         }
