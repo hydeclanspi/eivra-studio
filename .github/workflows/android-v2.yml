@@ -21,6 +21,7 @@ jobs:
         working-directory: Android迁移原生开发/v2
     steps:
       - uses: actions/checkout@v4
+        with: {persist-credentials: false}
       - uses: actions/setup-java@v4
         with: {distribution: temurin, java-version: '17'}
       - uses: gradle/actions/setup-gradle@v4
@@ -43,7 +44,7 @@ jobs:
       - name: Verify shell on phone and landscape tablet
         if: github.ref == 'refs/heads/android-native'
         uses: reactivecircus/android-emulator-runner@v2
-        timeout-minutes: 16
+        timeout-minutes: 19
         with:
           api-level: 35
           arch: x86_64
@@ -59,3 +60,25 @@ jobs:
             Android迁移原生开发/v2/app/build/outputs/androidTest-results/
           if-no-files-found: ignore
           retention-days: 7
+  reference:
+    if: github.ref == 'refs/heads/android-native'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Collect fresh public Web references, independently of Android results
+        working-directory: Android迁移原生开发/v2
+        run: |
+          sudo apt-get -qq update && sudo apt-get install -y -qq fonts-noto-cjk
+          python -m pip install --disable-pip-version-check 'playwright==1.56.0'
+          python tools/capture_web.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-reference-${{ github.sha }}
+          path: Android迁移原生开发/v2/app/build/web-reference/
+          retention-days: 7
+          if-no-files-found: error

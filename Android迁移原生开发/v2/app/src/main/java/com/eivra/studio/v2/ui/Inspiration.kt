@@ -57,24 +57,13 @@ private fun gradient(angle: Double, rect: Rect, vararg stops: Pair<Float,Color>)
 
 @Composable fun StudioTheme(content: @Composable () -> Unit) {
     val colors=remember {lightColorScheme(primary=Moon.Accent, onPrimary=Color.White, background=Moon.Light, onBackground=Moon.Ink, surface=Moon.Light, onSurface=Moon.Ink, onSurfaceVariant=Moon.Muted, outline=Moon.Rule, error=Color(0xFFAF394C))}
-    MaterialTheme(colorScheme=colors){ CompositionLocalProvider(LocalContentColor provides Moon.Ink,content=content) }
+    MaterialTheme(colorScheme=colors, typography=StudioType){ CompositionLocalProvider(LocalContentColor provides Moon.Ink,content=content) }
 }
 
 /** A translucent composited surface; not a real-time backdrop blur. Content is never blurred. */
-@Composable fun GlassPanel(modifier: Modifier = Modifier, padding: Dp = 20.dp, radius: Dp = 20.dp, content: @Composable ColumnScope.() -> Unit) {
-    val shape=RoundedCornerShape(radius)
-    Column(modifier.shadow(5.dp,shape,ambientColor=Moon.Cool.copy(alpha=.25f),spotColor=Moon.Cool.copy(alpha=.27f)).clip(shape)
-        .background(Brush.linearGradient(listOf(Color.White.copy(alpha=.76f),Color(0xA6F4F7FC),Color.White.copy(alpha=.49f))))
-        .border(.8.dp,Brush.linearGradient(listOf(Color.White.copy(alpha=.95f),Color.White.copy(alpha=.36f),Color.White.copy(alpha=.8f))),shape)
-        .padding(padding),verticalArrangement=Arrangement.spacedBy(10.dp),content=content)
-}
+@Composable fun GlassPanel(modifier: Modifier = Modifier, padding: Dp = 20.dp, radius: Dp = LocalPageEdition.current.radius, content: @Composable ColumnScope.() -> Unit) = StudioSurface(modifier, GlassKind.Panel, padding, radius, content)
 
-@Composable fun PageHeading(title: String, subtitle: String, modifier: Modifier = Modifier) {
-    Column(modifier,verticalArrangement=Arrangement.spacedBy(4.dp)) {
-        Text(title,style=TextStyle(fontSize=26.sp,lineHeight=32.sp,fontWeight=FontWeight.SemiBold,letterSpacing=(-.6).sp),color=Moon.Ink)
-        Text(subtitle,style=TextStyle(fontSize=13.sp,lineHeight=19.sp),color=Moon.Muted)
-    }
-}
+@Composable fun PageHeading(title: String, subtitle: String, modifier: Modifier = Modifier) = EditionHeading(title,subtitle,modifier)
 
 @Composable fun StudioPill(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val shape=RoundedCornerShape(12.dp)

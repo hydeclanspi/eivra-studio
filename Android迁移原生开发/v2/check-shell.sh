@@ -1,21 +1,36 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# Run only on the disposable CI emulator; never clear a person's installed workspace.
+set -Eeuo pipefail
 cd -- "$(dirname "$0")"
 out=app/build/shell-evidence; mkdir -p "$out"
-adb install -r app/build/outputs/apk/debug/app-debug.apk >/dev/null
-for viewport in 390x844 1280x800; do
-  adb shell wm size "$viewport"; adb shell wm density 160
-  adb shell am force-stop com.eivra.studio.v2
-  adb shell am start -W -n com.eivra.studio.v2/.MainActivity > "$out/start-$viewport.txt"
-  for scan in {1..8}; do
-    adb shell uiautomator dump /sdcard/studio-window.xml >/dev/null || true
-    adb exec-out cat /sdcard/studio-window.xml > "$out/window-$viewport.xml" || true
-    if grep -q 'Eivra Studio' "$out/window-$viewport.xml"; then break; fi
+pkg=com.eivra.studio.v2; component="$pkg/.MainActivity"
+for view in 390x844 1280x800; do
+  dir="$out/$view"; mkdir -p "$dir"
+  adb shell wm size "$view"; adb shell wm density 160; adb shell settings put system font_scale 1.0
+  # connectedAndroidTest/UTP may uninstall the target after a test. Install and verify both packages per viewport.
+  adb install -r app/build/outputs/apk/debug/app-debug.apk
+  adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+  adb shell pm path "$pkg" | grep -q '^package:'
+  adb shell wm dismiss-keyguard
+  { adb shell wm size; adb shell wm density; adb shell settings get system font_scale; adb shell getprop ro.product.model; adb shell getprop ro.build.version.sdk; } > "$dir/environment.txt"
+  for n in 1 2 3; do
+    adb shell am start -S -W -n "$component" > "$dir/start-$n.txt"; grep -q 'Status: ok' "$dir/start-$n.txt"; sleep .6
+  done
+  # Readiness is an actual foreground app node (not the package name in an arbitrary log line).
+  ready=false
+  for n in {1..8}; do
+    adb shell uiautomator dump /sdcard/eivra-host-window.xml >/dev/null || true
+    adb exec-out cat /sdcard/eivra-host-window.xml > "$dir/window.xml" || true
+    if grep -q 'package="com.eivra.studio.v2"' "$dir/window.xml" && grep -q 'Eivra Studio' "$dir/window.xml"; then ready=true; break; fi
     sleep 1
   done
-  grep -q 'Eivra Studio' "$out/window-$viewport.xml"
-  adb exec-out screencap -p > "$out/host-$viewport.png"
-  { adb shell wm size; adb shell wm density; adb shell settings get system font_scale; } > "$out/env-$viewport.txt"
-  bash gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.eivra.studio.v2.NavigationSmoke
-  cp -r app/build/outputs/androidTest-results "$out/tests-$viewport"
+  "$ready" || { echo "Foreground window not ready at $view"; exit 1; }
+  adb exec-out screencap -p > "$dir/new-native.png"
+  python3 - "$dir/new-native.png" "$view" <<'PY'
+import struct,sys
+p=sys.argv[1];b=open(p,'rb').read(24);assert b[:8]==b'\x89PNG\r\n\x1a\n' and struct.unpack('>II',b[16:24])==tuple(map(int,sys.argv[2].split('x'))),p
+PY
+  adb shell am instrument -w -r -e class com.eivra.studio.v2.NavigationSmoke -e studioViewport "$view" "$pkg.test/androidx.test.runner.AndroidJUnitRunner" | tee "$dir/host-instrumentation.txt"
+  grep -Eq 'OK \([1-9][0-9]* tests?\)' "$dir/host-instrumentation.txt"
+  adb logcat -d -s EivraHostStats:I '*:S' | grep "viewport=$view " > "$dir/frame-sample.txt" || true
 done
