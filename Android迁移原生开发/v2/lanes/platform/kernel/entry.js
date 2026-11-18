@@ -79,7 +79,8 @@ function settle(id,form) {
   check(updateInvestment(id,buildSettlementUpdater({totalInputs:Number(record.inputs)},form))?.id===id,'Settlement failed');return {id}
 }
 import {researchReads,saveParams} from './reviews.js'
-const reads={...researchReads,
+import {inspect} from './exchange.js'
+const reads={...researchReads,'exchange.inspect':inspect,
  'workspace.snapshot':snapshot,'naturalInputParser.parseNaturalInput':parseNaturalInput,'forecast.buildDraft':forecast,
  'analytics.getDashboardSnapshot':getDashboardSnapshot,'analytics.getAnalysisSnapshot':getAnalysisSnapshot,'analytics.getMetricsSnapshot':getMetricsSnapshot,
  'analytics.getTeamsSnapshot':getTeamsSnapshot,'analytics.getReservoirState':getReservoirState,'analytics.getPredictionCalibrationContext':getPredictionCalibrationContext,

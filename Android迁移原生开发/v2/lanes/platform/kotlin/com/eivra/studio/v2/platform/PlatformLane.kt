@@ -31,4 +31,4 @@ internal fun makeLocalPorts(root: () -> File, script: () -> String): LocalPorts 
     }
 }
 
-@Composable fun PlatformScreen(env: StudioEnv) = PageHeading("参数后台", "本地工作区 · 数据与风控")
+@Composable fun PlatformScreen(env: StudioEnv) = LocalConsole(env)

@@ -14,15 +14,16 @@ class PlatformTest {
     @get:Rule val tmp = TemporaryFolder()
     companion object {
         val lane = sequenceOf(File(".").absoluteFile.normalize()).flatMap { generateSequence(it) { f -> f.parentFile } }.map { File(it,"lanes/platform") }.first { File(it,"assets/platform-kernel.js").isFile }
-        val source by lazy { File(lane,"assets/platform-kernel.js").readText() }
-        // Isolate host JNI loader from the Android AAR's System.loadLibrary implementation.
-        val engine by lazy { URLClassLoader(arrayOf(File(lane,".cache/quickjs-jvm-0.9.2.jar").toURI().toURL()), null).loadClass("app.cash.quickjs.QuickJs") }
-        fun realEngine(request: String): String {
-            val realm = engine.getMethod("create").invoke(null)
-            val eval = engine.getMethod("evaluate",String::class.java)
-            try { if(JSONObject(request).optBoolean("testClock")) eval.invoke(realm,File(lane,"checks/fixed-clock.js").readText());eval.invoke(realm,source);return eval.invoke(realm,"eivraPlatform.call("+JSONObject.quote(request)+")") as String }
-            catch(e: InvocationTargetException) { throw IllegalStateException(e.cause?.message,e.cause) }
-            finally { engine.getMethod("close").invoke(realm) }
+        private val cli by lazy {
+            val proc=ProcessBuilder(File(System.getProperty("java.home"),"bin/java").path,"-cp",".cache/quickjs-jvm-0.9.2.jar","checks/KernelCli.java","assets/platform-kernel.js","checks/fixed-clock.js").directory(lane).redirectError(ProcessBuilder.Redirect.INHERIT)
+            val env=proc.environment();env["LD_LIBRARY_PATH"]="${lane.absolutePath}/.cache/host/usr/lib/x86_64-linux-gnu:${lane.absolutePath}/.cache/host/usr/lib/llvm-18/lib:${env["LD_LIBRARY_PATH"]?:""}"
+            proc.start().also { p -> Runtime.getRuntime().addShutdownHook(Thread {p.destroy()}) }
+        }
+        private val writer by lazy {cli.outputStream.bufferedWriter()};private val reader by lazy {cli.inputStream.bufferedReader()}
+        @Synchronized fun realEngine(request: String): String {
+            if(JSONObject(request).optBoolean("testClock"))writer.write("CLOCK ");writer.write(request);writer.newLine();writer.flush()
+            val line=reader.readLine()?:error("JNI worker exited");val value=String(java.util.Base64.getDecoder().decode(line.substringAfter(' ')),Charsets.UTF_8)
+            check(line.startsWith("OK ")){value};return value
         }
         fun args(vararg x: Any?) = JSONArray().apply { x.forEach { put(it) } }
         fun same(a: Any?, b: Any?, path: String="$") {
