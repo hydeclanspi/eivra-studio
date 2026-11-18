@@ -116,7 +116,16 @@ internal fun fmt(n: Double, digits: Int=2) = String.format(Locale.ROOT,"%.${digi
     LaunchedEffect(g,t.legs,t.stage,state.revision,retry){if(pre && problem==null){delay(320);try{preview=g.predict(t)}catch(e: CancellationException){throw e}catch(e: Exception){fault=e.message ?: "预测不可用"}}}
     val p=preview;val writable=canWrite(state.mode);val focus=LocalFocusManager.current
     val err=t.issue(true)
-    GlassPanel(Modifier.fillMaxWidth().testTag("ledger-actions"),padding=18.dp){
+    // Surface the same decision that gates the write. Error states must not look like perpetual loading.
+    val gateText = when {
+        !writable -> "工作区还未可写"
+        s.writing -> "正在保存"
+        err != null -> err
+        pre && fault.isNotBlank() -> "模型没有生成可冻结的预测：$fault"
+        pre && p == null -> "正在计算本次判断"
+        else -> "可保存"
+    }
+    GlassPanel(Modifier.fillMaxWidth().testTag("ledger-actions").semantics { stateDescription=gateText },padding=18.dp){
         val feedback:@Composable (Modifier)->Unit={mod -> Column(mod){
             if(pre){
                 Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)){

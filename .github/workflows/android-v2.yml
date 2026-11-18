@@ -77,7 +77,7 @@ jobs:
       - name: Collect fresh public Web references, independently of Android results
         working-directory: Android迁移原生开发/v2
         run: |
-          if ! fc-list :lang=zh | grep -q .; then sudo timeout 65s apt-get -qq -o Acquire::Retries=0 -o Acquire::http::Timeout=12 install -y fonts-noto-cjk; fi
+          python tools/ci-fonts.py
           python -m pip install --disable-pip-version-check 'playwright==1.56.0'
           python tools/capture_web.py
       - uses: actions/upload-artifact@v4

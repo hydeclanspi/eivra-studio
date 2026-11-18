@@ -32,6 +32,18 @@ for view in 390x844 1280x800; do
 import struct,sys
 p=sys.argv[1];b=open(p,'rb').read(24);assert b[:8]==b'\x89PNG\r\n\x1a\n' and struct.unpack('>II',b[16:24])==tuple(map(int,sys.argv[2].split('x'))),p
 PY
+  # Exercise writes only on the disposable CI demo; all diagnostics refer to synthetic test data.
+  if test -f lanes/platform/assets/platform-kernel.js; then
+    # Only the disposable runner gets this argument. A skip or a missing assertion cannot count as a pass.
+    adb shell am instrument -w -r -e class com.eivra.studio.v2.IntegratedLedgerJourney -e eivraDisposableDemo true -e studioViewport "$view" "$pkg.test/androidx.test.runner.AndroidJUnitRunner" | tee "$dir/ledger-instrumentation.txt"
+    adb logcat -d -s EivraGate:E EivraGate:I '*:S' > "$dir/gate-log.txt" || true
+    for f in i03-gate.txt i03-gate.png; do
+      if adb shell run-as "$pkg" test -s "files/$f"; then adb exec-out run-as "$pkg" cat "files/$f" > "$dir/$f"; fi
+    done
+    grep -Eq 'OK \(1 test\)' "$dir/ledger-instrumentation.txt"
+    adb logcat -d -s EivraJourney:I '*:S' | grep -F "viewport=$view demo-only" | grep -F 'score=2-1 revenue=20 frozen=true' | tail -n 1 > "$dir/ledger-result.txt"
+    test -s "$dir/ledger-result.txt"
+  fi
   adb shell am instrument -w -r -e class com.eivra.studio.v2.NavigationSmoke -e studioViewport "$view" "$pkg.test/androidx.test.runner.AndroidJUnitRunner" | tee "$dir/host-instrumentation.txt"
   grep -Eq 'OK \([1-9][0-9]* tests?\)' "$dir/host-instrumentation.txt"
   adb logcat -d -s EivraHostStats:I '*:S' | grep "viewport=$view " > "$dir/frame-sample.txt" || true
@@ -45,11 +57,4 @@ PY
   done
   grep -Eq 'OK \(1 test\)' "$dir/polish-tests.txt"
   test -s "$dir/combo-loaded-native.png" # real demo candidate, not just a route landmark
-  if test -f lanes/platform/assets/platform-kernel.js; then
-    # Only the disposable runner gets this argument. A skip or a missing assertion cannot count as a pass.
-    adb shell am instrument -w -r -e class com.eivra.studio.v2.IntegratedLedgerJourney -e eivraDisposableDemo true -e studioViewport "$view" "$pkg.test/androidx.test.runner.AndroidJUnitRunner" | tee "$dir/ledger-instrumentation.txt"
-    grep -Eq 'OK \(1 test\)' "$dir/ledger-instrumentation.txt"
-    adb logcat -d -s EivraJourney:I '*:S' | grep -F "viewport=$view demo-only" | grep -F 'score=2-1 revenue=20 frozen=true' | tail -n 1 > "$dir/ledger-result.txt"
-    test -s "$dir/ledger-result.txt"
-  fi
 done
