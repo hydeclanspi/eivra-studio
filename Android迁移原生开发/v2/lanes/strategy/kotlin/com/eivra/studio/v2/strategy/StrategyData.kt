@@ -31,7 +31,17 @@ internal sealed interface Report {
 internal fun decodeLeg(row: JSONObject): Leg {
     val raw = row.getJSONArray("entries")
     val entries = raw.objects().map { Entry(it.id("name"), it.text("odds"), it.text("market_type")) }
-    val m = row.optJSONObject("draftMatch")
+    val m = row.optJSONObject("draftMatch")?.let { JSONObject(it.toString()) }
+    // Some platform revisions supply the research provenance on the leg rather than in draftMatch.
+    if (m != null && row.has("researchCandidate") && !row.isNull("researchCandidate")) {
+        val origin = row.getJSONObject("researchCandidate")
+        require(!m.has("quant_research_origin") || sameJson(m.opt("quant_research_origin"), origin)) { "研究来源与原稿不符" }
+        m.put("quant_research_origin", origin)
+        row.text("kickoff")?.let { kickoff ->
+            require(m.isNull("kickoff") || m.text("kickoff") == kickoff) { "研究场次开赛时间不一致" }
+            m.put("kickoff", kickoff)
+        }
+    }
     val why = when {
         m == null -> "缺少可交接的投前原稿"
         m.text("home_team") != row.text("homeTeam") || m.text("away_team") != row.text("awayTeam") -> "原稿对阵与当前方案不一致"
@@ -73,9 +83,10 @@ internal fun canonicalDraft(p: Plan): JSONObject {
     val matches = JSONArray()
     for (leg in p.legs) {
         require(leg.handoffIssue == null && leg.issue == null && leg.draft != null) { leg.handoffIssue ?: leg.issue ?: "缺原稿" }
-        matches.put(JSONObject(leg.draft))
+        matches.put(JSONObject(leg.draft).put("conf_confirmed", false))
     }
-    return obj("matches" to matches)
+    return obj("matches" to matches, "combo_name" to "T${p.rank} · ${p.legs.joinToString(" × ") { it.home }}",
+        "portfolio_proposal" to obj("rank" to p.rank, "layer" to p.layer, "suggested_amount" to p.amount, "leg_keys" to JSONArray(p.legs.map { it.key })))
 }
 internal suspend fun putPlan(ports: StudioPorts, p: Plan, expected: WorkspaceState): Dest = withContext(Dispatchers.IO) {
     check(ports.state.value.let { it.mode==expected.mode && it.revision==expected.revision }) { "工作区已变化，请重新生成。" }
