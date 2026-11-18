@@ -36,16 +36,9 @@ import kotlin.math.roundToInt
                     TeamWell(true,m.home,updateHome,"home-$i",Modifier.weight(1f));Caption("VS",Moon.Champagne);TeamWell(false,m.away,updateAway,"away-$i",Modifier.weight(1f))
                 }
             }}else{Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){Edit("主队",m.home,updateHome,"home-$i",Modifier.weight(1f));Edit("客队",m.away,updateAway,"away-$i",Modifier.weight(1f))}}
-            Caption(if(pre) "Entries · 结果一条，比分一条（赔率可暂空）" else "Entries · 按实际登记项填写价格")
-            m.rows.forEachIndexed { j,e -> key(e.key) {
-                fun rows(next: List<Entry>) {s.leg(i){l -> val n=l.copy(rows=next); if(n.score!=l.score) n.copy(windows=null) else n}}
-                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)){
-                    Edit("第 ${j+1} 条判断",e.name,{v->rows(m.rows.at(j){it.copy(name=v)})},"entry-$i-$j",Modifier.weight(1.5f),hint=if(j==1) "2-1" else "w/d/l",showLabel=false)
-                    Edit("第 ${j+1} 条赔率",e.odds,{v->rows(m.rows.at(j){it.copy(odds=v)})},"odds-$i-$j",Modifier.weight(1f),hint="odds",numeric=true,showLabel=false)
-                    if(m.rows.size>1) IconButton(onClick={rows(m.rows.filterIndexed { k,_ -> k!=j })},modifier=Modifier.size(44.dp).semantics{contentDescription="移除第 ${j+1} 条 Entry"}){Text("−",fontSize=20.sp,color=Moon.Muted)}
-                }
-            }}
-            SmallButton("＋ 添加 Entry",{s.leg(i){it.copy(rows=it.rows+Entry())}},"add-entry-$i",m.rows.size<5)
+            EntryPairs(i,m,pre,add={s.leg(i){it.copy(rows=it.rows+Entry())}}) { next ->
+                s.leg(i){l -> val n=l.copy(rows=next); if(n.score!=l.score) n.copy(windows=null) else n}
+            }
             if(pre){val score=m.score;if(score!=null) ScoreBoard(m,g,score){w -> s.leg(i){it.copy(windows=w)}} else Caption("在 Entries 写下比分（例如 2-1），这里会展开进球区间与比分云图。")}
         }}
     }
