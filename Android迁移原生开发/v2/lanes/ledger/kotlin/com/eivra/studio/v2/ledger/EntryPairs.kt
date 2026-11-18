@@ -35,7 +35,8 @@ import com.eivra.studio.v2.ui.Moon
         fontSize=if(team) 30.sp else if(compact) 12.sp else 14.5.sp, lineHeight=if(team) 38.sp else 20.sp,
         fontWeight=if(team) FontWeight.SemiBold else FontWeight.Normal,textAlign=TextAlign.Center,
         fontFeatureSettings=if(numeric) "tnum" else null)
-    BasicTextField(raw,change,modifier=modifier.heightIn(min=48.dp).testTag(tag).semantics { contentDescription=label },
+    val shown=if(compact && !focused) probability(raw)?.let { fmt(it) } ?: raw else raw
+    BasicTextField(shown,change,modifier=modifier.heightIn(min=48.dp).testTag(tag).semantics { contentDescription=label },
         textStyle=style, singleLine=true,interactionSource=interaction,cursorBrush=SolidColor(Moon.Accent),
         keyboardOptions=KeyboardOptions(keyboardType=if(numeric) KeyboardType.Decimal else KeyboardType.Text,imeAction=ImeAction.Next),
         keyboardActions=KeyboardActions(onNext={if(!focus.moveFocus(FocusDirection.Next)) focus.clearFocus()}),

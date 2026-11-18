@@ -52,6 +52,14 @@ class LedgerJourneyTest {
         // Public demo fixture: the two legs expanded at the top of the deployed Settle page.
         f.records[f.decoy]=org.json.JSONObject("""{"id":"also-pending","status":"pending","inputs":10,"combined_odds":6.82,"matches":[{"id":"public-a","home_team":"AC米兰","away_team":"国际米兰","entries":[{"name":"win","odds":2.9}],"note":"米兰德比 · 经典对抗 · 平局倾向较高"},{"id":"public-b","home_team":"多特蒙德","away_team":"勒沃库森","entries":[{"name":"-1 draw","odds":2.35}]}]}""")
         ui.setContent {StudioTheme {StudioHost(f)}};waitTag("home-0");photo("new-empty")
+        // Empty public form: same initial state as Web /?tour=0. Each anchor is semantic,
+        // never a saved finger-scroll distance. No workspace writes in this capture path.
+        fun captureAt(anchor:String,name:String){tag(anchor).performScrollTo();ui.waitForIdle();photo(name)}
+        tag("save").assertIsNotEnabled();tag("confirm-0").assertIsNotEnabled()
+        captureAt("strategy-0","i02-strategy");captureAt("gamma-0-0.4","i02-calibration")
+        captureAt("entries-0","i02-entries");captureAt("checkpoint","i02-actions-disabled")
+        tag("add-entry-0").performScrollTo().performClick();captureAt("remove-entry-0-2","i02-inline-remove")
+        tag("remove-entry-0-2").performClick();tag("entry-0-2").assertDoesNotExist()
         field("home-0","青岚");field("away-0","北港");field("entry-0-0","主胜");field("odds-0-0","1.86");field("entry-0-1","2-1");field("odds-0-1","4.30");hideIme()
         tag("stage-pre").performScrollTo();tag("ledger-new-scroll").performTouchInput {swipeDown()};ui.waitForIdle();photo("pre-filled");tag("stage-post").performScrollTo().performClick();photo("post-filled");field("odds-0-1","4.");ui.waitUntil(5000){ime()};photo("odds-ime");hideIme();tag("odds-0-1").assertTextEquals("4.")
         if(ui.onAllNodesWithTag("menu").fetchSemanticsNodes().isNotEmpty()){tag("menu").performClick();tag("go-Settle").performClick()}else tag("nav-Settle").performClick()
