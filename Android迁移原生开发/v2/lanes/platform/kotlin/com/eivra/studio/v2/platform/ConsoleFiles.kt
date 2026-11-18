@@ -11,7 +11,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.*
+import androidx.compose.ui.semantics.*
 import com.eivra.studio.v2.api.*
 import com.eivra.studio.v2.ui.*
 import kotlinx.coroutines.*
@@ -41,12 +42,10 @@ private fun readText(context:Context,uri:Uri):String = requireNotNull(context.co
     val open=rememberLauncherForActivityResult(ReadLocal()){uri -> if(uri!=null)run {
         val body=withContext(Dispatchers.IO){readText(ctx,uri)};val result=JSONObject(env.ports.read("exchange.preflight",JSONArray().put(body)));require(result.getString("mode")==modeAtPicker&&result.getLong("revision")==revAtPicker){"工作区已变更，请重新选择文件"};contents=body;preview=result;notice="已预检，尚未改账。"
     } }
-    GlassPanel(modifier){Text("数据交换",color=Moon.Ink);Text("备份仅包含当前工作区。JSON 未加密，请保存在你选择的本地位置。",color=Moon.Muted)
-        StudioAction("导出本地备份",{modeAtPicker=state.mode;revAtPicker=state.revision;save.launch("eivra-${state.mode}-r${state.revision}.json")},enabled=!busy)
-        StudioAction("选择文件并预检",{contents=null;preview=null;notice="";modeAtPicker=state.mode;revAtPicker=state.revision;open.launch(arrayOf("application/json","text/plain","application/octet-stream"))},enabled=!busy)
-        preview?.let{p->Text("${p.getString("mode")}：${p.getInt("before")} 笔 → ${p.getInt("after")} 笔，含 ${p.getInt("pending")} 笔待结算。${if(p.getBoolean("replacesDrafts")) "草稿也将替换。" else "保留现有草稿。"}",color=Moon.Ink)
-            StudioAction("确认替换此工作区",{val raw=contents?:return@StudioAction;run {env.ports.write("exchange.restore",JSONArray().put(raw).put(p.getString("token")));contents=null;preview=null;notice="恢复完成。"}},enabled=!busy)
-            StudioPill("取消恢复",false,{preview=null;contents=null;notice="已取消；账本未更改。"}) }
-        if(busy||notice.isNotEmpty())Text(if(busy) "正在处理文件…" else notice,color=Moon.Muted)
+    GlassPanel(modifier,padding=14.dp,radius=16.dp){Text("数据交换",color=Moon.Ink,fontWeight=androidx.compose.ui.text.font.FontWeight.SemiBold);Text("只备份当前工作区。JSON 未加密，请保存在本机。",color=Moon.Muted,fontSize=12.sp)
+        ConsoleAction("导出本地备份",{modeAtPicker=state.mode;revAtPicker=state.revision;save.launch("eivra-${state.mode}-r${state.revision}.json")},enabled=!busy)
+        ConsoleAction("选择文件并预检",{contents=null;preview=null;notice="";modeAtPicker=state.mode;revAtPicker=state.revision;open.launch(arrayOf("application/json","text/plain","application/octet-stream"))},enabled=!busy)
+        preview?.let { p -> RestorePreview(p,busy,onCancel={preview=null;contents=null;notice="已取消；账本未更改。"},onConfirm={val raw=contents;if(raw!=null)run {env.ports.write("exchange.restore",JSONArray().put(raw).put(p.getString("token")));contents=null;preview=null;notice="恢复完成。"}}) }
+        if(busy||notice.isNotEmpty())Text(if(busy) "正在处理文件…" else notice,modifier=Modifier.semantics{liveRegion=LiveRegionMode.Polite},color=Moon.Muted,fontSize=12.sp)
     }
 }

@@ -24,3 +24,11 @@ if test "$(uname -s)" = Linux; then
 fi
 # Fail here with the actual loader/parser error, not just a later Gradle assertion line.
 printf '%s\n' '{"mode":"owner","op":"params.get","args":[]}' | java -cp "$jar" checks/KernelCli.java assets/platform-kernel.js checks/fixed-clock.js smoke >/dev/null
+
+# Lane CI: test the bytes in the actual application APK, not just Rollup's output.
+# Integration builds may invoke checks/verify-apk.sh after assembling their own APK.
+if [[ ${GITHUB_ACTIONS:-} == true && ${GITHUB_REF:-} == refs/heads/android-v2/platform ]]; then
+  (cd ../.. && bash gradlew :app:assembleDebug)
+  bash checks/verify-apk.sh ../../app/build/outputs/apk/debug/app-debug.apk
+  printf 'EIVRA_VERIFIED_KERNEL=%s/.cache/verified-apk-kernel.js\n' "$lane" >> "$GITHUB_ENV"
+fi

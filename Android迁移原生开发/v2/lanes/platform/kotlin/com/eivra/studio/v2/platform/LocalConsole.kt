@@ -9,6 +9,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -41,7 +42,7 @@ private val fields=listOf("initialCapital" to "初始本金 · ¥", "riskCapRati
                 drawLine(Moon.Rule,Offset(0f,size.height/2),Offset(size.width,size.height/2));series.forEachIndexed{i,p->val prev=series.getOrNull(i-1);if(prev!=null){drawLine(Moon.Sky,pt(i-1,prev.first),pt(i,p.first),2.dp.toPx());drawLine(Moon.Accent,pt(i-1,prev.second),pt(i,p.second),2.dp.toPx())}else{drawCircle(Moon.Sky,2.dp.toPx(),pt(i,p.first));drawCircle(Moon.Accent,2.dp.toPx(),pt(i,p.second))}} }
                 Text("蓝 · 预期     紫 · 实际     最近 ${series.size} 条",color=Moon.Muted,fontSize=12.sp) }
         } }
-        item { GlassPanel(Modifier.fillMaxWidth()){Text("本地工作区",color=Moon.Ink);Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){StudioPill("演示",state.mode=="demo",{switch("demo")});StudioPill("个人",state.mode=="owner",{switch("owner")})};Text("${state.pendingCount?.let { "$it 笔待结算" }?:"正在读取"}   ·   版本 ${state.revision}   ·   两个工作区互不写入",color=Moon.Muted,fontSize=13.sp)} }
+        item { GlassPanel(Modifier.fillMaxWidth()){Text("本地工作区",color=Moon.Ink);Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){ConsoleAction("演示",{switch("demo")},Modifier.semantics{selected=state.mode=="demo"},enabled=!saving,selected=state.mode=="demo");ConsoleAction("个人",{switch("owner")},Modifier.semantics{selected=state.mode=="owner"},enabled=!saving,selected=state.mode=="owner")};Text("${state.pendingCount?.let { "$it 笔待结算" }?:"正在读取"}   ·   版本 ${state.revision}   ·   两个工作区互不写入",color=Moon.Muted,fontSize=13.sp)} }
         if(loadError.isNotEmpty())item{Text(loadError,color=Moon.Rose);StudioAction("重新读取",{loadError="";retry++})}
         item { val settings=cfg;if(settings!=null){
             val params:@Composable (Modifier)->Unit={m->ParamCard(settings,state,m,!saving){patch->if(!saving){saving=true;scope.launch{try{env.ports.write("params.save",JSONArray().put(patch).put(state.revision));msg="参数已保存"}catch(e:Exception){msg=e.message?:"保存失败"}finally{saving=false}}}}}
@@ -54,9 +55,9 @@ private val fields=listOf("initialCapital" to "初始本金 · ¥", "riskCapRati
 @Composable private fun ParamCard(config:JSONObject,state:WorkspaceState,modifier:Modifier,enabled:Boolean,onSave:(JSONObject)->Unit){
     val base=remember(config){fields.map{config.get(it.first).toString()}};var values by rememberSaveable(state.mode,state.revision){mutableStateOf(ArrayList(base))}
     val valid=values.map{it.toDoubleOrNull()}.let{v->v.all{it!=null&&it.isFinite()}&&v[0]!!>=0&&v[1]!! in 0.0..1.0&&v[2]!!>=1.01&&v[3]!! in 5.0..95.0&&v[4]!!>=1}
-    GlassPanel(modifier){Text("资金与风控",color=Moon.Ink,fontSize=18.sp);Text("Capital & Risk Controls",color=Moon.Muted,fontSize=12.sp)
-        fields.forEachIndexed{i,f->StudioField(f.second,values[i],{v->values=ArrayList(values).apply{set(i,v)}},Modifier.fillMaxWidth())}
+    Column(modifier,verticalArrangement=Arrangement.spacedBy(10.dp)){
+        ConsoleParameterGroups(values,enabled){i,v->values=ArrayList(values).apply{set(i,v)}}
         if(!valid)Text("检查输入：默认 Odds ≥ 1.01，回撤阈值 5–95%，Kelly 分母 ≥ 1。",color=Moon.Rose,fontSize=12.sp)
-        StudioAction("保存本地参数",{onSave(JSONObject().apply{fields.forEachIndexed{i,f->if(values[i]!=base[i])put(f.first,values[i].toDouble())}})},enabled=enabled&&valid&&values!=base)
+        ConsoleAction("保存本地参数",{onSave(JSONObject().apply{fields.forEachIndexed{i,f->if(values[i]!=base[i])put(f.first,values[i].toDouble())}})},enabled=enabled&&valid&&values!=base)
     }
 }

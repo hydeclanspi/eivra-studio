@@ -15,7 +15,7 @@ class PlatformTest {
     companion object {
         val lane = sequenceOf(File(".").absoluteFile.normalize()).flatMap { generateSequence(it) { f -> f.parentFile } }.map { File(it,"lanes/platform") }.first { File(it,"assets/platform-kernel.js").isFile }
         private val cli by lazy {
-            val proc=ProcessBuilder(File(System.getProperty("java.home"),"bin/java").path,"-cp",".cache/quickjs-jvm-0.9.2.jar","checks/KernelCli.java","assets/platform-kernel.js","checks/fixed-clock.js").directory(lane).redirectError(ProcessBuilder.Redirect.INHERIT)
+            val proc=ProcessBuilder(File(System.getProperty("java.home"),"bin/java").path,"-cp",".cache/quickjs-jvm-0.9.2.jar","checks/KernelCli.java",System.getenv("EIVRA_VERIFIED_KERNEL") ?: "assets/platform-kernel.js","checks/fixed-clock.js").directory(lane).redirectError(ProcessBuilder.Redirect.INHERIT)
             val env=proc.environment();env["LD_LIBRARY_PATH"]="${lane.absolutePath}/.cache/host/usr/lib/x86_64-linux-gnu:${lane.absolutePath}/.cache/host/usr/lib/llvm-18/lib:${env["LD_LIBRARY_PATH"]?:""}"
             proc.start().also { p -> Runtime.getRuntime().addShutdownHook(Thread {p.destroy()}) }
         }
