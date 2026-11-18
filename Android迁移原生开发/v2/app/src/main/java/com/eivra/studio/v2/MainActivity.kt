@@ -53,8 +53,7 @@ private fun decode(token: String) = Dest(Route.valueOf(token.substringBefore('|'
         focus.clearFocus(force = true); stack = ArrayList(stack.dropLast(1)); if (current !in stack) saved.removeState(current)
     }
     val state by ports.state.collectAsStateWithLifecycle()
-    Box(Modifier.fillMaxSize()) {
-        RouteScene(dest.route, Modifier.matchParentSize())
+    OpticalRoot(dest.route) {
         BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.union(WindowInsets.ime))) {
             val width = maxWidth.value.toInt()
             Column(Modifier.fillMaxSize()) {

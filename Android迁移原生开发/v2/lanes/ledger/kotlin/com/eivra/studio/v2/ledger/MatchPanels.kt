@@ -36,34 +36,22 @@ import kotlin.math.roundToInt
                     TeamWell(true,m.home,updateHome,"home-$i",Modifier.weight(1f));Caption("VS",Moon.Champagne);TeamWell(false,m.away,updateAway,"away-$i",Modifier.weight(1f))
                 }
             }}else{Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){Edit("主队",m.home,updateHome,"home-$i",Modifier.weight(1f));Edit("客队",m.away,updateAway,"away-$i",Modifier.weight(1f))}}
-            Caption(if(pre) "Entries · 结果一条，比分一条（赔率可暂空）" else "Entries · 按实际登记项填写价格")
-            m.rows.forEachIndexed { j,e -> key(e.key) {
-                fun rows(next: List<Entry>) {s.leg(i){l -> val n=l.copy(rows=next); if(n.score!=l.score) n.copy(windows=null) else n}}
-                Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)){
-                    Edit("第 ${j+1} 条判断",e.name,{v->rows(m.rows.at(j){it.copy(name=v)})},"entry-$i-$j",Modifier.weight(1.5f),hint=if(j==1) "2-1" else "w/d/l",showLabel=false)
-                    Edit("第 ${j+1} 条赔率",e.odds,{v->rows(m.rows.at(j){it.copy(odds=v)})},"odds-$i-$j",Modifier.weight(1f),hint="odds",numeric=true,showLabel=false)
-                    if(m.rows.size>1) IconButton(onClick={rows(m.rows.filterIndexed { k,_ -> k!=j })},modifier=Modifier.size(44.dp).semantics{contentDescription="移除第 ${j+1} 条 Entry"}){Text("−",fontSize=20.sp,color=Moon.Muted)}
-                }
-            }}
-            SmallButton("＋ 添加 Entry",{s.leg(i){it.copy(rows=it.rows+Entry())}},"add-entry-$i",m.rows.size<5)
+            EntryPairs(i,m,pre,add={s.leg(i){it.copy(rows=it.rows+Entry())}}) { next ->
+                s.leg(i){l -> val n=l.copy(rows=next); if(n.score!=l.score) n.copy(windows=null) else n}
+            }
             if(pre){val score=m.score;if(score!=null) ScoreBoard(m,g,score){w -> s.leg(i){it.copy(windows=w)}} else Caption("在 Entries 写下比分（例如 2-1），这里会展开进球区间与比分云图。")}
         }}
     }
 }
 @Composable private fun TeamWell(home: Boolean,name: String,onChange:(String)->Unit,tag: String,mod: Modifier){
     val tint=if(home) Moon.Rose else Moon.Sky;val label=if(home) "主队" else "客队";val shape=RoundedCornerShape(18.dp)
-    Column(mod.background(Brush.linearGradient(listOf(if(home) Color(0xC8FFE9EE) else Color(0xCFDFEEFC),Color.White.copy(alpha=.52f))),shape).border(.8.dp,tint.copy(alpha=.22f),shape).padding(9.dp),verticalArrangement=Arrangement.spacedBy(7.dp)){
-        Text(label,Modifier.background(Color.White.copy(alpha=.48f),RoundedCornerShape(12.dp)).padding(horizontal=8.dp,vertical=3.dp),color=tint,fontSize=12.sp,fontWeight=FontWeight.SemiBold)
-        Edit(label,name,onChange,tag,hint=label,large=true,showLabel=false)
+    Column(mod.background(Brush.linearGradient(listOf(if(home) Color(0xC7FFE2E8) else Color(0xC7DCEBFF),Color.White.copy(alpha=.34f))),shape).border(.9.dp,tint.copy(alpha=.20f),shape).padding(horizontal=14.dp,vertical=11.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(6.dp)){
+        Text(label,Modifier.background(Color.White.copy(alpha=.48f),RoundedCornerShape(12.dp)).padding(horizontal=8.dp,vertical=3.dp),color=tint,fontSize=11.sp,fontWeight=FontWeight.SemiBold)
+        LedgerInput(label,name,onChange,tag,Modifier.fillMaxWidth(),label,team=true)
+        if(name.isBlank()) Text("输入球队名或缩写",fontSize=10.sp,lineHeight=14.sp,color=Moon.Muted)
     }
 }
-@Composable private fun MenuField(label: String,value: String,choices: List<String>,onChoose:(String)->Unit,mod: Modifier=Modifier){
-    var open by remember { mutableStateOf(false) };Column(mod){Caption(label);Box{
-        OutlinedButton({open=true},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(10.dp),contentPadding=PaddingValues(horizontal=6.dp)){Text("$value  ⌄",fontSize=14.sp)}
-        DropdownMenu(open,{open=false}){choices.forEach { k->DropdownMenuItem(text={Text(k)},onClick={open=false;onChoose(k)}) }}
-    }}
-}
-@Composable internal fun StrategyPanel(s: EditSession,mod: Modifier,pad: Dp){
+@Composable internal fun StrategyPanel(s: EditSession,mod: Modifier,pad: Dp,demo:Boolean){
     val t=s.ticket; var shrink by remember { mutableIntStateOf(0) }
     GlassPanel(mod.testTag("strategy-panel"),padding=pad){
         Section("Portfolio Construction");Caption("场数 · ${t.legs.size} ${if(t.legs.size==1) "(single match)" else "matches"}")
@@ -74,17 +62,7 @@ import kotlin.math.roundToInt
         if(t.legs.size>1 || t.title.isNotEmpty()) Edit("组合名称",t.title,{s.edit(t.copy(title=it))},"combo-name",hint="选填")
         t.legs.forEachIndexed { i,m -> key(m.key) {
             HorizontalDivider(color=Moon.Rule); if(t.legs.size>1) Caption("${i+1}  ·  ${m.home.ifBlank { "主队" }} / ${m.away.ifBlank { "客队" }}",Moon.Champagne)
-            MenuField("Strategy · 策略类型",m.mode,listOf("常规","常规-稳","常规-杠杆","常规-激进","半彩票半保险","保险产品","赌一把"),{v->s.leg(i){it.copy(mode=v)}})
-            Row(verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(4.dp)){
-                Edit("变量 α · Conf",m.conf,{v->s.leg(i){it.copy(conf=v,confirmed=false)}},"conf-$i",Modifier.weight(1f),hint="尚未评级",numeric=true)
-                SmallButton(if(m.confirmed) "已确认" else "确认 Conf",{s.leg(i){it.copy(confirmed=true)}},"confirm-$i",!m.confirmed && probability(m.conf)!=null,Moon.Champagne)
-            }
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){listOf("0.2","0.4","0.5","0.6","0.8").forEach { x -> SmallButton(x,{s.leg(i){it.copy(conf=x,confirmed=true)}},"alpha-$i-$x",ink=if(m.confirmed && decimal(m.conf)==decimal(x)) Moon.Accent else Moon.Muted) }}
-            Caption("校准参数（β · γ · δ）")
-            Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){
-                val tys=listOf("S","M","L","H");MenuField("β · 主",m.tysH,tys,{v->s.leg(i){it.copy(tysH=v)}},Modifier.weight(1f));MenuField("β · 客",m.tysA,tys,{v->s.leg(i){it.copy(tysA=v)}},Modifier.weight(1f));MenuField("γ · FID",m.fid,listOf("0","0.25","0.4","0.6","0.75"),{v->s.leg(i){it.copy(fid=v)}},Modifier.weight(1f))
-            }
-            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){Edit("δ (主) · FSE",m.fseH,{v->s.leg(i){it.copy(fseH=v)}},"fse-home-$i",Modifier.weight(1f),numeric=true);Edit("δ (客) · FSE",m.fseA,{v->s.leg(i){it.copy(fseA=v)}},"fse-away-$i",Modifier.weight(1f),numeric=true)}
+            LegParameters(s,i,m,demo)
             Edit("赛前备注",m.note,{v->s.leg(i){it.copy(note=v)}},"note-$i",hint="记录判断的依据、赛前关注点…",multi=true)
         }}
     }

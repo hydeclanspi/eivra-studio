@@ -41,11 +41,13 @@ import com.eivra.studio.v2.ui.*
 @Composable internal fun Desk(wide:Boolean, title:String, subtitle:String, right:Boolean, setRight:(Boolean)->Unit, tabs:Pair<String,String>, inputs:LazyListScope.()->Unit, results:LazyListScope.()->Unit) {
     Column(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(8.dp)) {
         PageHeading(title,subtitle)
+        if(wide && tabs.first=="构建") Spacer(Modifier.height(23.dp))
         if(!wide) Strip("left" to tabs.first,"right" to tabs.second,selected=if(right) "right" else "left",choose={setRight(it=="right")})
         val leftScroll=rememberLazyListState(); val rightScroll=rememberLazyListState()
-        Row(Modifier.fillMaxSize(), horizontalArrangement=Arrangement.spacedBy(16.dp)) {
-            if(wide || !right) LazyColumn(Modifier.weight(if(wide) .42f else 1f).fillMaxHeight().testTag("desk.input"),state=leftScroll,verticalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(bottom=36.dp),content=inputs)
-            if(wide || right) LazyColumn(Modifier.weight(if(wide) .58f else 1f).fillMaxHeight().testTag("desk.output"),state=rightScroll,verticalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(bottom=36.dp),content=results)
+        val portfolio = tabs.first == "构建"
+        Row(Modifier.fillMaxSize(), horizontalArrangement=Arrangement.spacedBy(if(portfolio) 21.6.dp else 16.dp)) {
+            if(wide || !right) LazyColumn(Modifier.weight(if(wide && portfolio) .8f else if(wide) .42f else 1f).fillMaxHeight().testTag("desk.input"),state=leftScroll,verticalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(bottom=36.dp),content=inputs)
+            if(wide || right) LazyColumn(Modifier.weight(if(wide && portfolio) 1.35f else if(wide) .58f else 1f).fillMaxHeight().testTag("desk.output"),state=rightScroll,verticalArrangement=Arrangement.spacedBy(8.dp),contentPadding=PaddingValues(bottom=36.dp),content=results)
         }
     }
 }

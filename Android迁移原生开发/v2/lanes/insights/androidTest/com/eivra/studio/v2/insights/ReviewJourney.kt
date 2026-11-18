@@ -75,9 +75,9 @@ class ReviewJourney {
     }
     @Test fun lateAllReadMustNotReplaceWeekAndErrorIsNotAnEmptyWindow() {
         val release=CompletableDeferred<Unit>();port.gate=release
-        try { open(Route.Dashboard,false);ui.waitUntil(10000) { port.entered.isCompleted };ui.onNodeWithText("近一周").performClick();waitState("已读取");release.complete(Unit);ui.waitForIdle();scroll("note:当前时间窗口暂无投资数据");ui.onNodeWithText("当前时间窗口暂无投资数据").assertExists() }
+        try { open(Route.Dashboard,false);ui.waitUntil(10000) { port.entered.isCompleted };ui.onNodeWithTag("review-period").performClick();ui.onNodeWithText("近一周").performClick();waitState("已读取");release.complete(Unit);ui.waitForIdle();scroll("note:当前时间窗口暂无投资数据");ui.onNodeWithText("当前时间窗口暂无投资数据").assertExists() }
         finally { release.complete(Unit);port.gate=null }
-        ui.runOnIdle { port.fail=true };scroll("window");ui.onNodeWithText("全部").performClick();waitState("读取失败");ui.onNodeWithText("当前时间窗口暂无投资数据").assertDoesNotExist();port.fail=false;ui.onNodeWithText("重新读取").performClick();waitState("已读取");scroll("stats");ui.onNodeWithText("50.0%").assertExists()
+        ui.runOnIdle { port.fail=true };scroll("window");ui.onNodeWithTag("review-period").performClick();ui.onNodeWithText("全部").performClick();waitState("读取失败");ui.onNodeWithText("当前时间窗口暂无投资数据").assertDoesNotExist();port.fail=false;ui.onNodeWithText("重新读取").performClick();waitState("已读取");scroll("stats");ui.onNodeWithText("50.0%").assertExists()
     }
     @Test fun captureSameSyntheticState() {
         Assume.assumeTrue(InstrumentationRegistry.getArguments().getString("capture")=="1")

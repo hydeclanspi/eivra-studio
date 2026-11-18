@@ -87,7 +87,7 @@ internal fun fmt(n: Double, digits: Int=2) = String.format(Locale.ROOT,"%.${digi
         }
         QuickInput(s,g)
         val main: @Composable (Modifier)->Unit={mod -> MatchesPanel(s,g,mod,if(wide) 22.dp else 14.dp)}
-        val side: @Composable (Modifier)->Unit={mod -> StrategyPanel(s,mod,if(wide) 22.dp else 14.dp)}
+        val side: @Composable (Modifier)->Unit={mod -> StrategyPanel(s,mod,if(wide) 22.dp else 14.dp,state.mode=="demo")}
         if(wide) Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(24.dp),verticalAlignment=Alignment.Top){
             if(pre){side(Modifier.weight(4f));main(Modifier.weight(6f))}else{main(Modifier.weight(6f));side(Modifier.weight(4f))}
         }else{main(Modifier.fillMaxWidth());side(Modifier.fillMaxWidth())}
@@ -97,7 +97,7 @@ internal fun fmt(n: Double, digits: Int=2) = String.format(Locale.ROOT,"%.${digi
 }
 @Composable private fun QuickInput(s: EditSession,g: LedgerGateway){
     var open by rememberSaveable { mutableStateOf(true) };val t=s.ticket
-    GlassPanel(Modifier.fillMaxWidth(),padding=14.dp,radius=14.dp){
+    GlassPanel(Modifier.fillMaxWidth().testTag("quick-panel"),padding=14.dp,radius=14.dp){
         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable(role=Role.Button){open=!open}.heightIn(min=44.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
             Section(if(open) "⌄  Quick Input" else "›  Quick Input",Moon.Champagne);Text("LAB · AI",Modifier.background(Moon.Champagne.copy(alpha=.14f),RoundedCornerShape(5.dp)).padding(horizontal=6.dp,vertical=3.dp),fontSize=10.sp,letterSpacing=1.sp,color=Moon.Champagne);Spacer(Modifier.weight(1f));Caption("快捷录入",Moon.Champagne)
         }
@@ -115,20 +115,33 @@ internal fun fmt(n: Double, digits: Int=2) = String.format(Locale.ROOT,"%.${digi
     var fault by remember(g,t.legs,t.stage,state.revision,retry) { mutableStateOf("") }
     LaunchedEffect(g,t.legs,t.stage,state.revision,retry){if(pre && problem==null){delay(320);try{preview=g.predict(t)}catch(e: CancellationException){throw e}catch(e: Exception){fault=e.message ?: "预测不可用"}}}
     val p=preview;val writable=canWrite(state.mode);val focus=LocalFocusManager.current
-    GlassPanel(Modifier.fillMaxWidth(),padding=18.dp){
-        Section(if(pre) "模型反馈" else "导入核对")
-        if(!pre) Caption("只登记实际投入。投前快照、命中概率与建议金额不从赛后信息回算。")
-        else if(p!=null){
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Column{Caption("综合 Odds");Section(fmt(p.odds))};Column{Caption("Expected Rating");Section("${fmt(p.mean*100,1)}%")};Column{Caption("建议投入");Section("¥ ${fmt(p.suggested)}",Moon.Champagne)}}
-            Caption("Rating 是单场均值；整票命中概率 ${fmt(p.hit*100,1)}%。保存时重新校验并冻结。")
-        }else{Caption(problem ?: fault.ifBlank { "正在计算本次判断…" });if(fault.isNotBlank()) SmallButton("重算模型",{retry++})}
-        HorizontalDivider(color=Moon.Rule)
-        Edit("实际投入 · Inputs",t.amount,{s.edit(t.copy(amount=it))},"stake",hint="填写实际金额",numeric=true)
-        if(!writable) Caption("当前工作区不可写；可以继续编辑，不能落账。",Moon.Rose)
-        val err=t.issue(true);if(err!=null && err!=problem) Caption(err)
-        if(s.message.isNotBlank() && !s.message.startsWith("未能解析")) Caption(s.message,if(s.message.startsWith("草稿已保存")) Moon.Accent else Moon.Rose)
-        Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
-            StudioAction(if(s.writing) "正在写入…" else if(pre) "冻结并保存" else "保存投后记录",{focus.clearFocus();s.submit(g)},Modifier.testTag("save"),enabled=writable && !s.writing && err==null && (!pre || p!=null));SmallButton("存草稿",{focus.clearFocus();s.submit(g,true)},"checkpoint",writable && !s.writing)
+    val err=t.issue(true)
+    GlassPanel(Modifier.fillMaxWidth().testTag("ledger-actions"),padding=18.dp){
+        val feedback:@Composable (Modifier)->Unit={mod -> Column(mod){
+            if(pre){
+                Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                    listOf("综合 Odds" to (p?.let { fmt(it.odds) } ?: "—"),"Expected Rating" to (p?.let { fmt(it.mean) } ?: "—"),"Recom. Invest" to (p?.let { "¥ ${fmt(it.suggested)}" } ?: "—")).forEachIndexed { ix,(label,v)->
+                        if(ix>0) VerticalDivider(Modifier.height(35.dp),color=Moon.Rule)
+                        Column(Modifier.weight(1f)){Text(label,fontSize=11.sp,lineHeight=15.sp,color=Moon.Muted);Text(v,color=if(ix==2) Moon.Accent else Moon.Ink,fontSize=18.sp,lineHeight=23.sp,fontWeight=FontWeight.SemiBold)}
+                    }
+                }
+                Caption(if(p==null) problem ?: fault.ifBlank { "正在计算本次判断…" } else "Rating 为单场均值 · 整票命中概率 ${fmt(p.hit*100,1)}%")
+                if(fault.isNotBlank()) SmallButton("重算模型",{retry++})
+            }else Caption("投后导入只登记实际投入，不回填投前快照。")
+        }}
+        val actions:@Composable ()->Unit={Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
+            Column(Modifier.widthIn(max=106.dp)){Caption("Inputs 实际投资");LedgerInput("实际投资",t.amount,{s.edit(t.copy(amount=it))},"stake",Modifier.fillMaxWidth(),"金额",numeric=true)}
+            Column(horizontalAlignment=Alignment.CenterHorizontally){
+                StudioAction(if(s.writing) "正在写入…" else if(pre) "确认投资" else "保存投后记录",{focus.clearFocus();s.submit(g)},Modifier.testTag("save"),enabled=writable && !s.writing && err==null && (!pre || p!=null))
+                SmallButton("存草稿",{focus.clearFocus();s.submit(g,true)},"checkpoint",writable && !s.writing)
+            }
+        }}
+        BoxWithConstraints(Modifier.fillMaxWidth()){
+            if(maxWidth>=680.dp) Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(22.dp),verticalAlignment=Alignment.CenterVertically){feedback(Modifier.weight(1f));actions()}
+            else Column(verticalArrangement=Arrangement.spacedBy(10.dp)){feedback(Modifier.fillMaxWidth());actions()}
         }
+        if(!writable) Caption("当前工作区不可写；可以继续编辑，不能落账。",Moon.Rose)
+        if(err!=null && (!pre || err!=problem)) Caption(err)
+        if(s.message.isNotBlank() && !s.message.startsWith("未能解析")) Caption(s.message,if(s.message.startsWith("草稿已保存")) Moon.Accent else Moon.Rose)
     }
 }

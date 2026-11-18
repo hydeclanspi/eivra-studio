@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -65,25 +66,31 @@ private fun gradient(angle: Double, rect: Rect, vararg stops: Pair<Float,Color>)
 
 @Composable fun PageHeading(title: String, subtitle: String, modifier: Modifier = Modifier) = EditionHeading(title,subtitle,modifier)
 
-@Composable fun StudioPill(label: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val shape=RoundedCornerShape(12.dp)
-    Box(modifier.heightIn(min=44.dp).clip(shape).clickable(role=Role.Button,onClick=onClick).semantics{this.selected=selected}.padding(vertical=5.dp),contentAlignment=Alignment.Center){
-        Text(label,Modifier.background(if(selected) Moon.Accent.copy(alpha=.10f) else Color.Transparent,shape).padding(horizontal=12.dp,vertical=6.dp),color=if(selected) Moon.Accent else Moon.Muted,fontSize=13.sp,maxLines=1,overflow=TextOverflow.Ellipsis)
+@Composable fun StudioPill(label: String, selected: Boolean, onClick: ()->Unit, modifier:Modifier=Modifier){
+    val source=remember{MutableInteractionSource()}; val down by source.collectIsPressedAsState();val shape=RoundedCornerShape(7.dp)
+    Box(modifier.heightIn(min=44.dp).clickable(interactionSource=source,indication=null,role=Role.Button,onClick=onClick).semantics{this.selected=selected},contentAlignment=Alignment.Center){
+        Box(Modifier.clip(shape).background(if(selected) Color(0xFFEEF2FF) else if(down) Color(0xFFEDECF4) else Color(0xCCF8F9FB)).border(.8.dp,if(selected) Color(0xFFC7D2FE) else Color(0x8CE4E3E8),shape).padding(horizontal=9.dp,vertical=4.dp)){
+            Text(label,fontSize=11.sp,lineHeight=15.sp,fontWeight=if(selected) FontWeight.SemiBold else FontWeight.Medium,fontFamily=StudioSans,color=if(selected) Color(0xFF4947AC) else Moon.Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
+        }
     }
 }
 
-@Composable fun StudioField(label:String, value:String, onChange:(String)->Unit, modifier:Modifier=Modifier, hint:String="", singleLine:Boolean=true) {
+@Composable fun StudioField(label:String,value:String,onChange:(String)->Unit,modifier:Modifier=Modifier,hint:String="",singleLine:Boolean=true){
     val source=remember{MutableInteractionSource()};val focused by source.collectIsFocusedAsState();val shape=RoundedCornerShape(12.dp)
-    Column(modifier,verticalArrangement=Arrangement.spacedBy(5.dp)){
-        Text(label,color=Moon.Muted,fontSize=12.sp)
-        BasicTextField(value=value,onValueChange=onChange,singleLine=singleLine,interactionSource=source,textStyle=TextStyle(fontSize=15.sp,lineHeight=21.sp,color=Moon.Ink),cursorBrush=SolidColor(Moon.Accent),modifier=Modifier.fillMaxWidth().semantics{contentDescription=label},decorationBox={inner->
-            Box(Modifier.fillMaxWidth().heightIn(min=44.dp).background(Color.White.copy(alpha=.68f),shape).border(if(focused) 1.3.dp else .8.dp,if(focused) Moon.Accent else Moon.Rule,shape).padding(horizontal=12.dp,vertical=9.dp),contentAlignment=Alignment.CenterStart){if(value.isEmpty()) Text(hint,color=Moon.Muted.copy(alpha=.72f),fontSize=15.sp);inner()}
+    Column(modifier,verticalArrangement=Arrangement.spacedBy(4.dp)){
+        Text(label,style=StudioType.bodySmall,color=LocalPageEdition.current.muted)
+        BasicTextField(value,onChange,singleLine=singleLine,interactionSource=source,textStyle=TextStyle(fontFamily=StudioSans,fontSize=14.sp,lineHeight=20.sp,color=LocalPageEdition.current.ink),cursorBrush=SolidColor(Moon.Accent),modifier=Modifier.fillMaxWidth().semantics{contentDescription=label},decorationBox={input->
+            Box(Modifier.fillMaxWidth().heightIn(min=44.dp).clip(shape).background(Brush.verticalGradient(listOf(Color(0xACFFFFFF),Color(0xDAFFFFFF)))).border(if(focused) 1.2.dp else .8.dp,if(focused) Color(0xB7828ACA) else Color(0x559A9D9E),shape).padding(horizontal=11.dp,vertical=8.dp),contentAlignment=Alignment.CenterStart){if(value.isEmpty()) Text(hint,fontSize=14.sp,lineHeight=20.sp,fontFamily=StudioSans,color=Color(0xFF898D95));input()}
         })
     }
 }
 
 @Composable fun StudioAction(label:String,onClick:()->Unit,modifier:Modifier=Modifier,enabled:Boolean=true){
-    Button(onClick=onClick,enabled=enabled,modifier=modifier.heightIn(min=44.dp),shape=RoundedCornerShape(12.dp),colors=ButtonDefaults.buttonColors(containerColor=Moon.Accent)){ Text(label,fontSize=14.sp) }
+    val src=remember{MutableInteractionSource()};val down by src.collectIsPressedAsState();val shape=RoundedCornerShape(11.7.dp)
+    val fill=if(!enabled) listOf(Color(0x759DA5AA),Color(0x6F9AA4AB)) else if(down) listOf(Color(0xFF507186),Color(0xFF496B81)) else listOf(Color(0xFF7193A6),Color(0xFF527B93))
+    Box(modifier.heightIn(min=44.dp).clickable(interactionSource=src,indication=null,enabled=enabled,role=Role.Button,onClick=onClick),contentAlignment=Alignment.Center){
+        Box(Modifier.clip(shape).background(Brush.linearGradient(fill)).border(.8.dp,Brush.verticalGradient(listOf(Color(0xBFFFFFFF),Color(0x668DA7B6))),shape).padding(horizontal=17.dp,vertical=7.dp),contentAlignment=Alignment.Center){Text(label,fontFamily=StudioSans,fontSize=12.6.sp,lineHeight=18.sp,letterSpacing=(-.09).sp,fontWeight=FontWeight.SemiBold,color=if(enabled) Color.White else Color(0xFF555F66))}
+    }
 }
 
 @Composable fun LanePending(title:String){

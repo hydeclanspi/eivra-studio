@@ -13,7 +13,7 @@ with sync_playwright() as pw:
         for w,h in [(390,844),(1280,800)]:
             ctx=browser.new_context(viewport={'width':w,'height':h},device_scale_factor=1,locale='zh-CN',color_scheme='light',reduced_motion='reduce',is_mobile=False)
             page=ctx.new_page()
-            for route in ('new','settle','combo','dashboard','history','params'):
+            for route in ('new','combo','dashboard','history','params','settle'):
                 page.goto(f'{origin}/{route}?tour=0',wait_until='domcontentloaded',timeout=45000)
                 page.locator('main').wait_for(timeout=25000)
                 page.get_by_text('demo · preview', exact=True).first.wait_for(state='attached',timeout=12000)
@@ -27,4 +27,14 @@ with sync_playwright() as pw:
                 d=out/f'{w}x{h}';d.mkdir(exist_ok=True)
                 page.screenshot(path=str(d/f'{route}-web.png'),animations='disabled',timeout=15000)
                 (d/f'{route}-geometry.json').write_text(json.dumps(metrics,ensure_ascii=False,indent=2))
+                if route in ('new','combo'):
+                    page.locator('main').evaluate('(e)=>e.scrollTo(0,0)')
+                    js="() => {const m=document.querySelector('main');const els=[...m.querySelectorAll('h1,h2,button,input,select,textarea,[class*=pre-hero],[class*=pre-entry],[class*=pre-strategy],.glow-card')];return els.filter(x=>x.getBoundingClientRect().width>0).slice(0,190).map(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return {tag:e.tagName,cls:e.className,label:(e.getAttribute('aria-label')||e.placeholder||e.innerText||'').slice(0,42),x:r.x,y:r.y,w:r.width,h:r.height,baselineCss:s.lineHeight,font:s.fontFamily,weight:s.fontWeight,size:s.fontSize,tracking:s.letterSpacing,pad:s.padding,rim:s.borderTopColor,radius:s.borderRadius,fill:s.backgroundColor,shade:s.boxShadow,filter:s.backdropFilter};});}"
+                    (d/f'{route}-components.json').write_text(json.dumps(page.evaluate(js),ensure_ascii=False,indent=2))
+                    if route=='new':
+                        slider=page.locator('.pre-match-split__side input[type=range]').first
+                        if slider.count():
+                            slider.evaluate('e=>e.scrollIntoView({block:"center",behavior:"instant"})'); page.wait_for_timeout(180)
+                            page.screenshot(path=str(d/'new-controls-web.png'),animations='disabled',timeout=14000)
+                            (d/'new-controls-components.json').write_text(json.dumps(page.evaluate(js),ensure_ascii=False,indent=2))
             ctx.close()

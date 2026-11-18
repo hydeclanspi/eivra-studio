@@ -15,7 +15,7 @@ for wh in 390x844 1280x800; do
   (adb shell wm size; adb shell wm density; adb shell settings get system font_scale; adb shell getprop ro.build.version.sdk) > "$dir/env.txt"
   adb shell am instrument -w -r -e class com.eivra.studio.v2.ledger.LedgerJourneyTest com.eivra.studio.v2.test/androidx.test.runner.AndroidJUnitRunner > "$dir/instrumentation.txt"
   # Keep any photos actually produced, including partial results on assertion failure.
-  for name in new-empty pre-filled post-filled odds-ime settle-target; do
+  for name in new-empty i02-strategy i02-calibration i02-entries i02-actions-disabled i02-inline-remove pre-filled post-filled odds-ime settle-target; do
     f="files/ledger-evidence/$wh/$name.png"; if adb shell run-as com.eivra.studio.v2 test -s "$f"; then adb exec-out run-as com.eivra.studio.v2 cat "$f" > "$dir/$name.png"; fi
   done
 done

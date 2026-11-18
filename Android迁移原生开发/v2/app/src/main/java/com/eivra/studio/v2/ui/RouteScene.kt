@@ -46,8 +46,10 @@ private inline fun Canvas.rotated(angle:Float, r:RectF, draw:Canvas.()->Unit) {v
 
 @Composable internal fun RouteScene(route: Route, modifier: Modifier=Modifier) = SceneField(fieldFor(route),modifier)
 @Composable internal fun SceneField(field:Field,modifier:Modifier) {
-    Spacer(modifier.drawWithCache {
-        val w=size.width;val h=size.height;val small=w<=640.dp.toPx();val hong=field==Field.Hongguo
+    Spacer(modifier.drawWithCache { val render=fieldPainter(field,size.width,size.height,density); onDrawBehind { drawIntoCanvas { render(it.nativeCanvas) } } })
+}
+internal fun fieldPainter(field:Field,w:Float,h:Float,density:Float):(Canvas)->Unit {
+        val small=w<=640f*density;val hong=field==Field.Hongguo
         val p=when(field){Field.Sand->sand;Field.Daylight->day;else->moon}; val bounds=RectF(0f,0f,w,h)
         fun rect(x:Float,y:Float,ww:Float,hh:Float)=RectF(x*w,y*h,(x+ww)*w,(y+hh)*h)
         val top=if(hong){if(small) rect(-.78f,-1.04f,2.80f,1.66f) else rect(.03f,-1.11f,1.58f,1.66f)}else{if(small) rect(-.35f,-1.15f,2.25f,1.72f) else rect(.04f,-1.15f,1.56f,1.72f)}
@@ -63,8 +65,7 @@ private inline fun Canvas.rotated(angle:Float, r:RectF, draw:Canvas.()->Unit) {v
             shader=RadialGradient(0f,0f,1f,colors("FFF5CC96","8CF5D6A3","00F5D6A3"),floatArrayOf(.04f,.4f,.78f),Shader.TileMode.CLAMP).also{it.setLocalMatrix(m)}
         } else null
         val inset=RectF(top).apply{inset(top.width()*.02f,top.height()*.02f)}; val contour=if(hong) plane(inset,topCorners) else null
-        val rim=Paint(Paint.ANTI_ALIAS_FLAG).apply{color=if(hong) 0x70FFFFFF else 0x45FFFFFF;style=Paint.Style.STROKE;strokeWidth=1.dp.toPx()}
+        val rim=Paint(Paint.ANTI_ALIAS_FLAG).apply{color=if(hong) 0x70FFFFFF else 0x45FFFFFF;style=Paint.Style.STROKE;strokeWidth=density}
         val a=if(hong && small) -12f else if(hong) -22f else -24f;val b=if(hong && small) 14f else if(hong) 12f else -21f
-        onDrawBehind {drawIntoCanvas{wrapper-> val c=wrapper.nativeCanvas;c.drawRect(bounds,base);c.rotated(a,top){drawPath(up,upper);if(sun!=null) drawPath(up,sun);drawPath(up,rim);if(contour!=null)drawPath(contour,rim)};c.rotated(b,bottom){drawPath(down,lower);drawPath(down,rim)};c.drawRect(bounds,sheen)}}
-    })
+        return {c -> c.drawRect(bounds,base);c.rotated(a,top){drawPath(up,upper);if(sun!=null) drawPath(up,sun);drawPath(up,rim);if(contour!=null)drawPath(contour,rim)};c.rotated(b,bottom){drawPath(down,lower);drawPath(down,rim)};c.drawRect(bounds,sheen) }
 }

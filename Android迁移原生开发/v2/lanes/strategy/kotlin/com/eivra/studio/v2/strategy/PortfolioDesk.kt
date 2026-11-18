@@ -54,25 +54,37 @@ private val controlsSaver=listSaver<Constraints,Any>(save={listOf(it.risk,it.min
             finally { sending=false }
         }
     }
-    Desk(env.widthDp>=840,"智能组合建议","Portfolio Optimization · 从候选比赛构建方案，再逐腿核对。",right,{right=it},"构建" to "方案与明细",inputs={
-        item { GlassPanel(Modifier.fillMaxWidth(),16.dp) {
-            Row(verticalAlignment=Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Label("今日备选比赛"); Serial("${keys.size} / ${rows.size} 已勾选") }; TextButton({poolOpen=!poolOpen}) { Text(if(poolOpen) "收起" else "展开") } }
-            if(catalog is ReadState.Failed) { Note("候选池未能读取：${catalog.message}"); TextButton({refresh++}) { Text("重试候选池") } }
-            else if(catalog !is ReadState.Value) { LinearProgressIndicator(Modifier.fillMaxWidth()); Note("读取当前工作区…") }
-            else if(rows.isEmpty()) Note("还没有候选。请先在 New 录入投前观点，或在研究台审阅候选。")
+    val wide=env.widthDp>=1024
+    Desk(wide,"智能组合建议","基于 Portfolio Optimization 的最优投资方案",right,{right=it},"构建" to "方案与明细",inputs={
+        item(key="pool") { GlassPanel(Modifier.fillMaxWidth().testTag("portfolio.pool"),20.dp,21.6.dp) {
+            PoolHeading(poolOpen) { poolOpen=!poolOpen }
+            when(catalog) {
+                is ReadState.Failed -> PoolFailure(catalog.message) { refresh++ }
+                is ReadState.Value -> {
+                    Text("已勾选 ${keys.size}/${rows.size}",Modifier.testTag("pool.count"),color=Moon.Muted,fontSize=11.sp,lineHeight=16.sp)
+                    if(rows.isEmpty()) Note("当前工作区还没有候选比赛。请先在 New 录入投前观点。")
+                    else if(poolOpen) Column(verticalArrangement=Arrangement.spacedBy(2.dp)) {
+                        rows.forEach { leg -> key(leg.key) {
+                            PoolRow(leg,leg.key in keys,!sending) { clear(); omitted=ArrayList(if(leg.key in omitted) omitted-leg.key else omitted+leg.key) }
+                        } }
+                    }
+                }
+                else -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Note("读取当前工作区…") }
+            }
+            HorizontalDivider(color=Moon.Rule)
+            RiskRail(cfg.risk,!sending) { if(it!=cfg.risk) { clear();cfg=cfg.copy(risk=it) } }
+            GenerateAction(armed,keys.isNotEmpty()&&!sending,::generate)
         } }
-        if(poolOpen) items(rows,key={"cand:${it.key}"}) { leg -> CandidateLine(leg,leg.key in keys,!sending) { clear(); omitted=ArrayList(if(leg.key in omitted) omitted-leg.key else omitted+leg.key) } }
-        item { GlassPanel(Modifier.fillMaxWidth(),16.dp) {
+        item { GlassPanel(Modifier.fillMaxWidth(),20.dp,21.6.dp) {
             ConstraintEditor(cfg,extra,{extra=!extra}) { if(!sending && it!=cfg) { clear(); cfg=it } }
-            StudioAction(if(armed) "重新生成组合" else "生成最优组合",::generate,Modifier.fillMaxWidth().testTag("generate"),keys.isNotEmpty()&&!sending)
-            Note(if(armed) "后续改参会在后台重算；旧方案不能送出。" else "先选择候选和约束，再计算。生成不会创建投资。")
         } }
     },results={
         item { GlassPanel(Modifier.fillMaxWidth(),16.dp) { Label("智能组合包"); Note("按原引擎排序。展开一张方案，核对每一腿后送往 New。") } }
         if(problem.isNotBlank()) item { Message("未打开 New",problem) }
         when {
-            catalog is ReadState.Failed -> item { Message("候选数据不可用",catalog.message,"重读") { refresh++ } }
-            catalog !is ReadState.Value -> item { Note("正在读取候选…") }
+            catalog is ReadState.Failed -> if(!wide && right) item { PoolFailure(catalog.message) { refresh++ } } else Unit
+            catalog !is ReadState.Value -> if(!wide && right) item { Note("正在读取候选…") } else Unit
+            rows.isEmpty() -> if(!wide && right) item { Message("还没有候选比赛","请先在 New 录入投前观点。") } else Unit
             rows.none { it.issue==null } -> item { Message("缺少可报价的场次","检查候选的赔率、Conf 与 Entry；这不代表约束无解。") }
             keys.isEmpty() -> item { Message("尚未选择候选","勾选至少一场可报价的比赛。","返回构建") {right=false} }
             !armed -> item { Message("尚未生成方案","当前 ${keys.size} 场；最少 ${cfg.minLegs} 标的。","生成最优组合") {generate()} }
@@ -96,25 +108,13 @@ private val controlsSaver=listSaver<Constraints,Any>(save={listOf(it.risk,it.min
     })
 }
 
-@Composable private fun CandidateLine(leg:Leg,checked:Boolean,editable:Boolean,onToggle:()->Unit) {
-    var open by rememberSaveable(leg.key) { mutableStateOf(false) }
-    GlassPanel(Modifier.fillMaxWidth(),12.dp,14.dp) {
-        Row(verticalAlignment=Alignment.CenterVertically) {
-            Row(Modifier.weight(1f).heightIn(min=46.dp).testTag("candidate:${leg.key}").toggleable(checked,enabled=editable && leg.issue==null,role=Role.Checkbox,onValueChange={onToggle()}),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-                Checkbox(checked,null,enabled=editable && leg.issue==null); Column { Text(leg.title,color=Moon.Ink,fontSize=15.sp); Note("${roleName(leg.role)} · ${leg.entries.size} Entry") }
-            }; TextButton({open=!open}) { Text(if(open) "收起" else "查看") }
-        }
-        if(leg.issue!=null) Note(leg.issue)
-        if(open) { LineItem("腿级 Conf / Odds","${leg.conf.pct()} / ${leg.odds.fmt()}"); EntryRows(leg) }
-    }
-}
 @Composable private fun SliderLine(label:String,value:Int,range:IntRange,format:(Int)->String={it.toString()},change:(Int)->Unit) {
     LineItem(label,format(value)); Slider(value.toFloat(),{ change(it.roundToInt()) },valueRange=range.first.toFloat()..range.last.toFloat(),modifier=Modifier.fillMaxWidth())
 }
 @Composable private fun ConstraintEditor(c:Constraints,extra:Boolean,details:()->Unit,change:(Constraints)->Unit) {
-    Label("组合结构偏好"); SliderLine("Risk Preference",c.risk,0..100,{"$it%"}) {change(c.copy(risk=it))}
-    Note("最小标的数"); Strip("1" to "1 标","2" to "2 标","3" to "3 标","4" to "4 标",selected=c.minLegs.toString(),choose={change(c.copy(minLegs=it.toInt()))})
-    Note("生成策略"); Strip("manualCoverage" to "勾选优先","softPenalty" to "软惩罚","thresholdStrict" to "阈值优先",selected=c.strategy,choose={change(c.copy(strategy=it))})
+    Label("组合结构偏好")
+    Note("最小标的数"); ChoiceStrip("1" to "1 标","2" to "2 标","3" to "3 标","4" to "4 标",selected=c.minLegs.toString(),choose={change(c.copy(minLegs=it.toInt()))})
+    Note("组合生成策略"); ChoiceStrip("manualCoverage" to "勾选优先","softPenalty" to "软惩罚","thresholdStrict" to "阈值优先",selected=c.strategy,choose={change(c.copy(strategy=it))})
     TextButton(details) { Text(if(extra) "收起阈值与求解设置" else "调整阈值与求解设置") }
     if(extra) {
         SliderLine("最小胜率",c.minWin,0..100,{"$it%"}) {change(c.copy(minWin=it))}
@@ -132,9 +132,12 @@ private val controlsSaver=listSaver<Constraints,Any>(save={listOf(it.risk,it.min
 }
 @Composable private fun PlanLine(p:Plan,open:Boolean,busy:Boolean,toggle:()->Unit,send:()->Unit) {
     GlassPanel(Modifier.fillMaxWidth(),16.dp) {
-        Column(Modifier.fillMaxWidth().testTag("inspect:${p.id}").clickable(role=Role.Button,onClick=toggle).padding(vertical=4.dp),verticalArrangement=Arrangement.spacedBy(5.dp)) {
-            Serial("T${p.rank}  /  ${p.layer}     ${p.legs.size} 腿      ${if(open) "收起 −" else "展开 ＋"}")
-            Label(p.legs.joinToString(" × ") { it.home }); Note("等效赔率 ×${p.odds.fmt()}　EV ${p.ev}　分配 ${p.amount.fmt(0)}")
+        Row(Modifier.fillMaxWidth().heightIn(min=48.dp).testTag("inspect:${p.id}").clickable(role=Role.Button,onClickLabel=if(open) "收起方案" else "展开方案",onClick=toggle),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                Serial("T${p.rank}  ·  ${p.layer}  ·  ${p.legs.size} 腿")
+                Label(p.legs.joinToString(" × ") { it.home }); Note("等效赔率 ×${p.odds.fmt()}　EV ${p.ev}　分配 ${p.amount.fmt(0)}")
+            }
+            Text(if(open) "⌃" else "⌄",color=Moon.Muted,fontSize=16.sp)
         }
         if(open) {
             LineItem("模型命中率 / Sharpe","${p.win} / ${p.sharpe}"); Note(p.explanation)

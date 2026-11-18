@@ -35,6 +35,16 @@ PY
   adb shell am instrument -w -r -e class com.eivra.studio.v2.NavigationSmoke -e studioViewport "$view" "$pkg.test/androidx.test.runner.AndroidJUnitRunner" | tee "$dir/host-instrumentation.txt"
   grep -Eq 'OK \([1-9][0-9]* tests?\)' "$dir/host-instrumentation.txt"
   adb logcat -d -s EivraHostStats:I '*:S' | grep "viewport=$view " > "$dir/frame-sample.txt" || true
+  adb shell am instrument -w -r -e class com.eivra.studio.v2.PolishViews -e studioViewport "$view" "$pkg.test/androidx.test.runner.AndroidJUnitRunner" | tee "$dir/polish-tests.txt"
+  # Keep diagnostic frames even if a later assertion failed.
+  for key in new-controls combo-loaded overview records console; do
+    if adb shell run-as "$pkg" test -s "files/polish-$view/$key.png"; then
+      adb exec-out run-as "$pkg" cat "files/polish-$view/$key.png" > "$dir/$key-native.png"
+      adb exec-out run-as "$pkg" cat "files/polish-$view/$key.txt" > "$dir/$key-tree.txt"
+    fi
+  done
+  grep -Eq 'OK \(1 test\)' "$dir/polish-tests.txt"
+  test -s "$dir/combo-loaded-native.png" # real demo candidate, not just a route landmark
   if test -f lanes/platform/assets/platform-kernel.js; then
     # Only the disposable runner gets this argument. A skip or a missing assertion cannot count as a pass.
     adb shell am instrument -w -r -e class com.eivra.studio.v2.IntegratedLedgerJourney -e eivraDisposableDemo true -e studioViewport "$view" "$pkg.test/androidx.test.runner.AndroidJUnitRunner" | tee "$dir/ledger-instrumentation.txt"
