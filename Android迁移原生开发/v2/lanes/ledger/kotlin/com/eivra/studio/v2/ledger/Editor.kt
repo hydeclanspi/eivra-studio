@@ -59,7 +59,7 @@ internal class EditSession(private val scope: CoroutineScope, private val saved:
         scope.launch {
             try {
                 if(checkpoint){val id=g.checkpoint(captured); saved["checkpoint"]=id; message="草稿已保存 · $id"}
-                else {val id=g.save(captured,stableId); saved["receipt"]=id; receipt=id; saved.remove<String>("checkpoint")}
+                else {val clockKey="created:$stableId"; val stamp=saved.get<String>(clockKey) ?: java.time.Instant.now().toString().also { saved[clockKey]=it }; val id=g.save(captured,stableId,stamp); saved.remove<String>(clockKey); saved["receipt"]=id; receipt=id; saved.remove<String>("checkpoint")}
             }catch(e: CancellationException){throw e}
             catch(e: Exception){message="没有取得有效回执：${e.message}"}
             finally{writing=false}
