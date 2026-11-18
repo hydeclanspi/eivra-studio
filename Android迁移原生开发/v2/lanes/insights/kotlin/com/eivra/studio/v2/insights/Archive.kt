@@ -88,7 +88,7 @@ internal class Archive(val tickets: List<Ticket>, private val aliases: Map<Strin
                         score,result,m.opt("is_correct") as? Boolean,m.number("conf"),m.number("match_rating"),m.text("mode"),m.text("note"),m.text("post_note"))
                 }
                 Ticket(j.id(),j.text("combo_name"),j.text("created_at").instant(zone),j.text("settled_at").instant(zone),j.text("status") ?: "pending",
-                    j.optBoolean("is_archived"),j.optBoolean("__demo_seed_pending"),j.number("inputs"),j.number("profit"),j.number("revenues"),j.number("expected_rating"),
+                    j.optBoolean("is_archived"),j.optBoolean("__demo_seed_pending") && (j.text("status") ?: "pending") == "pending",j.number("inputs"),j.number("profit"),j.number("revenues"),j.number("expected_rating"),
                     j.text("expected_rating_semantics") ?: snap?.text("expected_rating_semantics"),snap?.text("generated_at"),snap?.prob("ticket_hit_probability"),legs)
             }.sortedByDescending { it.created }
             return Archive(tickets, aliases)

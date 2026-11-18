@@ -9,7 +9,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.*
 
-data class ReviewPoint internal constructor(val label: String, val value: Double, val readout: String, val dest: Dest? = null)
+internal data class ReviewPoint(val label: String, val value: Double, val readout: String, val dest: Dest? = null)
 internal data class Stat(val label: String, val value: String, val basis: String)
 internal sealed interface Block {
     data class Stats(val values: List<Stat>) : Block
@@ -24,7 +24,7 @@ internal sealed interface Block {
 internal data class Cell(val key: String, val block: Block)
 internal data class Query(val dest: Dest, val window: Window = Window.All, val search: String = "", val cut: Int = 0, val cycle: String? = null)
 internal const val SLICES = "持仓结构|模式|Conf 区间|Entry 类型"
-internal const val METRICS = "概览|概率误差|判断尺度"
+internal const val METRICS = "概览|概率校准|判断尺度"
 internal const val RECORDS = "全部状态|已结算|待结算|已归档"
 internal class Book {
     val rows = mutableListOf<Cell>()
@@ -95,7 +95,14 @@ internal class ReviewReader(private val ports: StudioPorts, private val mode: St
         rows.forEach { ticket(it) }
     }
     private suspend fun Book.overview(q: Query) {
-        val d = JSONObject(raw("analytics.getDashboardSnapshot",q.window.wire))
+        val d = try { JSONObject(raw("analytics.getDashboardSnapshot",q.window.wire)) } catch(e: UnsupportedOperationException) {
+            // A working archive remains navigable while the separate analytics allow-list is pending.
+            val records = ledger().visible(mode,q.window,today,zone).filterNot { it.archived }
+            note("统计服务尚未接入", "以下为当前账本的原始记录，不提供估算指标。")
+            section("近期投资", "按登记时间排列")
+            records.take(8).forEach { ticket(it) }
+            return
+        }
         val n = d.getInt("settledPeriod"); val pending = d.getInt("pendingPeriod")
         val series = d.getJSONArray("periodInvestmentRoiSeries").objects(); val hasStake = series.any { (it.number("inputs") ?: 0.0) > 0 }
         val ratings = d.getJSONArray("ratingRows").length()
@@ -114,7 +121,15 @@ internal class ReviewReader(private val ports: StudioPorts, private val mode: St
     private suspend fun Book.teams(q: Query) {
         val a = ledger(); val key = q.dest.key
         val canonical = key?.let(a::canonical)
-        val rows = JSONArray(raw("analytics.getTeamsSnapshot",canonical ?: q.search.trim(),q.window.wire)).objects()
+        val statsRows = try { JSONArray(raw("analytics.getTeamsSnapshot",canonical ?: q.search.trim(),q.window.wire)).objects() } catch(e: UnsupportedOperationException) { null }
+        if(statsRows == null) {
+            note("球队统计尚未接入", "仍可按原记录查球队和赛果；不估算样本率。")
+            if(canonical == null) {
+                val teams=a.visible(mode,q.window,today,zone).filterNot { it.archived }.flatMap { t->t.legs.flatMap { listOf(it.home,it.away) } }.map(a::canonical).filter { it.isNotBlank() && (q.search.isBlank() || it.contains(a.canonical(q.search),true)) }.distinct().sorted()
+                teams.forEach { name -> add("team:$name",Block.Line(name,"来自登记记录","档案 →",Dest(Route.Teams,name))) }; return
+            }
+        }
+        val rows = statsRows.orEmpty()
         if(canonical == null) {
             section("球队索引","${rows.size} 支球队 · 按已结算腿样本排序")
             rows.forEach { row -> val name=row.getString("name"); val n=row.getInt("totalSamples")
@@ -128,7 +143,7 @@ internal class ReviewReader(private val ports: StudioPorts, private val mode: St
         } }
         section(canonical, "球队档案 · 主客比分保留原顺序")
         val n = t?.getInt("totalSamples") ?: 0
-        stats(Stat("已结算样本",n.toString(),"拆分到比赛腿"),Stat("归因 ROI",t?.number("roi").takeIf { n>0 && (t?.number("totalInputs") ?: 0.0)>0 }.pct(),"按分摊本金"))
+        stats(Stat("已结算样本",if(statsRows==null) "—" else n.toString(),"拆分到比赛腿"),Stat("归因 ROI",t?.number("roi").takeIf { n>0 && (t?.number("totalInputs") ?: 0.0)>0 }.pct(),"按分摊本金"))
         section("关联记录", "${occurrences.size} 条腿 · 含待结算，不混入上方分母")
         occurrences.forEach { (inv,i,l) -> add("team-leg:${inv.id}:$i",Block.Line(l.match,"#${inv.id} · 第 ${i+1} 腿 · ${inv.created.stamp()}","${l.score ?: "—"} · ${l.outcome}",Dest(Route.History,inv.id))) }
         if(occurrences.isEmpty()) note("当前窗口无比赛记录", "可切换到全部时间。")

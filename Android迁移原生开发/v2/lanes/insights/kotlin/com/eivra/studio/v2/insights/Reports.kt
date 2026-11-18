@@ -21,6 +21,11 @@ internal suspend fun Book.metrics(r: ReviewReader, q: Query) {
     when(q.cut) {
         1 -> {
             val d = JSONObject(r.raw("insights.getProbabilityReview",q.window.wire)); val points = d.getJSONArray("points").objects()
+            val frozen = d.getJSONObject("frozen")
+            section("冻结概率校准", "${frozen.getInt("samples")} 条已配对腿 · ${frozen.getInt("excluded")} 条未纳入")
+            note("先有预测，再有结果", "只纳入赛前已冻结、可按选择身份配对且有明确对错的腿。分组比较预测概率均值与实测命中率，一条已登记的腿算一个观测。")
+            frozen.getJSONArray("bins").objects().forEach { bin -> val n=bin.getInt("samples"); val label=bin.getString("label")
+                add("reliability:$label",Block.Line(label,"$n 条腿",if(n==0) "— · 无样本" else "预测 ${bin.prob("meanPrediction").chance()} / 命中 ${bin.prob("observed").chance()}")) }
             section("滚动概率误差", "逐腿 Conf 对胜负 · ${d.getInt("eligible")} 个有效观测 · 窗宽 ${d.getInt("windowSize")}")
             note("怎样读这两条曲线", "Brier 与 LogLoss 越低越好。按登记时间滚动，比较单腿 Conf 和结果；不是整票命中概率，也不是样本外验证。")
             for ((field,name) in listOf("brier" to "Brier", "logLoss" to "LogLoss")) {
@@ -37,11 +42,11 @@ internal suspend fun Book.metrics(r: ReviewReader, q: Query) {
             val d=JSONObject(r.raw("analytics.getMetricsSnapshot",q.window.wire)); val h=d.getJSONObject("headline"); val rows=d.getJSONArray("matchRows").objects(); val a=r.ledger()
             // matchRows coerces unknown is_correct to false. Recover only presence of a grade,
             // by original id + split-index, never recompute the rate or reuse ticket wins.
-            val graded=rows.count { row -> val id=row.getString("investmentId"); val i=row.getString("id").removePrefix("$id-").toInt(); a.exact(id)?.legs?.getOrNull(i)?.correct != null }
+            val graded=rows.count { row -> val id=requireNotNull(row.text("investmentId")); val i=row.getString("id").removePrefix("$id-").toInt(); a.exact(id)?.legs?.getOrNull(i)?.correct != null }
             val n=h.getInt("totalInvestments"); val inputs=h.number("totalInputs")
             stats(Stat("已结算投资",n.toString(),"${rows.size} 条比赛腿"),Stat("逐腿命中率",h.number("hitRate").takeIf { graded>0 }.pct(),"$graded 条已判定腿"),Stat("累计投入",inputs.cash(),"已结算本金"),Stat("净盈亏",h.number("totalProfit").cash(),"ROI ${h.number("roi").takeIf { (inputs ?: 0.0)>0 }.pct()}"))
             section("比赛样本", "点击对阵查看原始条目")
-            rows.forEach { row -> val id=row.getString("investmentId"); add("sample:${row.id()}",Block.Line(row.getString("match"),"${row.text("dateLabel")} · #$id",row.text("result") ?: "—",Dest(Route.History,id))) }
+            rows.forEach { row -> val id=requireNotNull(row.text("investmentId")); add("sample:${row.id()}",Block.Line(row.getString("match"),"${row.text("dateLabel")} · #$id",row.text("result") ?: "—",Dest(Route.History,id))) }
             if(n==0) note("本窗口没有已结算样本", "待结算不参与统计。")
         }
     }

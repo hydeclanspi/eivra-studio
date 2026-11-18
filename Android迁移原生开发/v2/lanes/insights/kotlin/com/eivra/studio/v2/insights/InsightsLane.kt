@@ -64,7 +64,7 @@ private val historyTabs=listOf(Route.History to "Records",Route.Teams to "Teams"
     val title=when(route) { Route.History -> if(key==null) "历史记录" else "记录复盘"; Route.Teams -> if(key==null) "球队档案馆" else "球队档案"; Route.Dashboard -> "Dashboard"; Route.Analysis -> "Deep Analysis"; Route.Metrics -> "Metrics"; else -> "Seasons" }
     BoxWithConstraints(Modifier.fillMaxSize(),contentAlignment=Alignment.TopCenter) {
         val wide=maxWidth>=760.dp; val inset=if(wide) 28.dp else 14.dp
-        LazyColumn(Modifier.widthIn(max=1240.dp).fillMaxSize().testTag("review-list"),contentPadding=PaddingValues(start=inset,end=inset,top=12.dp,bottom=36.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        LazyColumn(Modifier.widthIn(max=1240.dp).fillMaxSize().testTag("review-list").semantics { stateDescription=when(result) { ResultState.Loading -> "读取中"; is ResultState.Ready -> "已读取"; is ResultState.Failed -> "读取失败" } },contentPadding=PaddingValues(start=inset,end=inset,top=12.dp,bottom=36.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
             item("heading") { Column { Caption("${route.section.uppercase()}   /   ${family.firstOrNull { it.first==route }?.second.orEmpty()}",Moon.Accent)
                 Row(verticalAlignment=Alignment.CenterVertically) { Text(title,Modifier.weight(1f),style=MaterialTheme.typography.headlineMedium,color=Moon.Ink); if(route==Route.Dashboard || key!=null) TextButton(onClick={env.go(Dest(Route.History))}) { Text(if(key!=null) "记录索引" else "查看历史 →") } }
                 Row(Modifier.horizontalScroll(rememberScrollState())) { family.forEach { (r,l) -> StudioPill(l,route==r,{ env.go(Dest(r)) }) } }
