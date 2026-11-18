@@ -26,7 +26,14 @@ jobs:
           out=pathlib.Path('evidence'); pkg='com.eivra.studio.v2'
           def adb(*args): return sp.check_output(['adb',*args],timeout=30)
           def dom():
-              adb('shell','uiautomator','dump','/sdcard/studio.xml');return ET.fromstring(adb('exec-out','cat','/sdcard/studio.xml'))
+              # Some API-35 images emit status text before the XML, or do not mount external storage immediately.
+              for attempt in range(5):
+                  adb('shell','uiautomator','dump','/data/local/tmp/eivra.xml'); raw=adb('exec-out','cat','/data/local/tmp/eivra.xml'); lo=raw.find(b'<hierarchy');hi=raw.rfind(b'</hierarchy>')
+                  if lo>=0 and hi>lo:
+                      try:return ET.fromstring(raw[lo:hi+12])
+                      except ET.ParseError:pass
+                  time.sleep(.6)
+              (out/'last-hierarchy-response.txt').write_bytes(raw[:1000]);raise RuntimeError('No parseable fresh UI hierarchy')
           def nodes(t):return [e for e in t.iter('node') if e.get('package')==pkg]
           def txt(e):return (e.get('text','')+' '+e.get('content-desc','')).strip()
           def wait(needle):
@@ -37,7 +44,7 @@ jobs:
               raise RuntimeError('missing '+needle)
           def shot(n,t):
               b=adb('exec-out','screencap','-p'); assert struct.unpack('>II',b[16:24])==(1280,800); (out/(n+'-native.png')).write_bytes(b);(out/(n+'-window.xml')).write_bytes(ET.tostring(t,encoding='utf-8'))
-          adb('shell','wm','size','1280x800');adb('shell','wm','density','160');adb('shell','settings','put','system','font_scale','1');adb('install','-r','/tmp/eivra.apk');adb('shell','wm','dismiss-keyguard');adb('shell','am','start','-W','-n',pkg+'/.MainActivity');t=wait('Quick Input');time.sleep(.45);shot('new',t)
+          adb('shell','wm','size','1280x800');adb('shell','wm','density','160');adb('shell','settings','put','system','font_scale','1');adb('install','-r','/tmp/eivra.apk');adb('shell','wm','dismiss-keyguard');adb('shell','am','start','-W','-n',pkg+'/.MainActivity');time.sleep(2);assert pkg in adb('shell','dumpsys','activity','activities').decode(errors='replace');(out/'initial-frame.png').write_bytes(adb('exec-out','screencap','-p'));t=wait('Quick Input');time.sleep(.45);shot('new',t)
           adb('shell','input','swipe','520','700','520','390','550'); time.sleep(.7);t=dom();shot('new-controls',t)
           p=next(e for e in nodes(t) if txt(e)=='Portfolio');x,y,x2,y2=map(int,re.findall(r'\d+',p.get('bounds')));adb('shell','input','tap',str((x+x2)//2),str((y+y2)//2));t=wait('已选');
           for i in range(10):
