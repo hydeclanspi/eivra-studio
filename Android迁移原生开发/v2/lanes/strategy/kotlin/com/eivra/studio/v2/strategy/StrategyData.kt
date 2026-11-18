@@ -31,7 +31,17 @@ internal sealed interface Report {
 internal fun decodeLeg(row: JSONObject): Leg {
     val raw = row.getJSONArray("entries")
     val entries = raw.objects().map { Entry(it.id("name"), it.text("odds"), it.text("market_type")) }
-    val m = row.optJSONObject("draftMatch")
+    val m = row.optJSONObject("draftMatch")?.let { JSONObject(it.toString()) }
+    // Some platform revisions supply the research provenance on the leg rather than in draftMatch.
+    if (m != null && row.has("researchCandidate") && !row.isNull("researchCandidate")) {
+        val origin = row.getJSONObject("researchCandidate")
+        require(!m.has("quant_research_origin") || sameJson(m.opt("quant_research_origin"), origin)) { "研究来源与原稿不符" }
+        m.put("quant_research_origin", origin)
+        row.text("kickoff")?.let { kickoff ->
+            require(m.isNull("kickoff") || m.text("kickoff") == kickoff) { "研究场次开赛时间不一致" }
+            m.put("kickoff", kickoff)
+        }
+    }
     val why = when {
         m == null -> "缺少可交接的投前原稿"
         m.text("home_team") != row.text("homeTeam") || m.text("away_team") != row.text("awayTeam") -> "原稿对阵与当前方案不一致"
@@ -73,13 +83,27 @@ internal fun canonicalDraft(p: Plan): JSONObject {
     val matches = JSONArray()
     for (leg in p.legs) {
         require(leg.handoffIssue == null && leg.issue == null && leg.draft != null) { leg.handoffIssue ?: leg.issue ?: "缺原稿" }
-        matches.put(JSONObject(leg.draft))
+        matches.put(JSONObject(leg.draft).put("conf_confirmed", false))
     }
-    return obj("matches" to matches)
+    return obj("matches" to matches, "combo_name" to "T${p.rank} · ${p.legs.joinToString(" × ") { it.home }}",
+        "portfolio_proposal" to obj("rank" to p.rank, "layer" to p.layer, "suggested_amount" to p.amount, "leg_keys" to JSONArray(p.legs.map { it.key })))
 }
 internal suspend fun putPlan(ports: StudioPorts, p: Plan, expected: WorkspaceState): Dest = withContext(Dispatchers.IO) {
     check(ports.state.value.let { it.mode==expected.mode && it.revision==expected.revision }) { "工作区已变化，请重新生成。" }
     val receipt = JSONObject(ports.write("draft.put",args(canonicalDraft(p))))
     check(ports.state.value.mode==expected.mode) { "工作区已切换，未打开另一工作区的草稿。" }
     Dest(Route.New, receipt.id("id"))
+}
+
+/** The Web solver can gracefully fall back below minLegs. An explicitly set minimum here is hard. */
+internal fun verifySelection(report:Report, pool:List<Leg>, minLegs:Int):Report {
+    if(report !is Report.Ready) return report
+    if(report.plans.any { it.legs.size < minLegs }) return Report.Infeasible("原引擎的回退方案未达到最小标的数。请放宽约束或增加无冲突的比赛。")
+    val byKey = pool.associateBy { it.key }
+    for(plan in report.plans) for(leg in plan.legs) {
+        val source = byKey[leg.key] ?: error("原候选已不存在，请重读")
+        require(source.home == leg.home && source.away == leg.away && source.entries == leg.entries) { "组合与已检查的对阵或 Entry 不一致，未采用本次结果。" }
+        if(source.draft != null && leg.draft != null) require(sameJson(JSONObject(source.draft).getJSONArray("entries"),JSONObject(leg.draft).getJSONArray("entries"))) { "原稿 Entry 元数据已变化，请重读候选。" }
+    }
+    return report
 }

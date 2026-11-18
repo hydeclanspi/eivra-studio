@@ -29,8 +29,12 @@ import kotlin.math.roundToInt
                 Section(if(pre) "对阵 · 两队 PK" else "比赛信息")
             }
             val updateHome:(String)->Unit={v->s.leg(i){it.copy(home=v,windows=null)}};val updateAway:(String)->Unit={v->s.leg(i){it.copy(away=v,windows=null)}}
-            if(pre){Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)){
-                TeamWell(true,m.home,updateHome,"home-$i",Modifier.weight(1f));Text("VS",color=Moon.Champagne,fontSize=11.sp,fontWeight=FontWeight.Bold);TeamWell(false,m.away,updateAway,"away-$i",Modifier.weight(1f))
+            if(pre){BoxWithConstraints(Modifier.fillMaxWidth()) {
+                if(maxWidth<445.dp) Column(Modifier.fillMaxWidth(),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(5.dp)){
+                    TeamWell(true,m.home,updateHome,"home-$i",Modifier.fillMaxWidth());Caption("VS",Moon.Champagne);TeamWell(false,m.away,updateAway,"away-$i",Modifier.fillMaxWidth())
+                }else Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
+                    TeamWell(true,m.home,updateHome,"home-$i",Modifier.weight(1f));Caption("VS",Moon.Champagne);TeamWell(false,m.away,updateAway,"away-$i",Modifier.weight(1f))
+                }
             }}else{Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){Edit("主队",m.home,updateHome,"home-$i",Modifier.weight(1f));Edit("客队",m.away,updateAway,"away-$i",Modifier.weight(1f))}}
             Caption(if(pre) "Entries · 结果一条，比分一条（赔率可暂空）" else "Entries · 按实际登记项填写价格")
             m.rows.forEachIndexed { j,e -> key(e.key) {

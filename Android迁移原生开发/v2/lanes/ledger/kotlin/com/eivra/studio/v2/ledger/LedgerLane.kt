@@ -69,7 +69,7 @@ internal fun fmt(n: Double, digits: Int=2) = String.format(Locale.ROOT,"%.${digi
 }
 @Composable private fun NewSheet(env: StudioEnv,g: LedgerGateway,state: WorkspaceState,s: EditSession) {
     LaunchedEffect(g,env.dest.key){s.enter(g,env.dest.key)}
-    val t=s.ticket; val pre=t.stage==Stage.Pre; val wide=env.widthDp>=1101; val pad=if(wide) 24.dp else 14.dp
+    val t=s.ticket; val pre=t.stage==Stage.Pre; val wide=env.widthDp>=1101; val pad=if(wide) ((env.widthDp-1084)/2).coerceAtLeast(24).dp else 14.dp
     val receipt=s.receipt; var forwarded by rememberSaveable { mutableStateOf<String?>(null) }
     if(receipt!=null) {
         LaunchedEffect(receipt){if(forwarded!=receipt){forwarded=receipt;env.go(Dest(Route.Settle,receipt))}}

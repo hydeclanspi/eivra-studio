@@ -59,7 +59,7 @@ function save(r,pre) {
     check(payload,validationMessage||'Invalid forecast')
     record={...r,...payload.newInvestment,created_at:r.created_at??now}
     record.matches=record.matches.map((normalized,i)=>{
-      const m={...r.matches[i],...normalized}; const source=r.matches[i];
+      const source=r.matches[i];const m={...source,...normalized,entries:normalized.entries.map((e,j)=>({...source.entries[j],...e}))};
       Object.assign(m,getMatchSourceIdentity({...m,source_investment_id:source.source_investment_id??r.id,source_match_id:source.source_match_id??m.id,event_id:source.event_id??''},r.id));
       Object.assign(record.forecast_snapshot.legs[i],getMatchSourceIdentity(m,r.id));return m
     })
@@ -71,20 +71,22 @@ function save(r,pre) {
   const saved=saveInvestment(record);check(saved?.id===r.id,'Investment not saved');bumpTeamSamples(saved.matches.flatMap(m=>[m.home_team,m.away_team]));return {id:r.id}
 }
 function settle(id,form) {
-  const record=getInvestments().find(r=>r.id===id)
+  const record=getInvestments().find(r=>String(r.id)===id)
   check(record?.status==='pending','Requested record is missing or not pending')
   check(obj(form)&&Array.isArray(form.matches)&&form.matches.length===record.matches.length,'Expected one outcome per match in original order')
   check(num(form.revenues)&&form.matches.every((m,i)=>obj(m)&&typeof m.isCorrect==='boolean'&&(m.id==null||m.id===record.matches[i].id)&&['matchRating','matchRep'].every(k=>m[k]==null||m[k]===''||num(m[k]))),'Explicit revenues, hit decisions and valid ratings required')
   const msg=getValidationError(form);check(!msg,msg)
-  check(updateInvestment(id,buildSettlementUpdater({totalInputs:Number(record.inputs)},form))?.id===id,'Settlement failed');return {id}
+  check(updateInvestment(record.id,buildSettlementUpdater({totalInputs:Number(record.inputs)},form))?.id===record.id,'Settlement failed');return {id}
 }
-const reads={
+import {researchReads,saveParams} from './reviews.js'
+import {inspect} from './exchange.js'
+const reads={...researchReads,'exchange.inspect':inspect,
  'workspace.snapshot':snapshot,'naturalInputParser.parseNaturalInput':parseNaturalInput,'forecast.buildDraft':forecast,
  'analytics.getDashboardSnapshot':getDashboardSnapshot,'analytics.getAnalysisSnapshot':getAnalysisSnapshot,'analytics.getMetricsSnapshot':getMetricsSnapshot,
  'analytics.getTeamsSnapshot':getTeamsSnapshot,'analytics.getReservoirState':getReservoirState,'analytics.getPredictionCalibrationContext':getPredictionCalibrationContext,
  'preMatchOpinion.weightsFromSlider':weightsFromSlider,'preMatchOpinion.jointScoreCells':jointScoreCells,
 }
-const writes={'workspace.saveInvestment':r=>save(r,true),'workspace.importInvestment':r=>save(r,false),'workspace.settleInvestment':settle}
+const writes={'params.save':saveParams,'workspace.saveInvestment':r=>save(r,true),'workspace.importInvestment':r=>save(r,false),'workspace.settleInvestment':settle}
 // Runtime input is JSON data. There is no dispatch by JS path, setter, module name or source string.
 globalThis.eivraPlatform={call(text){
  const {mode,bundle,op,args,write}=JSON.parse(text), operations=write?writes:reads

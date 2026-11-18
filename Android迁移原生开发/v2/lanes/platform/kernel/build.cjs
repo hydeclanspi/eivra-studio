@@ -30,6 +30,7 @@ ${s(90,111)}\n${s(687,704)}\n${s(706,741)}\nexport {getValidationError, buildSet
 }
 function resolver() { return {name:'offline-web-graph',
   resolveId(id, parent) {
+    if (id==='web-combo') return '\0web-combo'
     if (id==='web-page-functions' || id.endsWith('genesisBundle.json')) return '\0'+(id==='web-page-functions'?id:'no-genesis')
     if (id==='react') return path.join(old,'platform-react.js')
     if (id==='@supabase/supabase-js') return path.join(old,'platform-cloud.js')
@@ -39,7 +40,7 @@ function resolver() { return {name:'offline-web-graph',
     if (id.startsWith('.') && parent) { const p=path.resolve(path.dirname(parent),id); return fs.existsSync(p)?p:p+'.js' }
     if (path.isAbsolute(id)) return id
     throw Error('Unexpected dependency: '+id+' in '+parent)
-  },load(id) {if (id==='\0web-page-functions') return pageFunctions(); if(id==='\0no-genesis') return 'export default {}';},
+  },load(id) {if(id==='\0web-combo') return require('./combo.cjs')(page); if (id==='\0web-page-functions') return pageFunctions(); if(id==='\0no-genesis') return 'export default {}';},
   transform(code,id) { if(code.includes('import.meta.env')) return code.replace(/import\.meta\.env/g,'({})'); }
 }}
 async function bundle(entry, dest) {

@@ -67,8 +67,8 @@ internal class LedgerGateway(private val ports: StudioPorts, private val mode: S
         require(mean in 0.0..1.0 && odds>0 && suggested>=0 && hit in 0.0..1.0) { "内核指标超出有效范围" }
         Preview(odds,mean,suggested,hit,stamp)
     }
-    suspend fun save(t: Ticket, stableId: String): String = withContext(Dispatchers.IO) {
-        writable(); val at=Instant.now().toString(); val r=t.record(stableId,at)
+    suspend fun save(t: Ticket, stableId: String, createdAt: String=Instant.now().toString()): String = withContext(Dispatchers.IO) {
+        writable(); val at=Instant.now().toString(); val r=t.record(stableId,createdAt)
         if(t.stage==Stage.Pre) predict(t,at) // commit-time preflight; platform still freezes inside its transaction
         writable(); receipt(ports.write(if(t.stage==Stage.Pre) "workspace.saveInvestment" else "workspace.importInvestment",arr(r)),true)
     }

@@ -62,10 +62,26 @@ internal class LocalPorts(root: () -> File, private val kernel: (String) -> Stri
         val p = pointer(); val mode = p.getString("mode"); val b = book(mode)
         return describe(mode, p.getLong("floor"), b).also { flow.value = it } to b
     }
+    private fun inspect(s: WorkspaceState, b: JSONObject, text:String): JSONObject {
+        require(text.toByteArray(Charsets.UTF_8).size <= 16*1024*1024) { "文件超过 16 MiB" }
+        val candidate=JSONObject(invoke(s.mode,b.getJSONObject("bundle"),"exchange.inspect",JSONArray().put(text).put(s.mode)))
+        if(candidate.getBoolean("native")) { val d=JSONObject(text);require(digest(d.getJSONObject("payload")) == d.getString("sha256")) { "备份校验值不一致" } }
+        return candidate
+    }
+    private fun token(s:WorkspaceState,text:String)=digest(JSONArray().put(s.mode).put(s.revision).put(text))
     suspend fun start() = withContext(Dispatchers.IO) { lock.withLock { active().first } }
     override suspend fun read(op: String, args: JSONArray): String = withContext(Dispatchers.IO) {
         val (s,b) = lock.withLock { active() }
         when(op) {
+            "exchange.backup" -> {
+                if(args.length()>0) require(args.getString(0)==s.mode && args.getLong(1)==s.revision) { "工作区已变更，请重新导出" }
+                val payload=JSONObject().put("mode",s.mode).put("bundle",b.getJSONObject("bundle")).put("drafts",b.getJSONObject("drafts")).put("receipts",b.getJSONObject("receipts"))
+                JSONObject().put("format","eivra-native-backup/1").put("exported_at",java.time.Instant.now().toString()).put("payload",payload).put("sha256",digest(payload)).toString()
+            }
+            "exchange.preflight" -> {
+                val text=args.getString(0);val c=inspect(s,b,text);val rows=c.getJSONObject("bundle").getJSONArray("investments")
+                JSONObject().put("before",b.getJSONObject("bundle").getJSONArray("investments").length()).put("after",rows.length()).put("pending",(0 until rows.length()).count{rows.getJSONObject(it).getString("status")=="pending"}).put("replacesDrafts",c.getBoolean("native")).put("mode",s.mode).put("revision",s.revision).put("token",token(s,text)).toString()
+            }
             "draft.get" -> b.getJSONObject("drafts").getJSONObject(args.getString(0)).toString()
             else -> invoke(s.mode, b.getJSONObject("bundle"), op, args)
         }
@@ -91,11 +107,27 @@ internal class LocalPorts(root: () -> File, private val kernel: (String) -> Stri
                     if(same) return@withLock JSONObject().put("id", id).toString()
                     drafts.put(id, d); JSONObject().put("id", id)
                 }
+                "exchange.restore" -> {
+                    val text=args.getString(0); require(args.getString(1)==token(s,text)) { "文件或工作区已变更，请重新预检" }
+                    val c=inspect(s,b,text); b.put("bundle",c.getJSONObject("bundle"));if(c.getBoolean("native")) b.put("drafts",c.getJSONObject("drafts"))
+                    val restored=c.getJSONObject("receipts"); restored.keys().forEach { restored.getJSONObject(it).getJSONObject("result").put("revision",next) };b.put("receipts",restored)
+                    JSONObject().put("mode",s.mode).put("revision",next)
+                }
+                "params.save" -> {
+                    if (args.length() > 1) require(args.getLong(1) == s.revision) { "参数已变更，请重新载入" }
+                    val result = JSONObject(invoke(s.mode,b.getJSONObject("bundle"),op,args,true))
+                    val config = result.getJSONObject("value")
+                    if(canonical(config) == canonical(b.getJSONObject("bundle").getJSONObject("system_config"))) return@withLock JSONObject().put("revision",s.revision).toString()
+                    b.put("bundle",result.getJSONObject("bundle")); JSONObject().put("revision",next)
+                }
                 "workspace.saveInvestment", "workspace.importInvestment", "workspace.settleInvestment" -> {
                     val id = if(op.endsWith("settleInvestment")) args.getString(0) else args.getJSONObject(0).getString("id")
-                    require(id.isNotBlank()); val key = "$op:$id"; val hash = digest(args)
+                    require(id.isNotBlank()); val key = "$op:$id"
+                    // New assigns a fresh clock on each button tap. Preserve the FIRST stored time;
+                    // retry the same pre intent, but reject different odds, stake, opinions, etc.
+                    val hash = if(op == "workspace.saveInvestment") digest(JSONArray().put(JSONObject(args.getJSONObject(0).toString()).also { it.remove("created_at") })) else digest(args)
                     receipts.optJSONObject(key)?.let { old ->
-                        require(hash == old.getString("hash")) { "Conflicting request for $id" }; return@withLock old.getJSONObject("result").toString()
+                        require(hash == old.getString("hash") || digest(args) == old.getString("hash")) { "Conflicting request for $id" }; return@withLock old.getJSONObject("result").toString()
                     }
                     val result = JSONObject(invoke(s.mode,b.getJSONObject("bundle"),op,args,true)); b.put("bundle",result.getJSONObject("bundle"))
                     result.getJSONObject("value").put("revision",next).also { receipts.put(key, JSONObject().put("hash", hash).put("result", it)) }
