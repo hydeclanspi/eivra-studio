@@ -19,6 +19,8 @@ Kotlin 在后台操作。每一笔持久写入在进程内唯一 writer 的锁�
 | `25e2550` | Portfolio / Quant / WarReport / Insights 读取、参数写入；Linux JNI loader 依赖缺失，未把这次失败计为业务通过。 |
 | `511c9a0` | 原生 Console、文件预检与恢复、隔离的宿主 JNI 测试运行器。[Actions 44397091946](https://github.com/hydeclanspi/eivra-studio/actions/runs/44397091946) 通过；已核对产物内 JUnit XML，平台 4/4 + 宿主 3/3，0 skipped。 |
 
+**本次交付的功能 HEAD：`3f48de630d3f88f284f1e229e0f1a0595e78b9b5`。** [最终构建 44398871273](https://github.com/hydeclanspi/eivra-studio/actions/runs/44398871273) 用时 3m40s，生产 APK 和 instrumented APK 均编译成功。[产物](https://github.com/hydeclanspi/eivra-studio/actions/runs/44398871273/artifacts/14471513442) 中的 [JUnit 收据](docs/evidence/ci-3f48de6.json) 已逐套核对：平台 5/5（Platform 2、Exchange 2、StrategyPorts 1），另有宿主路由 3/3，合计 8/8，零跳过。新增回归用真实 JNI 完成两场候选生成、Quant/WarReport 读取与一张建议的草稿交接，并检查 pending 数不增、未替人确认 Conf、扩展 Entry 字段保留。投前重复点击即使客户端刷新了 created_at，也重放第一笔回执并保留第一笔时间。其后的交接提交只增加文档和测试收据，不改可执行代码。设备用例已编译，未执行。
+
 复现（v2 根目录）：`bash lanes/platform/prepare.sh`，`bash gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest`。构建输入：完整仓库（含 Web 与只读 v1）、Node/npm、JDK 17、Android SDK。测试用 `quickjs-jvm:0.9.2`，校验 SHA；Ubuntu 24.04 需要的 libc++ 仅解包到 lane 的 `.cache/`。这些构建/测试工具不进 APK；产品无联网同步入口。
 
 - 同一文本「利兹联 win 拜仁 2.4 30块」，同一个合成工作区：初始 700、在途 101、可用 599。在测试中明确确认 Conf，再对比 Web/V8 和 QuickJS 的原 parser 结果、所有概率状态、每腿输入、校准 metadata、时间与金额。单场 2 states，Expected Rating `0.5600655281881419`、建议 `33`；两场 3 states，`0.5974145306781871`、建议 `8`。数值容差 1e-10，键、数组和时间不忽略。不是模型预测准确率的证明。

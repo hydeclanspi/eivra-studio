@@ -1,0 +1,58 @@
+{
+  "source": "GitHub Actions artifact, parsed TEST-*.xml",
+  "commit": "3f48de630d3f88f284f1e229e0f1a0595e78b9b5",
+  "run": 44398871273,
+  "artifact": 14471513442,
+  "artifact_sha256": "3c0fe471d1dc35896151039b311dff9c74360709bf4c285369ca3416637bbba5",
+  "junit": [
+    {
+      "name": "com.eivra.studio.v2.platform.ExchangeTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "5.298",
+      "cases": [
+        "validateBeforeReplaceAndNeverInventAHistory",
+        "corruptFileIsNotReplacedWithDemoAndFailedRenameDoesNotPublish"
+      ]
+    },
+    {
+      "name": "com.eivra.studio.v2.RoutesTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "0.073",
+      "cases": [
+        "everyWebRouteRoundTrips",
+        "rootAndLegacyAliases",
+        "subpagesDoNotBecomeIndependentPrimaryTabs"
+      ]
+    },
+    {
+      "name": "com.eivra.studio.v2.platform.PlatformTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "4.25",
+      "cases": [
+        "originalWebVersusQuickJs",
+        "committedLedgerSurvivesNewPortsAndRealms"
+      ]
+    },
+    {
+      "name": "com.eivra.studio.v2.platform.StrategyPortsTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0",
+      "time": "2.532",
+      "cases": [
+        "proposalIsOneEditableDraftAndResearchCannotCommit"
+      ]
+    }
+  ],
+  "device_tests_executed": false
+}
