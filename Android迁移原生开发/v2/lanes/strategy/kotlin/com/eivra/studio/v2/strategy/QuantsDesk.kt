@@ -40,7 +40,15 @@ import org.json.*
         if(tab=="forward") { ForwardDesk(env,ws);return@Column }
         Desk(env.widthDp>=840,"Quants · 量化策略实验室","从一个直觉，到可复核的规则与持续观察。",right,{right=it},"研究规则" to "实验结果",inputs={
             item { GlassPanel(Modifier.fillMaxWidth(),16.dp) {
-                Label("从研究问题开始"); StudioField("策略名称",rule.name,{rule=rule.copy(name=it.take(120))},hint="为这项研究命名");StudioField("研究假设",rule.hypothesis,{rule=rule.copy(hypothesis=it.take(1200))},hint="哪些比赛应该有所不同？");StudioField("失效条件",rule.falsifier,{rule=rule.copy(falsifier=it.take(1200))},hint="看到什么证据会放弃假设？")
+                Label("从研究问题开始"); Note("运行只预览结果；点击「冻结规则并保存实验」才保存新版本。")
+                if(env.widthDp>=1024) Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                    StudioField("研究假设",rule.hypothesis,{rule=rule.copy(hypothesis=it.take(1200))},Modifier.weight(1f),hint="我认为什么规律可能存在？",singleLine=false)
+                    StudioField("失效条件",rule.falsifier,{rule=rule.copy(falsifier=it.take(1200))},Modifier.weight(1f),hint="什么结果会改变判断？",singleLine=false)
+                } else {
+                    StudioField("研究假设",rule.hypothesis,{rule=rule.copy(hypothesis=it.take(1200))},hint="我认为什么规律可能存在？",singleLine=false)
+                    StudioField("失效条件",rule.falsifier,{rule=rule.copy(falsifier=it.take(1200))},hint="什么结果会改变判断？",singleLine=false)
+                }
+                StudioField("策略名称",rule.name,{rule=rule.copy(name=it.take(120))},hint="为这项研究命名")
                 if(projectId.isNotEmpty()) TextButton({projectId="";receipt="下次冻结为新研究，不覆盖旧版本。"}){Text("另起一项研究")}
             } }
             item { GlassPanel(Modifier.fillMaxWidth(),16.dp) { Label("策略试算器");StudioField("球队（留空为全联赛）",rule.team,{rule=rule.copy(team=it.take(100))});Strip("any" to "不限场地","home" to "主场","away" to "客场",selected=rule.venue,choose={rule=rule.copy(venue=it)});Strip("score" to "比分","result" to "胜平负",selected=rule.market,choose={rule=rule.copy(market=it)})

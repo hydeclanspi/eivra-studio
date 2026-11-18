@@ -41,6 +41,7 @@ import com.eivra.studio.v2.ui.*
 @Composable internal fun Desk(wide:Boolean, title:String, subtitle:String, right:Boolean, setRight:(Boolean)->Unit, tabs:Pair<String,String>, inputs:LazyListScope.()->Unit, results:LazyListScope.()->Unit) {
     Column(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(8.dp)) {
         PageHeading(title,subtitle)
+        if(wide && tabs.first=="构建") Spacer(Modifier.height(23.dp))
         if(!wide) Strip("left" to tabs.first,"right" to tabs.second,selected=if(right) "right" else "left",choose={setRight(it=="right")})
         val leftScroll=rememberLazyListState(); val rightScroll=rememberLazyListState()
         val portfolio = tabs.first == "构建"

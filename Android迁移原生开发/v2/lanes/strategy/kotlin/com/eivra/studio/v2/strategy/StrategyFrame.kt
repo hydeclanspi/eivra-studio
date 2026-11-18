@@ -16,8 +16,9 @@ import androidx.compose.ui.unit.dp
             viewport < 1024 -> 21.6f
             else -> (viewport * .027f).coerceIn(21.6f, 43.2f)
         }
-        val width = minOf(maxWidth, (shell - 2 * inset).coerceAtLeast(1f).dp)
-        Box(Modifier.width(width).fillMaxHeight().padding(top = if (viewport < 640) 21.6.dp else 28.8.dp)
+        val gutter = if (portfolio) inset else if (viewport < 640) 18f else (viewport * .036f).coerceIn(21.6f, 57.6f)
+        val width = minOf(maxWidth, (shell - 2 * gutter).coerceAtLeast(1f).dp)
+        Box(Modifier.width(width).fillMaxHeight().padding(top = if (viewport < 640) 21.6.dp else if (portfolio) 28.8.dp else 34.6.dp)
             .testTag(if (portfolio) "portfolio.frame" else "quants.frame")) { content() }
     }
 }
