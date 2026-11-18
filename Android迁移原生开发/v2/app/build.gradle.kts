@@ -24,6 +24,11 @@ android {
         getByName("androidTest") { laneRoots.forEach { java.srcDir(it.resolve("androidTest")); assets.srcDir(it.resolve("testAssets")) } }
     }
     buildTypes {
+        debug {
+            // Install the tested checkpoint without replacing I01/I02 or touching their ledgers.
+            applicationIdSuffix = ".i03"
+            versionNameSuffix = "-I03"
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

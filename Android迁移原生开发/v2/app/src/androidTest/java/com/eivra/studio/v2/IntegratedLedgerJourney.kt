@@ -24,14 +24,18 @@ class IntegratedLedgerJourney {
     @Test fun saveFreezeSettleAndReadSameRecord() {
         val inst=InstrumentationRegistry.getInstrumentation();val args=InstrumentationRegistry.getArguments()
         assumeTrue(args.getString("eivraDisposableDemo")=="true" && (Build.HARDWARE in setOf("ranchu","goldfish") || Build.FINGERPRINT.contains("generic")))
-        assertEquals("com.eivra.studio.v2",inst.targetContext.packageName)
+        assertEquals("com.eivra.studio.v2.i03",inst.targetContext.packageName)
         val ports=openPorts(inst.targetContext);ui.waitUntil(45_000){ports.state.value.mode=="demo" && exists("home-0")}
         fun snapshot():JSONObject = runBlocking { JSONObject(ports.read("workspace.snapshot")) }
         val before=rows(snapshot());val label="HostQA-"+UUID.randomUUID().toString().take(8)
         fill("home-0",label);fill("away-0","Chelsea");fill("entry-0-0","主胜");fill("odds-0-0","2.00");fill("stake","10")
-        node("save").assertIsNotEnabled();node("alpha-0-0.6").performScrollTo().performClick()
+        node("save").assertIsNotEnabled()
         val gateStart=android.os.SystemClock.elapsedRealtime()
         try {
+            val mark=node("alpha-0-0.6").performScrollTo().assertIsDisplayed()
+            mark.performTouchInput { click(center) };mark.assertIsSelected()
+            val selectedValue=node("conf-0").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.EditableText].text
+            assertEquals(0.6, selectedValue.toDouble(), 0.000001)
             ui.waitUntil(60_000){ui.onAllNodes(hasTestTag("save") and isEnabled()).fetchSemanticsNodes().isNotEmpty()}
         } catch (failure: Throwable) {
             // Test class already requires opt-in + emulator + demo. Never dump an owner ledger.
@@ -57,11 +61,15 @@ class IntegratedLedgerJourney {
         ui.waitUntil(45_000){ui.onAllNodes(hasTestTag("review-list") and SemanticsMatcher.expectValue(androidx.compose.ui.semantics.SemanticsProperties.StateDescription,"已读取")).fetchSemanticsNodes().isNotEmpty()}
         node("review-list").performScrollToKey("leg:$id:0")
         val legTag="review:leg:$id:0";node(legTag).assertIsDisplayed()
-        ui.onNode(hasText("2-1") and hasAnyAncestor(hasTestTag(legTag)), useUnmergedTree=true).assertIsDisplayed()
+        ui.onNode((hasText("2-1") or hasText("2–1")) and hasAnyAncestor(hasTestTag(legTag)), useUnmergedTree=true).performScrollTo().assertIsDisplayed()
         val final=rows(snapshot());val r=final.single{it.getString("id")==id};val m=r.getJSONArray("matches").getJSONObject(0)
         assertEquals(after.size,final.size);assertEquals("win",r.getString("status"));assertEquals(20.0,r.getDouble("revenues"),.0001);assertEquals("2-1",m.getString("results"));assertTrue(m.getBoolean("is_correct"));assertEquals(frozen,r.getJSONObject("forecast_snapshot").toString())
         assertEquals(before.filter{it.optString("status")=="pending"}.map{it.getString("id")}.toSet(),final.filter{it.optString("status")=="pending"}.map{it.getString("id")}.toSet())
-        val viewport = args.getString("studioViewport")
+        val viewport=requireNotNull(args.getString("studioViewport"));val c=inst.targetContext
+        val signature=java.security.MessageDigest.getInstance("SHA-256").digest(frozen.toByteArray()).joinToString(""){"%02x".format(it)}
+        java.io.File(c.cacheDir,"i03-receipt-$viewport.json").writeText(JSONObject().put("id",id).put("pid",android.os.Process.myPid()).put("count",final.size).put("frozen",signature).toString())
+        ui.waitForIdle();val screenshot=requireNotNull(inst.uiAutomation.takeScreenshot())
+        java.io.File(c.filesDir,"history-$viewport.png").outputStream().use { assertTrue(screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)) };screenshot.recycle()
         Log.i("EivraJourney", "viewport=$viewport demo-only records=${before.size}->${after.size}->${final.size} saved-and-settled=$id score=2-1 revenue=20 frozen=true; history-score-verified-on-screen; record-verified-via-ports")
     }
 }

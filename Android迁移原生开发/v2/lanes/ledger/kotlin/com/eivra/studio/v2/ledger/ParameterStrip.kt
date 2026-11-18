@@ -31,18 +31,28 @@ private val picked=Color(0xFF4F46E5)
 @Composable private fun Label(s:String){Text(s,fontSize=11.sp,lineHeight=15.sp,color=Moon.Muted)}
 
 /** Each mark owns its full cell, not just the small painted lozenge. Keep a 44x48 target;
- * on a genuinely narrow card the group pans rather than overlapping focus or touch bounds. */
+ * narrower cards wrap the scale, keeping the form as the only scroll owner. */
 @Composable private fun Marks(label:String,values:List<String>,active:String?,prefix:String,ticks:Boolean=false,choose:(String)->Unit){
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val w=maxWidth.coerceAtLeast(44.dp*values.size)
-        Row(Modifier.horizontalScroll(rememberScrollState()).width(w).selectableGroup()) {
-            values.forEach { v -> val on=active==v || (ticks && decimal(v)!=null && decimal(v)==active?.let(::decimal));val shape=RoundedCornerShape(if(ticks) 5.dp else 7.dp)
-                Box(Modifier.weight(1f).heightIn(min=48.dp).testTag("$prefix-$v").selectable(selected=on,role=Role.RadioButton,onClick={choose(v)}).semantics { contentDescription="$label $v" }.padding(horizontal=1.5.dp),contentAlignment=Alignment.Center){
-                    Box((if(ticks) Modifier else Modifier.fillMaxWidth()).background(if(on) Color(0xFFEEF2FF) else if(ticks) Color(0xFFF3F4F6) else Color(0xFFF9FAFB),shape)
-                        .border(.8.dp,if(on) Color(0xFFC7D2FE) else Color(0xFFE8EAED),shape)
-                        .heightIn(min=if(ticks) 17.dp else 30.dp).padding(horizontal=if(ticks) 5.dp else 1.dp),contentAlignment=Alignment.Center){
-                        Text(v,color=if(on) picked else Moon.Muted,fontWeight=if(on) FontWeight.SemiBold else FontWeight.Normal,fontSize=if(ticks) 9.5.sp else 11.sp,lineHeight=14.sp,maxLines=1)
+        // A horizontal scroller (even when its range is zero) becomes the nearest scroll parent.
+        // Let New own the scroll and wrap only when the minimum touch cells cannot fit.
+        val cols=(maxWidth.value / 44f).toInt().coerceIn(1,values.size.coerceAtLeast(1))
+        val focus=androidx.compose.ui.platform.LocalFocusManager.current
+        val ime=androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+        Column(Modifier.fillMaxWidth().selectableGroup()) {
+            values.chunked(cols).forEach { row ->
+                Row(Modifier.fillMaxWidth()) {
+                    row.forEach { v ->
+                        val on=active==v || (ticks && decimal(v)!=null && decimal(v)==active?.let(::decimal));val shape=RoundedCornerShape(if(ticks) 5.dp else 7.dp)
+                        Box(Modifier.weight(1f).heightIn(min=48.dp).testTag("$prefix-$v").selectable(selected=on,role=Role.RadioButton,onClick={choose(v);focus.clearFocus();ime?.hide()}).semantics { contentDescription="$label $v" }.padding(horizontal=1.5.dp),contentAlignment=Alignment.Center){
+                            Box((if(ticks) Modifier else Modifier.fillMaxWidth()).background(if(on) Color(0xFFEEF2FF) else if(ticks) Color(0xFFF3F4F6) else Color(0xFFF9FAFB),shape)
+                                .border(.8.dp,if(on) Color(0xFFC7D2FE) else Color(0xFFE8EAED),shape)
+                                .heightIn(min=if(ticks) 17.dp else 30.dp).padding(horizontal=if(ticks) 5.dp else 1.dp),contentAlignment=Alignment.Center){
+                                Text(v,color=if(on) picked else Moon.Muted,fontWeight=if(on) FontWeight.SemiBold else FontWeight.Normal,fontSize=if(ticks) 9.5.sp else 11.sp,lineHeight=14.sp,maxLines=1)
+                            }
+                        }
                     }
+                    repeat(cols-row.size){Spacer(Modifier.weight(1f))}
                 }
             }
         }
