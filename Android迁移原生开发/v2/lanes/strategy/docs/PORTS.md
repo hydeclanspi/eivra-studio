@@ -28,7 +28,7 @@
 | read `quantValidation.evaluateParameterValidation` | `QuantValidationWorkspace` → `quantValidation.js`；`[{spec,resultsIndex,venueOptions:['any'],assumedOddsOptions:[6.5],trainDays:7,testDays:4,minTrainingSamples:2}]` | `{folds:[{number,trainingRange,testingRange,selectedCandidateId,summary,excluded,…}],summary:{n,…},baseline,limitations,…}`；无完整窗／后窗 N=0 为缺样本。只算不写，不调用会 persist 的 `runParameterValidation`。 |
 | write `quantResearch.createResearchExperiment` | `QuantsPage:runResearch`；`[{projectId:null,kind:'scenario',spec,brief:{hypothesis:'…',falsifier:'…'},resultsIndex:{matches:[…]},marketMatches:[]}]` | `{project:{id},version:{id,number},run:{id,inputSnapshot,result},store}`。`simulation` 同函数，离线手动价。明确点击冻结才写；projectId 相同产生新 version。 |
 | read `quantResearch.getResearchStore` | `[]` | `{projects,versions,runs}`。冻结规则在 `versions[].spec/brief`。没有版本不能建观察计划。 |
-| write `quantForward.createObservationPlan` | `QuantForwardWorkspace` → `createObservationPlan([{…}]` 的元素作为单个函数实参)：`[{version,reviewAt:'2027-01-01T00:00:00Z',minSettled:30,maxDrawdown:80}]` | `{id,versionId,reviewAt,…}`；同一 version 一份，重复须拒绝。评估单位为纸面单位，不是投资保存。 |
+| write `quantForward.createObservationPlan` | `QuantForwardWorkspace` → `createObservationPlan(options)`；位置参数数组：`[{version,reviewAt:'2027-01-01T00:00:00Z',minSettled:30,maxDrawdown:80}]` | `{id,versionId,reviewAt,…}`；同一 version 一份，重复须拒绝。评估单位为纸面单位，不是投资保存。 |
 | write `quantForward.runForwardTask` | `[planId,evidence,{action:'all'}]` | 完整更新的 `{plans,batches,candidates,orders,settlements,reviews,tasks,…}`，每个候选保留 `decisionAt/status/reason`。显式触发；无隐式联网或自动下单。 |
 
 实测 `test/web-parity.mjs` 的合成输出：2 场、每场 2 Entry、1 张推荐、等效赔率 4.93、50,000 次模拟。24 场时序样本 → 16/8 留后，7 天训练＋4 天后窗得到 5 窗、17 个配对后窗样本；空影子账本 ROI=null。以上是工程检验，不是策略实绩。
