@@ -22,6 +22,14 @@
 
 从 v2 在独立 API 35 模拟器执行 `ANDROID_SERIAL=emulator-… bash lanes/ledger/docs/check-ledger.sh`。指令限制为 emulator，不会对个人设备改分辨率。预期两套 `390×844px / 1280×800px`，160dpi、font scale 1.0，输出原始 instrumentation 日志、尺寸与系统截图，测试保留 IME 和恢复断言。分支 CI 设备步骤实际为 skipped。另在临时云机检查：当前构建用户不能打开 `/dev/kvm`，没有扩大权限；软件模拟器曾上线 adb，未能留在可执行测试状态。**本次没有通过 connected 设备验收**，没有把 v1、Web 截图或重画图当成设备证据。
 
+### 已取得的原生画面（不是设备截屏）
+
+`docs/evidence/native-render.zip` 在挂载可取。Robolectric 4.16.1 / SDK 35，`GraphicsMode.NATIVE`，MDPI，默认字体比例；真实 `StudioHost`、`LedgerScreen` 和 Android Activity decorView 绘制到 bitmap。手机 390×844、横屏平板 1280×800，各 4 张原尺寸 PNG。`LedgerRenderTest` 点击导航、填入两条 Entry、切换投前投后、打开指定结算记录，两个尺寸 **2/2 通过**：[原始 XML](docs/evidence/TEST-LedgerRenderTest.xml)。截图来自运行的 Compose，不是 WebView、设计稿或旧 App；无真实系统栏、硬件和 IME 证据。可选复现：`bash gradlew -I lanes/ledger/docs/native-render.init.gradle :app:testDebugUnitTest --tests '*LedgerRenderTest'`。取证器代码在 `133f31e`；未将测试专用依赖加入应用或共享 CI。
+
+对照观察：平板 New 两栏左右位置、宽度与 Quick Input 通栏已对齐；同一组 `青岚 / 北港 · 主胜@1.86 · 2-1@4.30`，原站把两条 Entry 横排，而原生把每条名称／价格独占一行，所以云图出现得更靠下。手机 PK 两端均按主、VS、客纵排；原生的比赛面板更紧。网页默认显示 0.50；原生显示“尚未评级”，这是审计要求，不是漏填。Settle 对照的是公开米兰首腿、勒沃库森次腿的同一组对阵；原生走指定记录详情，不复刻网页列表上方的批量操作。原生沿用宿主 Moon 底色，未复刻网页 Settle 的彩色光场。测试替身的 pending 总数、ID、未填决定与线上 demo 不冒充逐字段相同。
+
+像素文件保留在挂载和交付 ZIP，避免给 Git 源码树增加大二进制；Git 内保留生成器、测试回执和此对照说明。
+
 ## 接入后的验收闸门
 
 1. `docs/PORTS.md` 对照了 platform `df4f17f`、strategy `cf0146b` 的真实代码／接口；生产不携带替身。当前独立分支自身的 `openPorts` 仍是公共基线的 unavailable 实现，不能把这个 APK 当作已接真内核的整包。
