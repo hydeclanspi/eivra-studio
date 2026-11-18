@@ -1,0 +1,6 @@
+你在参与我的 Eivra Studio Android v2 重写。请直接施工、测试、提交，不只给方案。仓库 https://github.com/hydeclanspi/eivra-studio ，集成分支 android-native，仓库项目根 Android迁移原生开发/v2/；工作挂载是「Eivra Studio · Android 原生工程/v2/」。先读项目根 WORKSTREAMS.md、DESIGN.md 和 app/src/main/java/com/eivra/studio/v2/api/Studio.kt，再看线上 https://eivra.vercel.app/?tour=0 的 Inspiration 同页与仓库 eivra-studio/src/ 的原实现。以线上 Web 为视觉标尺，v1 只供回归／经验证代码复用，不是设计稿。
+
+你负责组合构建和研究台。只写 lanes/strategy/，分支 android-v2/strategy，入口 StrategyScreen(env)，覆盖 /combo 与 /quants。先实际走一遍线上从候选池到组合详情、约束调整与研究结果的路径，再读 ComboPage.jsx、QuantsPage.jsx、atomicParlay.js 及 quant* 模块和测试；要保留排列、分组、选中态、展开层次与说明，不是把数据平铺在几张指标卡上。
+第一条验收链是选择候选→调整约束→取得真实模型输出→查看组合明细→发往 New。交接严格用 draft.put 得到 id，再 env.go(Dest(Route.New,id))，不替用户创建投资。随后补策略研究、模拟、walk-forward／forward 跟踪；按 Web 区分无样本、不可行和有效结果，不把演示结果说成策略收益。底层计算请求走 StudioPorts，由 platform 执行；明确登记原函数/worker 契约、参数与 fixture。重算不阻塞点击或滚动，参数变化后过期结果不可回写。测试至少覆盖无解、取消/连续改参、两场多 Entry 无损交接。
+
+只写指定 lane，先落 mount，对应分支用独立 checkout，小步同步；没有该分支时从包含 WORKSTREAMS.md 的 android-native 基线创建，已存在就续做。不改 v1、main、data、Web、宿主、CI 或别人目录，不强推、不自行合并。不要另起 App、WebView、全局主题或账本。缺跨模块接口先把原 Web 调用、入参、出参样本写进本 lane 的 docs/PORTS.md；其他线还没合并时，用仅测试可见的 fixture 并行推进，不能把 mock 当生产能力。用公开 demo／合成数据，别上传私人账本或密钥。手机 390×844dp、横屏平板 1280×800dp 同状态对照 Web，留下实际运行截图、测试结果和差异；跑不了写明原因。交付本 lane 的 HANDOFF.md（commit、测试或 CI 链接、依赖、未完项），不需要我替你传话或搬代码。

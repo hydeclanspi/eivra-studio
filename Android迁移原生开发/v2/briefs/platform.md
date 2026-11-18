@@ -1,0 +1,7 @@
+你在参与我的 Eivra Studio Android v2 重写。请直接施工、测试、提交，不只给方案。仓库 https://github.com/hydeclanspi/eivra-studio ，集成分支 android-native，仓库项目根 Android迁移原生开发/v2/；工作挂载是「Eivra Studio · Android 原生工程/v2/」。先读项目根 WORKSTREAMS.md、DESIGN.md 和 app/src/main/java/com/eivra/studio/v2/api/Studio.kt，再看线上 https://eivra.vercel.app/?tour=0 的 Inspiration 同页与仓库 eivra-studio/src/ 的原实现。以线上 Web 为视觉标尺，v1 只供回归／经验证代码复用，不是设计稿。
+
+你是工作区与计算内核负责人。只写 lanes/platform/，分支 android-v2/platform；入口 openPorts(context) 与 PlatformScreen(env)。其他三路只消费 StudioPorts，你是共享账本唯一写入者。
+先交最小可用的垂直切片：workspace.snapshot → naturalInputParser.parseNaturalInput / forecast.buildDraft → workspace.saveInvestment → workspace.settleInvestment，再启新实例读回。draft.put / draft.get 要让 Portfolio 交给 New 的是草稿而非成单。之后接 analytics / quant / team / warReport 所需的真实调用，及 /params 的本地参数、导入预检、备份与恢复；UI 用宿主组件。按 Web 源文件移植，原 QuickJS 内核可以复用，不能自己发明概率公式。保持 snake_case、null／缺省、lite 校准、时间戳、预先冻结快照与投后导入的区分。
+读写离开主线程；持久写串行、按 ID 防重复、失败不递增 revision；demo 与 owner 分仓，严禁隐式 fetch、Supabase/Git 同步。测试同一 fixture 的 Web/原生 golden、两笔不同 ID、重复保存、逐腿结算不伤其他 pending、重启恢复、坏导入不破坏旧账。优先尽早推一个能被另外三路接通的提交，再补全。
+
+只写指定 lane，先落 mount，对应分支用独立 checkout，小步同步；没有该分支时从包含 WORKSTREAMS.md 的 android-native 基线创建，已存在就续做。不改 v1、main、data、Web、宿主、CI 或别人目录，不强推、不自行合并。不要另起 App、WebView、全局主题或账本。缺跨模块接口先把原 Web 调用、入参、出参样本写进本 lane 的 docs/PORTS.md；其他线还没合并时，用仅测试可见的 fixture 并行推进，不能把 mock 当生产能力。用公开 demo／合成数据，别上传私人账本或密钥。手机 390×844dp、横屏平板 1280×800dp 同状态对照 Web，留下实际运行截图、测试结果和差异；跑不了写明原因。交付本 lane 的 HANDOFF.md（commit、测试或 CI 链接、依赖、未完项），不需要我替你传话或搬代码。

@@ -1,0 +1,61 @@
+name: Android v2
+on:
+  push:
+    branches: [android-native, 'android-v2/**']
+    paths: ['Android迁移原生开发/v2/**', '.github/workflows/android-v2.yml']
+  pull_request:
+    branches: [android-native]
+    paths: ['Android迁移原生开发/v2/**', '.github/workflows/android-v2.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: android-v2-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: Android迁移原生开发/v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Keep the archive byte-identical
+        run: test "$(git rev-parse HEAD:Android迁移原生开发/v1)" = b35f09aea4178f9891d9051fb8d39306d89b4d58
+      - name: Prepare offline kernel if present
+        run: if test -f lanes/platform/prepare.sh; then bash lanes/platform/prepare.sh; fi
+      - name: Compile app and instrumented tests, run JVM tests
+        run: bash gradlew --stacktrace :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eivra-v2-${{ github.sha }}
+          path: |
+            Android迁移原生开发/v2/app/build/outputs/apk/debug/*.apk
+            Android迁移原生开发/v2/app/build/test-results/testDebugUnitTest/
+          retention-days: 7
+      - name: Enable emulator acceleration
+        if: github.ref == 'refs/heads/android-native'
+        run: sudo chmod 666 /dev/kvm
+      - name: Verify shell on phone and landscape tablet
+        if: github.ref == 'refs/heads/android-native'
+        uses: reactivecircus/android-emulator-runner@v2
+        timeout-minutes: 16
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: bash 'Android迁移原生开发/v2/check-shell.sh'
+      - uses: actions/upload-artifact@v4
+        if: always() && github.ref == 'refs/heads/android-native'
+        with:
+          name: shell-evidence-${{ github.sha }}
+          path: |
+            Android迁移原生开发/v2/app/build/shell-evidence/
+            Android迁移原生开发/v2/app/build/outputs/androidTest-results/
+          if-no-files-found: ignore
+          retention-days: 7
