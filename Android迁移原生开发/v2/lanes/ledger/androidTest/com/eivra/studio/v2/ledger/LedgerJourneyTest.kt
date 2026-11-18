@@ -1,7 +1,7 @@
 package com.eivra.studio.v2.ledger
 
 import android.graphics.Bitmap
-import android.view.WindowInsets
+import android.view.WindowInsets as AndroidInsets
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
@@ -28,7 +28,7 @@ class LedgerJourneyTest {
     private fun waitTag(id:String){ui.waitUntil(12000){ui.onAllNodesWithTag(id).fetchSemanticsNodes().isNotEmpty()}}
     private fun field(id:String,text:String){val n=tag(id).performScrollTo();n.performClick();n.performTextReplacement(text)}
     private fun enabled(id:String){ui.waitUntil(12000){runCatching {tag(id).assertIsEnabled()}.isSuccess}}
-    private fun ime()=ui.activity.window.decorView.rootWindowInsets?.isVisible(WindowInsets.Type.ime())==true
+    private fun ime()=ui.activity.window.decorView.rootWindowInsets?.isVisible(AndroidInsets.Type.ime())==true
     private fun hideIme(){if(ime()){InstrumentationRegistry.getInstrumentation().uiAutomation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK);ui.waitUntil(4000){!ime()}}}
     private fun photo(name:String){ui.waitForIdle();val inst=InstrumentationRegistry.getInstrumentation();val b=requireNotNull(inst.uiAutomation.takeScreenshot());val root=File(inst.targetContext.filesDir,"ledger-evidence/${b.width}x${b.height}");root.mkdirs();val png=File(root,"$name.png");png.outputStream().use {check(b.compress(Bitmap.CompressFormat.PNG,100,it))};b.recycle()}
 
