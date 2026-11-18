@@ -9,7 +9,7 @@ android {
     namespace = "com.eivra.studio.v2"
     compileSdk = 36
     defaultConfig {
-        applicationId = "com.eivra.studio.v2"
+        applicationId = "com.eivra.studio.v2.i02"
         minSdk = 29
         targetSdk = 36
         versionCode = 2
