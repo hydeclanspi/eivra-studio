@@ -91,6 +91,13 @@ internal class LocalPorts(root: () -> File, private val kernel: (String) -> Stri
                     if(same) return@withLock JSONObject().put("id", id).toString()
                     drafts.put(id, d); JSONObject().put("id", id)
                 }
+                "params.save" -> {
+                    if (args.length() > 1) require(args.getLong(1) == s.revision) { "参数已变更，请重新载入" }
+                    val result = JSONObject(invoke(s.mode,b.getJSONObject("bundle"),op,args,true))
+                    val config = result.getJSONObject("value")
+                    if(canonical(config) == canonical(b.getJSONObject("bundle").getJSONObject("system_config"))) return@withLock JSONObject().put("revision",s.revision).toString()
+                    b.put("bundle",result.getJSONObject("bundle")); JSONObject().put("revision",next)
+                }
                 "workspace.saveInvestment", "workspace.importInvestment", "workspace.settleInvestment" -> {
                     val id = if(op.endsWith("settleInvestment")) args.getString(0) else args.getJSONObject(0).getString("id")
                     require(id.isNotBlank()); val key = "$op:$id"; val hash = digest(args)

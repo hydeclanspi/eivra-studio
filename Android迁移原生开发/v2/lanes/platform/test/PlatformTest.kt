@@ -27,7 +27,7 @@ class PlatformTest {
         fun args(vararg x: Any?) = JSONArray().apply { x.forEach { put(it) } }
         fun same(a: Any?, b: Any?, path: String="$") {
             when(a) {
-                is JSONObject -> {assertTrue(path,b is JSONObject);b as JSONObject;assertEquals(path,a.keySet(),b.keySet());a.keys().forEach { same(a.get(it),b.get(it),"$path.$it") }}
+                is JSONObject -> {assertTrue(path,b is JSONObject);b as JSONObject;assertEquals(path,a.keys().asSequence().toSet(),b.keys().asSequence().toSet());a.keys().forEach { same(a.get(it),b.get(it),"$path.$it") }}
                 is JSONArray -> {assertTrue(path,b is JSONArray);b as JSONArray;assertEquals(path,a.length(),b.length());for(i in 0 until a.length()) same(a.get(i),b.get(i),"$path[$i]")}
                 is Number -> { assertTrue(path,b is Number); assertEquals(path,a.toDouble(),(b as Number).toDouble(),1e-10) }
                 else -> assertEquals(path,a,b)

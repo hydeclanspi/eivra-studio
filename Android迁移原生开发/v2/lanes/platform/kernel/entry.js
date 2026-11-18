@@ -78,13 +78,14 @@ function settle(id,form) {
   const msg=getValidationError(form);check(!msg,msg)
   check(updateInvestment(id,buildSettlementUpdater({totalInputs:Number(record.inputs)},form))?.id===id,'Settlement failed');return {id}
 }
-const reads={
+import {researchReads,saveParams} from './reviews.js'
+const reads={...researchReads,
  'workspace.snapshot':snapshot,'naturalInputParser.parseNaturalInput':parseNaturalInput,'forecast.buildDraft':forecast,
  'analytics.getDashboardSnapshot':getDashboardSnapshot,'analytics.getAnalysisSnapshot':getAnalysisSnapshot,'analytics.getMetricsSnapshot':getMetricsSnapshot,
  'analytics.getTeamsSnapshot':getTeamsSnapshot,'analytics.getReservoirState':getReservoirState,'analytics.getPredictionCalibrationContext':getPredictionCalibrationContext,
  'preMatchOpinion.weightsFromSlider':weightsFromSlider,'preMatchOpinion.jointScoreCells':jointScoreCells,
 }
-const writes={'workspace.saveInvestment':r=>save(r,true),'workspace.importInvestment':r=>save(r,false),'workspace.settleInvestment':settle}
+const writes={'params.save':saveParams,'workspace.saveInvestment':r=>save(r,true),'workspace.importInvestment':r=>save(r,false),'workspace.settleInvestment':settle}
 // Runtime input is JSON data. There is no dispatch by JS path, setter, module name or source string.
 globalThis.eivraPlatform={call(text){
  const {mode,bundle,op,args,write}=JSON.parse(text), operations=write?writes:reads
