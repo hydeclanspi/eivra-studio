@@ -33,6 +33,9 @@ class ReviewReaderTest {
         val pin=r.page(q).map { it.block }.filterIsInstance<Block.Line>().single();assertEquals(Dest(Route.History,"0007"),pin.dest)
         val details=r.page(q.copy(dest=pin.dest!!)).map { it.block }; val legs=details.filterIsInstance<Block.Match>()
         assertEquals(listOf("2–1","0–0"),legs.map { it.leg.score });assertEquals(listOf(true,false),legs.map { it.leg.correct });assertEquals(2,legs.first().leg.entries.size)
+        val amount=details.filterIsInstance<Block.Stats>().single().values.associate { it.label to it.value }
+        assertEquals("¥0.00",amount["返还"]);assertEquals("¥-20.00",amount["净盈亏"])
+        assertEquals(30.0,r.ledger().exact("7")!!.revenue!!,0.0)
         val text=details.filterIsInstance<Block.Note>().first().body;assertTrue(text.contains("0.65"));assertTrue(text.contains("42.0%"))
         assertEquals(1,r.ledger().exact("7")!!.legs.size);assertNull(r.ledger().exact("007"))
         val pend=r.ledger().exact("unsettled")!!.legs.single();assertNull(pend.correct);assertNull(pend.score)

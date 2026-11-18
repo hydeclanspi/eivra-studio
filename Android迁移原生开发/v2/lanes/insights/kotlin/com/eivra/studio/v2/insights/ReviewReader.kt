@@ -15,7 +15,7 @@ internal sealed interface Block {
     data class Stats(val values: List<Stat>) : Block
     data class Section(val name: String, val hint: String = "") : Block
     data class Note(val title: String, val body: String) : Block
-    data class Line(val title: String, val detail: String, val tail: String, val dest: Dest? = null) : Block
+    data class Line(val title: String, val detail: String, val tail: String, val dest: Dest? = null, val status: String? = null, val amount: String? = null) : Block
     data class Trace(val title: String, val unit: String, val points: List<ReviewPoint>) : Block
     data class Match(val index: Int, val leg: Leg, val home: String, val away: String) : Block
     data class Slice(val name: String, val n: Int, val unit: String, val hit: Double?, val roi: Double?) : Block
@@ -32,7 +32,7 @@ internal class Book {
     fun note(title: String, body: String) = add("note:$title",Block.Note(title,body))
     fun section(title: String, hint: String = "") = add("section:$title",Block.Section(title,hint))
     fun stats(vararg values: Stat) = add("stats",Block.Stats(values.toList()))
-    fun ticket(t: Ticket, hint: String = t.created.stamp()) = add("inv:${t.id}",Block.Line(t.label,"$hint · ${t.legs.size} 腿 · #${t.id}",t.statusText,Dest(Route.History,t.id)))
+    fun ticket(t: Ticket, hint: String = t.created.stamp()) = add("inv:${t.id}",Block.Line(t.label,"$hint · ${t.legs.size} 腿 · #${t.id}",if (t.pending) "" else "净盈亏",Dest(Route.History,t.id),t.statusText,if(t.pending) null else t.profit.cash()))
 }
 
 /** One reader per version + foreground epoch. No result or ledger is persisted. Called on Dispatchers.Default. */
