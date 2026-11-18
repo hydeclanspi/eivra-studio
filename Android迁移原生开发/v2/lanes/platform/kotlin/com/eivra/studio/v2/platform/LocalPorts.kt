@@ -122,9 +122,12 @@ internal class LocalPorts(root: () -> File, private val kernel: (String) -> Stri
                 }
                 "workspace.saveInvestment", "workspace.importInvestment", "workspace.settleInvestment" -> {
                     val id = if(op.endsWith("settleInvestment")) args.getString(0) else args.getJSONObject(0).getString("id")
-                    require(id.isNotBlank()); val key = "$op:$id"; val hash = digest(args)
+                    require(id.isNotBlank()); val key = "$op:$id"
+                    // New assigns a fresh clock on each button tap. Preserve the FIRST stored time;
+                    // retry the same pre intent, but reject different odds, stake, opinions, etc.
+                    val hash = if(op == "workspace.saveInvestment") digest(JSONArray().put(JSONObject(args.getJSONObject(0).toString()).also { it.remove("created_at") })) else digest(args)
                     receipts.optJSONObject(key)?.let { old ->
-                        require(hash == old.getString("hash")) { "Conflicting request for $id" }; return@withLock old.getJSONObject("result").toString()
+                        require(hash == old.getString("hash") || digest(args) == old.getString("hash")) { "Conflicting request for $id" }; return@withLock old.getJSONObject("result").toString()
                     }
                     val result = JSONObject(invoke(s.mode,b.getJSONObject("bundle"),op,args,true)); b.put("bundle",result.getJSONObject("bundle"))
                     result.getJSONObject("value").put("revision",next).also { receipts.put(key, JSONObject().put("hash", hash).put("result", it)) }
