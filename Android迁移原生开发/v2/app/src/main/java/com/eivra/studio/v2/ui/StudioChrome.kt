@@ -56,7 +56,7 @@ private val facets=listOf(Facet("H",Color(0xFFF7F4EF),Color(0xFFEEEAD4),Color(0x
             Mark(); if(room>=205) Text(if(room<290) "Eivra" else "Eivra Studio",fontFamily=StudioSans,fontWeight=FontWeight.SemiBold,fontSize=15.sp,letterSpacing=.4.sp,maxLines=1,color=Color(0xFF171717))
         }
         if(wide || room>=590) {Spacer(Modifier.width(8.dp));EditionLabel()}
-        if(room>=260){Text("/",Modifier.padding(horizontal=8.dp),color=Color(0xFF9EA3A9),fontSize=14.sp);Text(route.title,Modifier.weight(1f,fill=!wide),color=Color(0xFF525252),fontFamily=StudioSans,fontWeight=FontWeight.Medium,fontSize=12.sp,letterSpacing=(-.1).sp,maxLines=1,overflow=TextOverflow.Ellipsis)}
+        if(room>=260){Text("/",Modifier.padding(horizontal=8.dp),color=Color(0xFF9EA3A9),fontSize=14.sp);Text(route.title,if(wide) Modifier.widthIn(max=150.dp) else Modifier.weight(1f),color=Color(0xFF525252),fontFamily=StudioSans,fontWeight=FontWeight.Medium,fontSize=12.sp,letterSpacing=(-.1).sp,maxLines=1,overflow=TextOverflow.Ellipsis)}
         if(room>=1100){Spacer(Modifier.width(10.dp));ModeBadge(state.mode)}
         if(wide || room<260) Spacer(Modifier.weight(1f))
         if(wide){

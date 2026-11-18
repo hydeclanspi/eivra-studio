@@ -17,7 +17,9 @@ with sync_playwright() as pw:
                 page.goto(f'{origin}/{route}?tour=0',wait_until='domcontentloaded',timeout=45000)
                 page.locator('main').wait_for(timeout=25000)
                 page.get_by_text('demo · preview', exact=True).first.wait_for(state='attached',timeout=12000)
-                page.locator('.composed-glass-scene--moon').wait_for(state='attached',timeout=8000)
+                # The deployed app selects its background by route, not by a global color.
+                scene={'new':'moon','combo':'sand','settle':'hongguo','dashboard':'moon','history':'daylight','params':'hongguo'}[route]
+                page.locator(f'html[data-liquid-glass-style="{scene}"] .composed-glass-scene--{scene}').first.wait_for(state='attached',timeout=12000)
                 page.locator('main .glow-card').first.wait_for(state='attached',timeout=15000)
                 page.evaluate('''async () => {await Promise.race([document.fonts.ready,new Promise(r=>setTimeout(r,3000))]);await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));}''')
                 metrics=page.evaluate('''() => {const selectors=['.mn-bar','.mn-brand','.mn-nav','.mn-nav-active','.mn-settings-link','main','main h1','main h2','main .glow-card','.lab-new-quick','.pre-match-split__main','.pre-match-split__side'];let boxes={};for(const k of selectors){const e=document.querySelector(k);if(!e)continue;const r=e.getBoundingClientRect(),s=getComputedStyle(e);boxes[k]={x:r.x,y:r.y,w:r.width,h:r.height,radius:s.borderRadius,fill:s.backgroundColor,ink:s.color,filter:s.backdropFilter,fontFamily:s.fontFamily,fontSize:s.fontSize};}return {url:location.href,width:innerWidth,height:innerHeight,dpr:devicePixelRatio,clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth,mode:document.documentElement.dataset.liquidGlassStyle,fonts:document.fonts.check('14px "DM Sans"'),boxes};}''')

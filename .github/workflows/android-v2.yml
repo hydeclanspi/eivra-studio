@@ -29,6 +29,11 @@ jobs:
         run: test "$(git rev-parse HEAD:Android迁移原生开发/v1)" = b35f09aea4178f9891d9051fb8d39306d89b4d58
       - name: Prepare offline kernel if present
         run: if test -f lanes/platform/prepare.sh; then bash lanes/platform/prepare.sh; fi
+      - name: Verify the packaged offline engine against a synthetic ledger
+        run: |
+          if test -f tools/kernel-journey.cjs && test -f lanes/platform/assets/platform-kernel.js; then
+            node tools/kernel-journey.cjs
+          fi
       - name: Compile app and instrumented tests, run JVM tests
         run: bash gradlew --stacktrace :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
       - uses: actions/upload-artifact@v4

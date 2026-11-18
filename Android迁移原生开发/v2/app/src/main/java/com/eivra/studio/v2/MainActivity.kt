@@ -54,7 +54,7 @@ private fun decode(token: String) = Dest(Route.valueOf(token.substringBefore('|'
     }
     val state by ports.state.collectAsStateWithLifecycle()
     Box(Modifier.fillMaxSize()) {
-        MoonScene(Modifier.matchParentSize())
+        RouteScene(dest.route, Modifier.matchParentSize())
         BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.union(WindowInsets.ime))) {
             val width = maxWidth.value.toInt()
             Column(Modifier.fillMaxSize()) {

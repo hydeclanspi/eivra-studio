@@ -21,7 +21,9 @@ for view in 390x844 1280x800; do
   for n in {1..8}; do
     adb shell uiautomator dump /sdcard/eivra-host-window.xml >/dev/null || true
     adb exec-out cat /sdcard/eivra-host-window.xml > "$dir/window.xml" || true
-    if grep -q 'package="com.eivra.studio.v2"' "$dir/window.xml" && grep -q 'Eivra Studio' "$dir/window.xml"; then ready=true; break; fi
+    if grep -q 'package="com.eivra.studio.v2"' "$dir/window.xml" && grep -q 'Eivra Studio' "$dir/window.xml"; then
+      if ! test -f lanes/platform/assets/platform-kernel.js || { grep -q 'Quick Input' "$dir/window.xml" && grep -q '新建投资' "$dir/window.xml"; }; then ready=true; break; fi
+    fi
     sleep 1
   done
   "$ready" || { echo "Foreground window not ready at $view"; exit 1; }
@@ -33,4 +35,11 @@ PY
   adb shell am instrument -w -r -e class com.eivra.studio.v2.NavigationSmoke -e studioViewport "$view" "$pkg.test/androidx.test.runner.AndroidJUnitRunner" | tee "$dir/host-instrumentation.txt"
   grep -Eq 'OK \([1-9][0-9]* tests?\)' "$dir/host-instrumentation.txt"
   adb logcat -d -s EivraHostStats:I '*:S' | grep "viewport=$view " > "$dir/frame-sample.txt" || true
+  if test -f lanes/platform/assets/platform-kernel.js; then
+    # Only the disposable runner gets this argument. A skip or a missing assertion cannot count as a pass.
+    adb shell am instrument -w -r -e class com.eivra.studio.v2.IntegratedLedgerJourney -e eivraDisposableDemo true -e studioViewport "$view" "$pkg.test/androidx.test.runner.AndroidJUnitRunner" | tee "$dir/ledger-instrumentation.txt"
+    grep -Eq 'OK \(1 test\)' "$dir/ledger-instrumentation.txt"
+    adb logcat -d -s EivraJourney:I '*:S' | grep -F "viewport=$view demo-only" | grep -F 'score=2-1 revenue=20 frozen=true' | tail -n 1 > "$dir/ledger-result.txt"
+    test -s "$dir/ledger-result.txt"
+  fi
 done
