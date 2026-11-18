@@ -36,7 +36,9 @@ private val controlsSaver=listSaver<Constraints,Any>(save={listOf(it.risk,it.min
     val rows=(catalog as? ReadState.Value)?.data.orEmpty()
     val keys=remember(rows,omitted) { rows.filter { it.issue==null && it.key !in omitted }.map { it.key } }
     val (slot,result)=readResource(env.ports,workspace.mode,workspace.revision,keys,cfg,solve,enabled=armed && keys.isNotEmpty() && catalog is ReadState.Value,wait=220) {
-        decodeReport(env.ports.read("portfolio.generate",args(cfg.request(keys))),keys.toSet())
+        val spec = cfg
+        if (keys.size < spec.minLegs) Report.Infeasible("已选 ${keys.size} 场，少于要求的 ${spec.minLegs} 个标的。")
+        else verifySelection(decodeReport(env.ports.read("portfolio.generate",args(spec.request(keys))),keys.toSet()),rows,spec.minLegs)
     }
     val scope=rememberCoroutineScope(); var sending by remember { mutableStateOf(false) }; var problem by remember { mutableStateOf("") }
     fun clear() { slot.invalidate(); expanded=""; problem="" }

@@ -19,6 +19,7 @@ const api={getInvestments:()=>records,getActiveQuantCandidateRows:()=>[],brandLo
   predictMatchProbability,buildAtomicMatchProfile,combineAtomicMatchProfiles,estimateEntryAnchorOdds,portfolioCandidateIssue:()=>null,
   getSystemConfig:()=>cfg,getReservoirState:()=>({availableCash:1000}),capRecommendedStake,getPredictionCalibrationContext:()=>({}),buildComboRetrospective:()=>null}
 const core=bindWebCore(api), reads=portfolioReads(core,api)
+const candidates=reads['portfolio.candidates']()
 const request={keys:['p-0','p-1'],riskPref:50,qualityFilter:{antiOverlapPercent:60,minWinRate:5,maxCorr:.85,minCoveragePercent:55,minCoverageEnabled:true},comboStrategy:'softPenalty',comboStructure:{minLegs:2,parlayBeta:.12,mmrLambda:.55,coverageEta:.15},allocationMode:'balanced',solverMode:'heuristic'}
 const output=reads['portfolio.generate'](request)
 assert.equal(output.status,'ready'); const top=output.recommendations[0]
@@ -37,3 +38,6 @@ const rolling=evaluateParameterValidation({spec,resultsIndex:index,trainDays:7,t
 const sim=analyzeStrategy(spec,[],{kellyDivisor:4,now:'2026-01-01T00:00:00Z'});assert.equal(sim.legs.length,6);assert.ok(sim.legs.every(l=>l.estimated));assert.ok(sim.monteCarlo.iterations>0)
 const store=emptyForwardStore();store.plans.push({id:'shadow',minSettled:30,maxDrawdown:80,driftWindow:10,reviewAt:'2026-04-01T00:00:00Z'});const fm=forwardPlanMetrics(store,'shadow',{now:'2026-05-01T00:00:00Z'});assert.equal(fm.roi,null);assert.equal(fm.assessment,'insufficient_sample')
 console.log(JSON.stringify({source:'synthetic, original Web functions',plans:output.recommendations.length,legs:top.legs,entries:top.subset.map(l=>l.entries.length),combinedOdds:top.combinedOdds,iterations:output.simulation.iterations,backtestN:back.n,walkForward:[wf.train.n,wf.test.n],rollingFolds:rolling.folds.length,heldOut:rolling.summary.n,simulationLegs:sim.legs.length,forward:fm.assessment}))
+
+// Same deterministic, synthetic engine output for the JVM and connected Compose contract tests.
+if (process.argv.includes('--fixture')) console.log(JSON.stringify({candidates,request,output,back,wf,sim:{...sim,monteCarlo:{...sim.monteCarlo,histogram:[]}}}))

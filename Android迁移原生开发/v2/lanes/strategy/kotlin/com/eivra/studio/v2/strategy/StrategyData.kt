@@ -83,3 +83,16 @@ internal suspend fun putPlan(ports: StudioPorts, p: Plan, expected: WorkspaceSta
     check(ports.state.value.mode==expected.mode) { "工作区已切换，未打开另一工作区的草稿。" }
     Dest(Route.New, receipt.id("id"))
 }
+
+/** The Web solver can gracefully fall back below minLegs. An explicitly set minimum here is hard. */
+internal fun verifySelection(report:Report, pool:List<Leg>, minLegs:Int):Report {
+    if(report !is Report.Ready) return report
+    if(report.plans.any { it.legs.size < minLegs }) return Report.Infeasible("原引擎的回退方案未达到最小标的数。请放宽约束或增加无冲突的比赛。")
+    val byKey = pool.associateBy { it.key }
+    for(plan in report.plans) for(leg in plan.legs) {
+        val source = byKey[leg.key] ?: error("原候选已不存在，请重读")
+        require(source.home == leg.home && source.away == leg.away && source.entries == leg.entries) { "组合与已检查的对阵或 Entry 不一致，未采用本次结果。" }
+        if(source.draft != null && leg.draft != null) require(sameJson(JSONObject(source.draft).getJSONArray("entries"),JSONObject(leg.draft).getJSONArray("entries"))) { "原稿 Entry 元数据已变化，请重读候选。" }
+    }
+    return report
+}

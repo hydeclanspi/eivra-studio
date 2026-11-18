@@ -16,3 +16,21 @@
 - `read("quantStrategy.walkForwardStrategy", [spec,resultsIndex,{trainRatio:0.7,assumedOdds:6.5}]) → {train,test,splitAt,assumedOdds,verdict,…}`；`test.n=0` 不生成样本外结论。单次按时序拆分，不冒称多窗验证。
 - `read("quantStrategy.analyzeStrategy", [spec,[],context])`。只提供离线手动赔率 + 明示概率或联赛基准，不拉今天的报价冒充历史价。`legs,available,warning,monteCarlo:{iterations,pProfit,meanProfit,medianProfit,p5,p95,…}`；无定价/无有效分布 → 原原因，绝不补 0。例 spec：`{"team":"","venue":"any","market":"score","score":{"for":1,"against":1},"oddsMode":"manual","manualOdds":6.5,"probMode":"custom","customProb":0.12,"stakePerMatch":20,"matchesPlanned":6}`。
 - `read("quantForward.getForwardStore", []) → {plans,orders,settlements,…}`；`read("quantEvidence.getEvidenceStore", [])`，`read("quantForward.forwardPlanMetrics", [store,planId,{now:ISO,evidence}]) → {orders,settled,pending,coverage,roi,brier,clv,assessment,drift,…}`。以同一证据快照与同一观察时点计数；无计划、尚无结算、样本不足、可复核分别展示。forward 指纸面观察，绝不下单。平台负责 allowlist、mode 隔离及结果可知时点。
+
+## 扩展与联调（2026-11-18）
+
+挂载内 platform 的 `kernel/combo.cjs` 和 `kernel/reviews.js` 已有 `portfolio.candidates/generate` 同名实现：生产应使用它们，**不要再注册第二份**。本组 `kernel/prepare_core.py` + `portfolio-ports.mjs` 是同一 Web 源 SHA 的独立契约参照，在 Node 跑 golden，不随 APK 执行。校准 context 含 callable，留在 JS 实例内；不可 JSON 序列化它再算。平台返回的推荐 `subset` 中保留 `draftMatch`，New 原稿按 `source_match_id/event_id` 识别；若原件与输出 Entry 不符，拒绝交接。原 Web 在没有足够腿时有放宽 minLegs 的 fallback；本组不把不满足声明下界的输出呈现为有效方案。
+
+研究扩展必须显式 allowlist：
+
+| 调用 | Web 来源与最小可执行样本 | 输出／边界 |
+|---|---|---|
+| read `quantValidation.evaluateParameterValidation` | `QuantValidationWorkspace` → `quantValidation.js`；`[{spec,resultsIndex,venueOptions:['any'],assumedOddsOptions:[6.5],trainDays:7,testDays:4,minTrainingSamples:2}]` | `{folds:[{number,trainingRange,testingRange,selectedCandidateId,summary,excluded,…}],summary:{n,…},baseline,limitations,…}`；无完整窗／后窗 N=0 为缺样本。只算不写，不调用会 persist 的 `runParameterValidation`。 |
+| write `quantResearch.createResearchExperiment` | `QuantsPage:runResearch`；`[{projectId:null,kind:'scenario',spec,brief:{hypothesis:'…',falsifier:'…'},resultsIndex:{matches:[…]},marketMatches:[]}]` | `{project:{id},version:{id,number},run:{id,inputSnapshot,result},store}`。`simulation` 同函数，离线手动价。明确点击冻结才写；projectId 相同产生新 version。 |
+| read `quantResearch.getResearchStore` | `[]` | `{projects,versions,runs}`。冻结规则在 `versions[].spec/brief`。没有版本不能建观察计划。 |
+| write `quantForward.createObservationPlan` | `QuantForwardWorkspace` → `createObservationPlan([{…}]` 的元素作为单个函数实参)：`[{version,reviewAt:'2027-01-01T00:00:00Z',minSettled:30,maxDrawdown:80}]` | `{id,versionId,reviewAt,…}`；同一 version 一份，重复须拒绝。评估单位为纸面单位，不是投资保存。 |
+| write `quantForward.runForwardTask` | `[planId,evidence,{action:'all'}]` | 完整更新的 `{plans,batches,candidates,orders,settlements,reviews,tasks,…}`，每个候选保留 `decisionAt/status/reason`。显式触发；无隐式联网或自动下单。 |
+
+实测 `test/web-parity.mjs` 的合成输出：2 场、每场 2 Entry、1 张推荐、等效赔率 4.93、50,000 次模拟。24 场时序样本 → 16/8 留后，7 天训练＋4 天后窗得到 5 窗、17 个配对后窗样本；空影子账本 ROI=null。以上是工程检验，不是策略实绩。
+
+**持久性前置条件**：普通 `exportDataBundle()` 不等同于 quantResearch、quantForward、quantEvidence 的独立 store。platform 必须按 mode 原子持久化这些 store，在新引擎实例读回后才可宣布冻结成功。尚未注册的扩展抛错显示，不把“未接线”解释为“样本 0”；不在 UI 用临时仓库兜底。ledger/platform 尚未并入本分支时，连通证明仅限具名 fixture。
