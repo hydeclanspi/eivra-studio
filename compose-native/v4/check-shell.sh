@@ -45,11 +45,6 @@ PY
   fi
   instrument "$suite.NavigationSmoke" host-instrumentation || others=1
   adb logcat -d -s EivraHostStats:I '*:S' | grep "viewport=$view " > "$dir/frame-sample.txt" || true
-  instrument "$suite.PolishViews" polish-tests || others=1
-  for k in new-controls combo-loaded combo-expanded quants-lab quants-research quants-library quants-forward quants-data overview seasons records console console-git-demo;do pull_app "polish-$view/$k.png" "$k-native.png";pull_app "polish-$view/$k.txt" "$k-tree.txt";done
-  test -s "$dir/combo-loaded-native.png" || others=1
-  instrument "$suite.platform.V4ReadTiming" ports-timing || others=1;pull_app "v4-perf-$view.json" v4-read-timing.json
-  if [[ $view == 390x844 ]];then instrument "$suite.platform.PackedPortfolioTest" portfolio-draft || others=1;fi
   instrument "$suite.V41Acceptance#quickOptics" quick-optics -e eivraDisposableDemo true || others=1
   adb shell settings put global animator_duration_scale 1
   instrument "$suite.V41Acceptance#actualSolveShowsMovingPrismAndRail" solve-motion -e eivraDisposableDemo true || others=1
@@ -59,10 +54,17 @@ PY
   instrument "$suite.V41Acceptance#coldSeason" season-cold -e eivraDisposableDemo true || others=1
   mkdir -p "$dir/v41";adb exec-out run-as "$pkg" tar -C "files/v41-$view" -cf - . | tar -C "$dir/v41" -xf - || others=1
   python3 tools/v41-motion-proof.py "$dir/v41" || others=1
+  adb get-state | grep -qx device || return 1
+  instrument "$suite.PolishViews" polish-tests || others=1
+  for k in new-controls combo-loaded combo-expanded quants-lab quants-research quants-library quants-forward quants-data overview seasons records console console-git-demo;do pull_app "polish-$view/$k.png" "$k-native.png";pull_app "polish-$view/$k.txt" "$k-tree.txt";done
+  test -s "$dir/combo-loaded-native.png" || others=1
+  instrument "$suite.platform.V4ReadTiming" ports-timing || others=1;pull_app "v4-perf-$view.json" v4-read-timing.json
+  if [[ $view == 390x844 ]];then instrument "$suite.platform.PackedPortfolioTest" portfolio-draft || others=1;fi
   [[ $ledger == 0 && $others == 0 ]]
 }
 fail=0
-for view in 390x844 1280x800; do
+views=(390x844 1280x800); if [[ $# == 1 ]];then case "$1" in 390x844|1280x800) views=("$1");; *) exit 2;; esac;fi
+for view in "${views[@]}"; do
   set +e
   (set -Eeuo pipefail; viewport)
   rc=$?;set -e; if [[ $rc != 0 ]];then fail=1;fi

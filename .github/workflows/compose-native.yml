@@ -51,29 +51,58 @@ jobs:
           name: v4-test-reports-${{ github.sha }}
           path: compose-native/v4/app/build/test-results/testDebugUnitTest/
           if-no-files-found: ignore
-      - name: Enable emulator acceleration
+      - name: Share the exact tested application and instrumentation APKs with device jobs
         if: github.ref == 'refs/heads/android-native'
+        uses: actions/upload-artifact@v4
+        with:
+          name: instrument-pair-${{ github.sha }}
+          path: |
+            compose-native/v4/app/build/outputs/apk/debug/app-debug.apk
+            compose-native/v4/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          if-no-files-found: error
+          retention-days: 3
+  device:
+    needs: build
+    if: github.ref == 'refs/heads/android-native'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 28
+    strategy:
+      fail-fast: false
+      matrix:
+        viewport: [390x844, 1280x800]
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/download-artifact@v4
+        with:
+          name: instrument-pair-${{ github.sha }}
+          path: compose-native/v4/app/build/outputs/apk/
+      - name: Verify inputs and prepare host
         run: |
+          test -s compose-native/v4/app/build/outputs/apk/debug/app-debug.apk
+          test -s compose-native/v4/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          python3 -c 'from PIL import Image' || python3 -m pip install Pillow
           sudo chmod 666 /dev/kvm
-          python3 -c "from PIL import Image" || python3 -m pip install Pillow
-      - name: Verify shell on phone and landscape tablet
-        if: github.ref == 'refs/heads/android-native'
+          free -h; df -h /; sha256sum compose-native/v4/app/build/outputs/apk/debug/app-debug.apk
+      - name: Native interactions and motion capture
         uses: reactivecircus/android-emulator-runner@v2
-        timeout-minutes: 36
+        timeout-minutes: 22
         with:
           api-level: 35
           arch: x86_64
           target: google_apis
+          ram-size: 2048M
+          heap-size: 384M
+          cores: 2
           disable-animations: true
-          script: bash 'compose-native/v4/check-shell.sh'
-      - uses: actions/upload-artifact@v4
-        if: always() && github.ref == 'refs/heads/android-native'
+          script: bash compose-native/v4/check-shell.sh ${{ matrix.viewport }}
+      - name: Preserve each viewport independently, including failed assertions
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: shell-evidence-${{ github.sha }}
-          path: |
-            compose-native/v4/app/build/shell-evidence/
-            compose-native/v4/app/build/outputs/androidTest-results/
-          if-no-files-found: ignore
+          name: device-${{ matrix.viewport }}-${{ github.sha }}
+          path: compose-native/v4/app/build/shell-evidence/
+          if-no-files-found: warn
           retention-days: 7
   reference:
     if: github.ref == 'refs/heads/android-native'
