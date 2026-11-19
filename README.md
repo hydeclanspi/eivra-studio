@@ -467,3 +467,5 @@ Eivra Studio is an independently developed research and portfolio project with a
 The repository demonstrates quantitative reasoning, analytical engineering, and product design. It makes no claim of independently verified alpha or institutional production readiness. Analysis is provided for research and demonstration, not investment advice.
 
 **Eivra Models** and **Eivra Research** are reserved directions for a future product family. **Acuen** remains a candidate name for a future sub-feature. Neither naming direction implies a separately released product. See the [brand record](eivra-studio/docs/brand-identity.md).
+
+**Android application:** [Eivra Studio · Compose Native](compose-native/README.md) — Kotlin / Jetpack Compose. The production Web project remains in `eivra-studio/`.

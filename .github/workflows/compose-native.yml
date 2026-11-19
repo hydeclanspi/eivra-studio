@@ -1,0 +1,89 @@
+name: Compose Native v4
+on:
+  push:
+    branches: [android-native, main]
+    paths: ['compose-native/v4/**', '.github/workflows/compose-native.yml']
+  pull_request:
+    branches: [android-native, main]
+    paths: ['compose-native/v4/**', '.github/workflows/compose-native.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: compose-native-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: compose-native/v4
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Keep the archive byte-identical
+        run: test "$(git rev-parse HEAD:compose-native/archive/v1)" = b35f09aea4178f9891d9051fb8d39306d89b4d58
+      - name: Prepare offline kernel if present
+        run: if test -f lanes/platform/prepare.sh; then bash lanes/platform/prepare.sh; fi
+      - name: Verify the packaged offline engine against a synthetic ledger
+        run: |
+          if test -f tools/kernel-journey.cjs && test -f lanes/platform/assets/platform-kernel.js; then
+            node tools/kernel-journey.cjs
+          fi
+      - name: Compile app and instrumented tests, run JVM tests
+        run: bash gradlew --stacktrace :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eivra-v4-${{ github.sha }}
+          path: |
+            compose-native/v4/app/build/outputs/apk/debug/*.apk
+            compose-native/v4/app/build/test-results/testDebugUnitTest/
+          retention-days: 7
+      - name: Enable emulator acceleration
+        if: github.ref == 'refs/heads/android-native'
+        run: sudo chmod 666 /dev/kvm
+      - name: Verify shell on phone and landscape tablet
+        if: github.ref == 'refs/heads/android-native'
+        uses: reactivecircus/android-emulator-runner@v2
+        timeout-minutes: 19
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: bash 'compose-native/v4/check-shell.sh'
+      - uses: actions/upload-artifact@v4
+        if: always() && github.ref == 'refs/heads/android-native'
+        with:
+          name: shell-evidence-${{ github.sha }}
+          path: |
+            compose-native/v4/app/build/shell-evidence/
+            compose-native/v4/app/build/outputs/androidTest-results/
+          if-no-files-found: ignore
+          retention-days: 7
+  reference:
+    if: github.ref == 'refs/heads/android-native'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12'}
+      - name: Collect fresh public Web references, independently of Android results
+        working-directory: compose-native/v4
+        run: |
+          python tools/ci-fonts.py
+          python -m pip install --disable-pip-version-check 'playwright==1.56.0'
+          python tools/capture_web.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-reference-${{ github.sha }}
+          path: compose-native/v4/app/build/web-reference/
+          retention-days: 7
+          if-no-files-found: error
