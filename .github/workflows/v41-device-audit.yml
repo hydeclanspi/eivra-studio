@@ -1,0 +1,49 @@
+name: v4.1 immutable APK audit
+on:
+  push:
+    branches: [qa/v41-device-audit]
+    paths: ['.github/workflows/v41-device-audit.yml', 'compose-native/v4/tools/v41-blackbox.py']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        viewport: [390x844, 1280x800]
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 44558391190
+          name: instrument-pair-7047c3b97396f6b2cf4f9a13eec75cf564ab9c9c
+          path: pair
+      - name: Prepare framebuffer inspection
+        run: |
+          sudo chmod 666 /dev/kvm
+          python3 -c 'import PIL' || python3 -m pip install Pillow
+          echo 'c1056a0850b76602a13c964603b408980eb7e371b7d1cf17e49253a553d815e0  pair/debug/app-debug.apk' | sha256sum -c -
+      - name: Exercise the installed public-demo binary
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: default
+          emulator-build: 12414864
+          ram-size: 2048M
+          cores: 2
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -feature -Vulkan -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: python3 compose-native/v4/tools/v41-blackbox.py ${{ matrix.viewport }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: immutable-${{ matrix.viewport }}-${{ github.sha }}
+          path: blackbox/${{ matrix.viewport }}/
+          if-no-files-found: warn
+          retention-days: 7
