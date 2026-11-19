@@ -7,8 +7,13 @@ cd "$n/v4"
 bash lanes/platform/prepare.sh
 bash gradlew --stacktrace :app:testDebugUnitTest :app:assembleDebug
 apk=app/build/outputs/apk/debug/app-debug.apk
-cert() { "$bt" verify --print-certs "$1" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p'; }
-old=$(cert "$prev"); new=$(cert "$apk"); [[ $old =~ ^[0-9a-f]{64}$ && $new =~ ^[0-9a-f]{64}$ ]]; test "$old" = 16ba3605227dbaccb46424a928cab267b8aec5b0ea7d9bc1ef43d94c008af922
+printf 'Android Build Tools: %s\n' "$bt"
+"$bt" verify --verbose --print-certs "$prev"
+"$bt" verify --verbose --print-certs "$apk"
+old=$(python3 "$root/.github/ark-pair/cert_digest.py" "$prev")
+new=$(python3 "$root/.github/ark-pair/cert_digest.py" "$apk")
+printf 'Prior signer: %s; new signer: %s\n' "$old" "$new"
+test "$old" = 16ba3605227dbaccb46424a928cab267b8aec5b0ea7d9bc1ef43d94c008af922
 if [[ $old != "$new" ]]; then
   bash gradlew -PeivraArkSideBySide=true --stacktrace :app:assembleDebug
 fi
