@@ -1,5 +1,7 @@
 package com.eivra.studio.v2.ui
 
+import android.animation.ValueAnimator
+import android.view.animation.LinearInterpolator
 import android.database.ContentObserver
 import android.os.Handler
 import android.os.Looper
@@ -26,12 +28,19 @@ import kotlinx.coroutines.delay
 import kotlin.math.*
 
 /** A single clock per indicator. Consumers read it only in draw, never in layout or accessibility. */
-@Composable internal fun studioPhase(period:Int):State<Float>{
+@Composable internal fun studioPhase(period:Int,rest:Float=.27f):State<Float>{
  val life by LocalLifecycleOwner.current.lifecycle.currentStateAsState();val resolver=LocalContext.current.contentResolver
  fun enabled()=Settings.Global.getFloat(resolver,Settings.Global.ANIMATOR_DURATION_SCALE,1f)>0f
  var motion by remember(resolver){mutableStateOf(enabled())}
  DisposableEffect(resolver){val o=object:ContentObserver(Handler(Looper.getMainLooper())){override fun onChange(selfChange:Boolean){motion=enabled()}};resolver.registerContentObserver(Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE),false,o);onDispose{resolver.unregisterContentObserver(o)}}
- return if(life.isAtLeast(Lifecycle.State.STARTED)&&motion)rememberInfiniteTransition(label="optical phase").animateFloat(0f,1f,infiniteRepeatable(tween(period,easing=LinearEasing)),label="phase") else remember{mutableFloatStateOf(.27f)}
+ val phase=remember(period,rest){mutableFloatStateOf(rest)}
+ val active=motion && life.isAtLeast(Lifecycle.State.STARTED)
+ DisposableEffect(period,active,rest){
+     val animator=if(active)ValueAnimator.ofFloat(0f,1f).apply{duration=period.toLong();repeatCount=ValueAnimator.INFINITE;repeatMode=ValueAnimator.RESTART;interpolator=LinearInterpolator();addUpdateListener{phase.floatValue=it.animatedFraction};start()} else null
+     if(animator==null)phase.floatValue=rest
+     onDispose{animator?.removeAllUpdateListeners();animator?.cancel()}
+ }
+ return phase
 }
 private val facets=listOf(Color(0xFF507598),Color(0xFF98BECB),Color(0xFF6D648F),Color(0xFFC3AB83))
 private val glints=listOf(Color(0xFF6296AB),Color(0xFFA385BA),Color(0xFFBD975E))

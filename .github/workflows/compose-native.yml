@@ -70,6 +70,7 @@ jobs:
       fail-fast: false
       matrix:
         viewport: [390x844, 1280x800]
+        gate: [features, regression]
     steps:
       - uses: actions/checkout@v4
         with: {persist-credentials: false}
@@ -91,16 +92,17 @@ jobs:
           api-level: 35
           arch: x86_64
           target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -feature -Vulkan -no-snapshot -noaudio -no-boot-anim -camera-back none
           ram-size: 2048M
           heap-size: 384M
           cores: 2
           disable-animations: true
-          script: bash compose-native/v4/check-shell.sh ${{ matrix.viewport }}
+          script: bash compose-native/v4/check-shell.sh ${{ matrix.viewport }} ${{ matrix.gate }}
       - name: Preserve each viewport independently, including failed assertions
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: device-${{ matrix.viewport }}-${{ github.sha }}
+          name: device-${{ matrix.viewport }}-${{ matrix.gate }}-${{ github.sha }}
           path: compose-native/v4/app/build/shell-evidence/
           if-no-files-found: warn
           retention-days: 7
