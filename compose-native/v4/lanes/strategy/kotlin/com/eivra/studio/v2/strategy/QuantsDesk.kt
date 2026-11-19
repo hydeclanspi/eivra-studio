@@ -29,14 +29,16 @@ import org.json.*
                 val result=withContext(Dispatchers.IO) {
                     val data=if(method=="simulation") obj("matches" to JSONArray()) else env.ports.objectRead("matchResults.getResultsIndex")
                     check(env.ports.state.value==ws) {"工作区已变化，请重新运行"}
-                    JSONObject(env.ports.write("quantResearch.createResearchExperiment",args(obj("projectId" to existing.ifBlank { null },"kind" to method,"spec" to frozen.spec(),"brief" to obj("hypothesis" to frozen.hypothesis,"falsifier" to frozen.falsifier),"resultsIndex" to data,"marketMatches" to JSONArray()))))
+                    JSONObject(env.ports.write("quantResearch.createResearchExperiment",args(obj("projectId" to existing.ifBlank { null },"kind" to method,"spec" to frozen.spec(),"brief" to obj("hypothesis" to frozen.hypothesis,"falsifier" to frozen.falsifier),"resultsIndex" to data,"marketMatches" to JSONArray()),guard(ws))))
                 }
                 projectId=result.getJSONObject("project").id("id");val v=result.getJSONObject("version");receipt="已冻结 v${v.getInt("number")} · ${result.getJSONObject("run").id("id")}"
             } catch(c:CancellationException){throw c} catch(e:Exception){receipt="未确认保存：${e.message}"} finally {busy=false}
         }
     }
     Column(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-        Strip("lab" to "实验工作台","forward" to "影子观察",selected=tab,choose={if(!busy) tab=it})
+        PageHeading("Quants · 量化策略实验室","从一个直觉，到可复现的实验与持续观察")
+        QuantNav(tab){if(!busy)tab=it}
+        if(tab in setOf("research","library","data")){ResearchPages(env,ws,tab){next->tab=next;right=false};return@Column}
         if(tab=="forward") { ForwardDesk(env,ws);return@Column }
         Desk(env.widthDp>=840,"Quants · 量化策略实验室","从一个直觉，到可复核的规则与持续观察。",right,{right=it},"研究规则" to "实验结果",inputs={
             item { GlassPanel(Modifier.fillMaxWidth(),16.dp) {
@@ -51,7 +53,9 @@ import org.json.*
                 StudioField("策略名称",rule.name,{rule=rule.copy(name=it.take(120))},hint="为这项研究命名")
                 if(projectId.isNotEmpty()) TextButton({projectId="";receipt="下次冻结为新研究，不覆盖旧版本。"}){Text("另起一项研究")}
             } }
-            item { GlassPanel(Modifier.fillMaxWidth(),16.dp) { Label("策略试算器");StudioField("球队（留空为全联赛）",rule.team,{rule=rule.copy(team=it.take(100))});Strip("any" to "不限场地","home" to "主场","away" to "客场",selected=rule.venue,choose={rule=rule.copy(venue=it)});Strip("score" to "比分","result" to "胜平负",selected=rule.market,choose={rule=rule.copy(market=it)})
+            item { GlassPanel(Modifier.fillMaxWidth(),16.dp) { Label("策略试算器");Note("选择研究起点，赔率按手动假设，不伪造即时市场价。")
+                Strip("chelsea" to "切尔西 1–1","arsenal" to "阿森纳赢 1 球","home" to "主场胜","draw" to "平局","blank" to "空白",selected="",choose={preset->armed=false;receipt="";projectId="";rule=when(preset){"chelsea"->Rule(name="切尔西 1–1",team="切尔西");"arsenal"->Rule(name="阿森纳 1–0",team="阿森纳",against="0");"home"->Rule(name="主场胜",venue="home",market="result");"draw"->Rule(name="平局",market="result",outcome="draw");else->Rule(odds="")}})
+                StudioField("球队（留空为全联赛）",rule.team,{rule=rule.copy(team=it.take(100))});Strip("any" to "不限场地","home" to "主场","away" to "客场",selected=rule.venue,choose={rule=rule.copy(venue=it)});Strip("score" to "比分","result" to "胜平负",selected=rule.market,choose={rule=rule.copy(market=it)})
                 if(rule.market=="score") Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){StudioField("本队进球",rule.scoreFor,{rule=rule.copy(scoreFor=it.take(2))},Modifier.weight(1f));StudioField("对手进球",rule.against,{rule=rule.copy(against=it.take(2))},Modifier.weight(1f))}
                 else Strip("win" to "胜","draw" to "平","lose" to "负",selected=rule.outcome,choose={rule=rule.copy(outcome=it)})
                 Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){StudioField("统一假定赔率",rule.odds,{rule=rule.copy(odds=it.take(12))},Modifier.weight(1f));StudioField("每场单位",rule.stake,{rule=rule.copy(stake=it.take(12))},Modifier.weight(1f))}
@@ -70,7 +74,7 @@ import org.json.*
                 bad!=null->item { Message("补全输入",bad) };!armed->item {Message("尚未运行","选择规则和实验方法。不会自动建仓或写入研究记录。","运行实验",::runNow)}
                 s is ReadState.Failed->item {Message("实验未完成",s.message,"重试",::runNow)}
                 s is ReadState.Value->{sheet(s.data);if(!s.data.missing && kind in setOf("scenario","simulation"))item { GlassPanel(Modifier.fillMaxWidth(),16.dp) {Note("保存会按当前工作区冻结新版本、输入快照与结果，不改变旧版本。要继续观察，请到「影子观察」选择该版本。 ");StudioAction(if(busy) "正在冻结…" else "冻结规则并保存实验",::freeze,enabled=!busy) } }}
-                else -> item { Message("正在运行","计算在后台进行。你仍可查看或调整规则。") }
+                else -> item { TideWait("正在运行实验，可继续查看规则") }
             }
         })
     }

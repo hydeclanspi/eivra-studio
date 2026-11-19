@@ -15,7 +15,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 40
     defaults:
       run:
         working-directory: compose-native/v4
@@ -43,13 +43,20 @@ jobs:
             compose-native/v4/app/build/outputs/apk/debug/*.apk
             compose-native/v4/app/build/test-results/testDebugUnitTest/
           retention-days: 7
+      - name: Preserve failing compiler or JVM diagnostics without publishing private data
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: v4-test-reports-${{ github.sha }}
+          path: compose-native/v4/app/build/test-results/testDebugUnitTest/
+          if-no-files-found: ignore
       - name: Enable emulator acceleration
         if: github.ref == 'refs/heads/android-native'
         run: sudo chmod 666 /dev/kvm
       - name: Verify shell on phone and landscape tablet
         if: github.ref == 'refs/heads/android-native'
         uses: reactivecircus/android-emulator-runner@v2
-        timeout-minutes: 19
+        timeout-minutes: 28
         with:
           api-level: 35
           arch: x86_64

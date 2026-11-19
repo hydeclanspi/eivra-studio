@@ -47,8 +47,8 @@ import kotlin.math.*
 @Composable internal fun DrawBlock(b: Block, wide: Boolean, go: (Dest)->Unit, choose: (String)->Unit) {
     when(b) {
         is Block.Stats -> BoxWithConstraints(Modifier.fillMaxWidth()) { val cellWidth=156.dp*LocalDensity.current.fontScale.coerceAtLeast(1f)
-            val cols=((maxWidth+8.dp)/(cellWidth+8.dp)).toInt().coerceIn(1,if(wide) b.values.size else 2)
-            Column(verticalArrangement=Arrangement.spacedBy(8.dp)) { for(group in b.values.chunked(cols)) Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            val gap=if(wide)16.dp else 12.dp;val cols=((maxWidth+gap)/(cellWidth+gap)).toInt().coerceIn(1,if(wide) b.values.size else 2)
+            Column(verticalArrangement=Arrangement.spacedBy(gap)) { for(group in b.values.chunked(cols)) Row(horizontalArrangement=Arrangement.spacedBy(gap)) {
                 for(s in group) GlassPanel(Modifier.weight(1f),padding=if(wide) 21.dp else 15.dp,radius=9.dp) {
                     Column(Modifier.testTag("stat:${s.label}").semantics(mergeDescendants=true){},verticalArrangement=Arrangement.spacedBy(4.dp)) {
                         Caption(s.label); MetricValue(s.value); Caption(s.basis)

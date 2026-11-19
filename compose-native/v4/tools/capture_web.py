@@ -13,14 +13,15 @@ with sync_playwright() as pw:
         for w,h in [(390,844),(1280,800)]:
             ctx=browser.new_context(viewport={'width':w,'height':h},device_scale_factor=1,locale='zh-CN',color_scheme='light',reduced_motion='reduce',is_mobile=False)
             page=ctx.new_page()
-            for route in ('new','combo','dashboard','history','params','settle'):
-                page.goto(f'{origin}/{route}?tour=0',wait_until='domcontentloaded',timeout=45000)
+            for route in ('new','combo','dashboard','history','params','settle','quants','seasons'):
+                path='dashboard/report' if route=='seasons' else route
+                page.goto(f'{origin}/{path}?tour=0',wait_until='domcontentloaded',timeout=45000)
                 page.locator('main').wait_for(timeout=25000)
                 page.get_by_text('demo · preview', exact=True).first.wait_for(state='attached',timeout=12000)
                 # The deployed app selects its background by route, not by a global color.
-                scene={'new':'moon','combo':'sand','settle':'hongguo','dashboard':'moon','history':'daylight','params':'hongguo'}[route]
+                scene={'new':'moon','combo':'sand','settle':'hongguo','dashboard':'moon','history':'daylight','params':'hongguo','quants':'moon','seasons':'moon'}[route]
                 page.locator(f'html[data-liquid-glass-style="{scene}"] .composed-glass-scene--{scene}').first.wait_for(state='attached',timeout=12000)
-                page.locator('main .glow-card').first.wait_for(state='attached',timeout=15000)
+                page.locator('main .glow-card' if route not in ('quants','seasons') else 'main h1, main h2').first.wait_for(state='attached',timeout=15000)
                 page.evaluate('''async () => {await Promise.race([document.fonts.ready,new Promise(r=>setTimeout(r,3000))]);await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));}''')
                 metrics=page.evaluate('''() => {const selectors=['.mn-bar','.mn-brand','.mn-nav','.mn-nav-active','.mn-settings-link','main','main h1','main h2','main .glow-card','.lab-new-quick','.pre-match-split__main','.pre-match-split__side'];let boxes={};for(const k of selectors){const e=document.querySelector(k);if(!e)continue;const r=e.getBoundingClientRect(),s=getComputedStyle(e);boxes[k]={x:r.x,y:r.y,w:r.width,h:r.height,radius:s.borderRadius,fill:s.backgroundColor,ink:s.color,filter:s.backdropFilter,fontFamily:s.fontFamily,fontSize:s.fontSize};}return {url:location.href,width:innerWidth,height:innerHeight,dpr:devicePixelRatio,clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth,mode:document.documentElement.dataset.liquidGlassStyle,fonts:document.fonts.check('14px "DM Sans"'),boxes};}''')
                 assert metrics['width']==w and metrics['height']==h and metrics['dpr']==1 and metrics['url'].startswith(origin+'/')
@@ -37,4 +38,10 @@ with sync_playwright() as pw:
                             slider.evaluate('e=>e.scrollIntoView({block:"center",behavior:"instant"})'); page.wait_for_timeout(180)
                             page.screenshot(path=str(d/'new-controls-web.png'),animations='disabled',timeout=14000)
                             (d/'new-controls-components.json').write_text(json.dumps(page.evaluate(js),ensure_ascii=False,indent=2))
+                if route=='combo':
+                    page.get_by_role('button',name='展开面板，查看更多调参与每场角色设置').click()
+                    page.get_by_text('添加比赛',exact=True).wait_for();page.screenshot(path=str(d/'combo-expanded-web.png'),animations='disabled')
+                if route=='quants':
+                    for label,tag in [('研究台','research'),('实验工作台','lab'),('策略库','library'),('影子观察','forward'),('数据中心','data')]:
+                        page.get_by_role('button',name=label,exact=True).first.click();page.wait_for_timeout(220);page.screenshot(path=str(d/('quants-'+tag+'-web.png')),animations='disabled')
             ctx.close()

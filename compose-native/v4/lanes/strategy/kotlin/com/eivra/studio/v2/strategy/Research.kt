@@ -52,3 +52,5 @@ internal suspend fun experiment(p:StudioPorts,r:Rule,kind:String):Sheet {
         else -> error("未知实验类型")
     }
 }
+
+internal fun guard(ws:com.eivra.studio.v2.api.WorkspaceState)=obj("workspace" to ws.mode,"revision" to ws.revision)

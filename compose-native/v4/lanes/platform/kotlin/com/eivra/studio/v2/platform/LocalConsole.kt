@@ -7,6 +7,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.selected
@@ -29,14 +30,17 @@ private val fields=listOf("initialCapital" to "初始本金 · ¥", "riskCapRati
         rows=withContext(Dispatchers.Default){val a=JSONArray(env.ports.read("analytics.getExpectedVsActualRows",JSONArray().put(120)));(a.length()-1 downTo 0).mapNotNull { i->val r=a.getJSONObject(i);val x=r.optDouble("expected_rating");val y=r.optDouble("actual_rating");if(x.isFinite()&&y.isFinite()) x.toFloat() to y.toFloat() else null }}
     } catch(e:CancellationException){throw e}catch(e:Exception){loadError=e.message?:"无法读取本地工作区"} }
     fun switch(target:String){if(saving||target==state.mode)return;saving=true;scope.launch{try{env.ports.write("workspace.switch",JSONArray().put(target));msg=""}catch(e:Exception){msg=e.message?:"切换失败"}finally{saving=false}}}
-    LazyColumn(Modifier.fillMaxSize().imePadding(),verticalArrangement=Arrangement.spacedBy(16.dp),contentPadding=PaddingValues(bottom=36.dp)) {
-        item { PageHeading("参数后台","系统参数、动态校准系数与 Kelly 分母 · 仅在本机生效") }
+    val cloud=remember(state.mode){CloudMemory()}
+    BoxWithConstraints(Modifier.fillMaxSize(),contentAlignment=androidx.compose.ui.Alignment.TopCenter){
+    val w=if(maxWidth<640.dp) maxWidth-28.dp else minOf(maxWidth*.91f,1096.dp)
+    LazyColumn(Modifier.width(w).fillMaxHeight().imePadding().testTag("console-list"),verticalArrangement=Arrangement.spacedBy(16.dp),contentPadding=PaddingValues(top=if(env.widthDp>=760)32.dp else 20.dp,bottom=44.dp)) {
+        item { PageHeading("参数后台","系统参数、动态校准系数与 Kelly 分母") }
         item { GlassPanel(Modifier.fillMaxWidth()){
             Text("CORE METRIC    /    FIT ENGINE",color=Moon.Accent,fontSize=11.sp,letterSpacing=1.sp)
             Text("Expected vs Actual Judgmental Rating",color=Moon.Ink,fontSize=20.sp,fontWeight=FontWeight.SemiBold)
             Text("系统预期与实际判断的贴合程度",color=Moon.Muted,fontSize=13.sp)
             val series=rows
-            if(series.isNullOrEmpty())Text(if(series==null) "正在读取拟合样本…" else "尚无同时具备预期与实际评分的已结算记录。",color=Moon.Muted)
+            if(series==null) TideWait("正在读取拟合样本") else if(series.isEmpty())Text("尚无同时具备预期与实际评分的已结算记录。",color=Moon.Muted)
             else { Canvas(Modifier.fillMaxWidth().height(72.dp).semantics{contentDescription="${series.size} 个已结算样本的预期与实际评分，按时间从早到晚"}){
                 fun pt(i:Int,v:Float)=Offset(size.width*i/(series.size-1).coerceAtLeast(1),size.height*(1-v.coerceIn(0f,1f)))
                 drawLine(Moon.Rule,Offset(0f,size.height/2),Offset(size.width,size.height/2));series.forEachIndexed{i,p->val prev=series.getOrNull(i-1);if(prev!=null){drawLine(Moon.Sky,pt(i-1,prev.first),pt(i,p.first),2.dp.toPx());drawLine(Moon.Accent,pt(i-1,prev.second),pt(i,p.second),2.dp.toPx())}else{drawCircle(Moon.Sky,2.dp.toPx(),pt(i,p.first));drawCircle(Moon.Accent,2.dp.toPx(),pt(i,p.second))}} }
@@ -49,7 +53,9 @@ private val fields=listOf("initialCapital" to "初始本金 · ¥", "riskCapRati
             if(env.widthDp>=760) Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(16.dp)){params(Modifier.weight(1f));ConsoleFiles(env,state,Modifier.weight(1f))}
             else Column(verticalArrangement=Arrangement.spacedBy(16.dp)){params(Modifier.fillMaxWidth());ConsoleFiles(env,state,Modifier.fillMaxWidth())}
         } }
+        item { CloudPanel(env,state,cloud) }
         if(msg.isNotBlank())item { Text(msg,color=Moon.Ink) }
+    }
     }
 }
 @Composable private fun ParamCard(config:JSONObject,state:WorkspaceState,modifier:Modifier,enabled:Boolean,onSave:(JSONObject)->Unit){

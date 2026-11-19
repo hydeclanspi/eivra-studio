@@ -41,7 +41,7 @@ function resolver() { return {name:'offline-web-graph',
     if (path.isAbsolute(id)) return id
     throw Error('Unexpected dependency: '+id+' in '+parent)
   },load(id) {if(id==='\0web-combo') return require('./combo.cjs')(page); if (id==='\0web-page-functions') return pageFunctions(); if(id==='\0no-genesis') return 'export default {}';},
-  transform(code,id) { if(code.includes('import.meta.env')) return code.replace(/import\.meta\.env/g,'({})'); }
+  transform(code,id) { if(id===path.join(src,'lib/localData.js')) { if(!code.includes('const mergeGitBundleIntoLocal = (bundle) =>')) throw Error('Review changed Git merge contract'); code += '\nexport {mergeGitBundleIntoLocal};';return code.replace(/import\.meta\.env/g,'({})'); } if(code.includes('import.meta.env')) return code.replace(/import\.meta\.env/g,'({})'); }
 }}
 async function bundle(entry, dest) {
  const b=await rollup({input:entry,plugins:[resolver()],onwarn(w,warn){ if(w.code!=='CIRCULAR_DEPENDENCY') warn(w) }})

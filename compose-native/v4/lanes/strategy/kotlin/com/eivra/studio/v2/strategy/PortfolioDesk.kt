@@ -69,7 +69,7 @@ private val controlsSaver=listSaver<Constraints,Any>(save={listOf(it.risk,it.min
                         } }
                     }
                 }
-                else -> { LinearProgressIndicator(Modifier.fillMaxWidth()); Note("读取当前工作区…") }
+                else -> { TideWait("正在整理候选比赛") }
             }
             HorizontalDivider(color=Moon.Rule)
             RiskRail(cfg.risk,!sending) { if(it!=cfg.risk) { clear();cfg=cfg.copy(risk=it) } }
@@ -102,7 +102,7 @@ private val controlsSaver=listSaver<Constraints,Any>(save={listOf(it.risk,it.min
                         item { SimulationPanel(output) }
                     }
                 }
-                else -> item { GlassPanel(Modifier.fillMaxWidth()) { LinearProgressIndicator(Modifier.fillMaxWidth()); Note("正在按当前选择求解；可以继续滚动或改参。") } }
+                else -> item { GlassPanel(Modifier.fillMaxWidth()) { TideWait("正在按当前选择求解，可继续滚动或改参") } }
             }
         }
     })

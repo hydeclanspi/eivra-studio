@@ -19,7 +19,7 @@ internal fun obj(vararg xs: Pair<String, Any?>): JSONObject = JSONObject().apply
 internal fun roleName(s: String?) = when(s) { "stable" -> "稳"; "lever" -> "杠杆"; "neutral_plus" -> "中＋信"; "neutral_soft" -> "中－守"; else -> "未分型" }
 
 internal data class Entry(val name: String, val quote: String?, val market: String?)
-internal data class Leg(val key: String, val home: String, val away: String, val role: String?, val conf: Double?, val odds: Double?, val entries: List<Entry>, val issue: String?, val draft: String?, val handoffIssue: String?) {
+internal data class Leg(val key: String, val home: String, val away: String, val role: String?, val conf: Double?, val odds: Double?, val entries: List<Entry>, val issue: String?, val draft: String?, val handoffIssue: String?, val evPercent:Double?=null,val suggested:Double?=null) {
     val title get() = "$home vs $away"
 }
 internal data class Plan(val id: String, val rank: Int, val layer: String, val ev: String, val win: String, val odds: Double, val amount: Double, val sharpe: String, val explanation: String, val legs: List<Leg>)
@@ -48,7 +48,7 @@ internal fun decodeLeg(row: JSONObject): Leg {
         entries.isEmpty() || m.optJSONArray("entries")?.let { !sameJson(it,raw) } != false -> "Entry 不完整或原稿与方案不符"
         else -> null
     }
-    return Leg(row.id("key"),row.id("homeTeam"),row.id("awayTeam"),row.text("autoRole"),row.number("conf"),row.number("odds"),entries,row.text("inputIssue"),m?.toString(),why)
+    return Leg(row.id("key"),row.id("homeTeam"),row.id("awayTeam"),row.text("autoRole"),row.number("conf"),row.number("odds"),entries,row.text("inputIssue"),m?.toString(),why,row.number("adjustedEvPercent"),row.number("suggestedAmount"))
 }
 // JSON object order is immaterial; entry array order, nulls and nested metadata are not.
 private fun sameJson(a: Any?, b: Any?): Boolean = when {

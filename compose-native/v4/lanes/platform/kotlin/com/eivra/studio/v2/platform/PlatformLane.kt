@@ -21,11 +21,11 @@ private var instance: LocalPorts? = null
 }
 
 internal fun makeLocalPorts(root: () -> File, script: () -> String): LocalPorts {
-    val source by lazy(script)
+    val compiled by lazy { QuickJs.create().use { it.compile(script(),"platform-kernel.js") } }
     return LocalPorts(root) { request ->
         // One unshared realm per transaction. No host objects, credentials, storage handles or JS from callers.
         QuickJs.create().use { js ->
-            js.evaluate(source)
+            js.execute(compiled)
             js.evaluate("eivraPlatform.call(" + JSONObject.quote(request) + ")") as String
         }
     }

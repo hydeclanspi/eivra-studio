@@ -68,7 +68,7 @@ private val historyTabs=listOf(Route.History to "Records",Route.Teams to "Teams"
         // One owner for page measure. Independent of the system bars already consumed by StudioHost.
         val measure=if(route==Route.History) 1100.dp else 1120.dp
         val inset=if(wide) 18.dp else 14.dp
-        LazyColumn(Modifier.widthIn(max=measure+inset*2).fillMaxSize().testTag("review-list").semantics { stateDescription=when(result) { ResultState.Loading -> "读取中"; is ResultState.Ready -> "已读取"; is ResultState.Failed -> "读取失败" } },contentPadding=PaddingValues(start=inset,end=inset,top=12.dp,bottom=36.dp),verticalArrangement=Arrangement.spacedBy(2.dp)) {
+        LazyColumn(Modifier.widthIn(max=measure+inset*2).fillMaxSize().testTag("review-list").semantics { stateDescription=when(result) { ResultState.Loading -> "读取中"; is ResultState.Ready -> "已读取"; is ResultState.Failed -> "读取失败" } },contentPadding=PaddingValues(start=inset,end=inset,top=12.dp,bottom=36.dp),verticalArrangement=Arrangement.spacedBy(if(route==Route.Dashboard || route==Route.Seasons) if(wide) 16.dp else 12.dp else 2.dp)) {
             item("heading") { Column {
                 Row(verticalAlignment=Alignment.CenterVertically) { Text(title,Modifier.weight(1f).testTag("review-heading").semantics { heading() },style=MaterialTheme.typography.headlineMedium,fontSize=22.sp,lineHeight=29.sp,letterSpacing=(-.45).sp,fontWeight=if(route==Route.History) FontWeight.SemiBold else FontWeight.Bold,color=Moon.Ink); if(route==Route.Dashboard || key!=null) TextButton(onClick={env.go(Dest(Route.History))}) { Text(if(key!=null) "记录索引" else "查看历史 →") } }
                 Row(Modifier.horizontalScroll(rememberScrollState())) { family.forEach { (r,l) -> StudioPill(l,route==r,{ env.go(Dest(r)) }) } }
@@ -81,7 +81,7 @@ private val historyTabs=listOf(Route.History to "Records",Route.Teams to "Teams"
             val cuts=when(route) { Route.History -> if(key==null) RECORDS else ""; Route.Analysis -> SLICES; Route.Metrics -> METRICS; else -> "" }
             if(cuts.isNotEmpty()) item("cut") { Row(Modifier.horizontalScroll(rememberScrollState())) { cuts.split('|').forEachIndexed { i,l -> StudioPill(l,cut==i,{cut=i}) } } }
             when(result) {
-                ResultState.Loading -> item("loading") { GlassPanel(Modifier.fillMaxWidth()) { LinearProgressIndicator(Modifier.fillMaxWidth()); Caption("正在读取当前工作区…") } }
+                ResultState.Loading -> item("loading") { GlassPanel(Modifier.fillMaxWidth()) { TideWait("正在读取当前工作区") } }
                 is ResultState.Failed -> item("error") { GlassPanel(Modifier.fillMaxWidth()) { PageHeading("暂时无法读取",result.reason); StudioAction("重新读取",retry) } }
                 is ResultState.Ready -> items(result.cells,key={ it.key },contentType={ it.block.javaClass.name }) { cell -> key(reader,q) { Box(Modifier.fillMaxWidth().testTag("review:${cell.key}")) { DrawBlock(cell.block,wide,env.go) { cycle=it } } } }
             }

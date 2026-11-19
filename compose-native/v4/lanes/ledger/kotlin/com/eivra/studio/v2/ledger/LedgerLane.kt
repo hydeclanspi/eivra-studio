@@ -82,7 +82,7 @@ internal fun fmt(n: Double, digits: Int=2) = String.format(Locale.ROOT,"%.${digi
         if(wide) Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){title();tabs()} else {title();tabs()}
         HorizontalDivider(color=Moon.Rule)
         if(!s.ready) {
-            if(s.loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if(s.loading) TideWait("正在计算投前预览")
             Caption(s.message.ifBlank { "正在读取草稿…" });if(!s.loading && s.message.isNotEmpty()) SmallButton("重新读取草稿",{s.enter(g,env.dest.key)});return@Column
         }
         QuickInput(s,g)

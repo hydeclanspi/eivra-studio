@@ -46,8 +46,9 @@ PY
   instrument "$suite.NavigationSmoke" host-instrumentation || others=1
   adb logcat -d -s EivraHostStats:I '*:S' | grep "viewport=$view " > "$dir/frame-sample.txt" || true
   instrument "$suite.PolishViews" polish-tests || others=1
-  for k in new-controls combo-loaded overview records console;do pull_app "polish-$view/$k.png" "$k-native.png";pull_app "polish-$view/$k.txt" "$k-tree.txt";done
+  for k in new-controls combo-loaded combo-expanded quants-lab quants-research quants-library quants-forward quants-data overview seasons records console console-git-demo;do pull_app "polish-$view/$k.png" "$k-native.png";pull_app "polish-$view/$k.txt" "$k-tree.txt";done
   test -s "$dir/combo-loaded-native.png" || others=1
+  instrument "$suite.platform.V4ReadTiming" ports-timing || others=1;pull_app "v4-perf-$view.json" v4-read-timing.json
   if [[ $view == 390x844 ]];then instrument "$suite.platform.PackedPortfolioTest" portfolio-draft || others=1;fi
   [[ $ledger == 0 && $others == 0 ]]
 }

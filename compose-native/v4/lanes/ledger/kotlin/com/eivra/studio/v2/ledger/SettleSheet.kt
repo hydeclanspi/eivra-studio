@@ -31,7 +31,7 @@ import kotlinx.coroutines.CancellationException
         item {HorizontalDivider(color=Moon.Rule)}
         when {
             error.isNotEmpty() -> item {GlassPanel(Modifier.fillMaxWidth()){Section("未能读取记录");Caption(error);SmallButton("重新读取",{retry++})}}
-            list==null -> item {LinearProgressIndicator(Modifier.fillMaxWidth());Caption("正在读取账本…")}
+            list==null -> item {TideWait("正在读取待结算记录")}
             list.isEmpty() -> item {GlassPanel(Modifier.fillMaxWidth()){Section(if(id==null) "没有待结算记录" else "找不到指定记录");Caption(id ?: "冻结并保存一笔投资后，可在这里登记赛果。");if(id!=null)SmallButton("回到待结算列表",{env.go(Dest(Route.Settle))})}}
             id==null -> items(list,key={it.id}) {r->GlassPanel(Modifier.fillMaxWidth()){RecordHeading(r);Caption(r.legs.joinToString("   /   "){"${it.home} – ${it.away}"});SmallButton("展开结算",{env.go(Dest(Route.Settle,r.id))},"open-${r.id}")}}
             else -> {val r=list.single();item{GlassPanel(Modifier.fillMaxWidth()){RecordHeading(r);Caption("记录 ID · ${r.id}")}}

@@ -79,19 +79,21 @@ function settle(id,form) {
   check(updateInvestment(record.id,buildSettlementUpdater({totalInputs:Number(record.inputs)},form))?.id===record.id,'Settlement failed');return {id}
 }
 import {researchReads,saveParams} from './reviews.js'
+import {noteReads,noteWrites,loadNotes,notes} from './notebook.js'
+import {mergeGitBundleIntoLocal} from 'web/localData'
 import {inspect} from './exchange.js'
-const reads={...researchReads,'exchange.inspect':inspect,
+const reads={...researchReads,...noteReads,'cloud.merge':incoming=>{const r=mergeGitBundleIntoLocal(incoming);check(r.applied,'Git merge rejected');return snapshot()},'exchange.inspect':inspect,
  'workspace.snapshot':snapshot,'naturalInputParser.parseNaturalInput':parseNaturalInput,'forecast.buildDraft':forecast,
  'analytics.getDashboardSnapshot':getDashboardSnapshot,'analytics.getAnalysisSnapshot':getAnalysisSnapshot,'analytics.getMetricsSnapshot':getMetricsSnapshot,
  'analytics.getTeamsSnapshot':getTeamsSnapshot,'analytics.getReservoirState':getReservoirState,'analytics.getPredictionCalibrationContext':getPredictionCalibrationContext,
  'preMatchOpinion.weightsFromSlider':weightsFromSlider,'preMatchOpinion.jointScoreCells':jointScoreCells,
 }
-const writes={'params.save':saveParams,'workspace.saveInvestment':r=>save(r,true),'workspace.importInvestment':r=>save(r,false),'workspace.settleInvestment':settle}
+const writes={...noteWrites,'params.save':saveParams,'workspace.saveInvestment':r=>save(r,true),'workspace.importInvestment':r=>save(r,false),'workspace.settleInvestment':settle}
 // Runtime input is JSON data. There is no dispatch by JS path, setter, module name or source string.
 globalThis.eivraPlatform={call(text){
- const {mode,bundle,op,args,write}=JSON.parse(text), operations=write?writes:reads
+ const {mode,bundle,op,args,write,notebook}=JSON.parse(text), operations=write?writes:reads
  check(Object.prototype.hasOwnProperty.call(operations,op)&&Array.isArray(args),'Unregistered operation: '+op)
- hydrate(mode,bundle);const value=operations[op](...args)
+ hydrate(mode,bundle);loadNotes(notebook);const value=operations[op](...args)
  check(value!==undefined,'Operation returned undefined: '+op)
- return JSON.stringify(write?{value,bundle:snapshot()}:value)
+ return JSON.stringify(write?{value,bundle:snapshot(),notebook:notes()}:value)
 }}

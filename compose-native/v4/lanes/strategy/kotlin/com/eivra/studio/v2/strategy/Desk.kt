@@ -40,6 +40,11 @@ import com.eivra.studio.v2.ui.*
 }
 @Composable internal fun Desk(wide:Boolean, title:String, subtitle:String, right:Boolean, setRight:(Boolean)->Unit, tabs:Pair<String,String>, inputs:LazyListScope.()->Unit, results:LazyListScope.()->Unit) {
     Column(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        if(tabs.first!="构建") {
+            Strip("left" to tabs.first,"right" to tabs.second,selected=if(right)"right" else "left",choose={setRight(it=="right")})
+            key(right){LazyColumn(Modifier.fillMaxSize().testTag(if(right)"desk.output" else "desk.input"),contentPadding=PaddingValues(bottom=40.dp),verticalArrangement=Arrangement.spacedBy(14.dp),content=if(right) results else inputs)}
+            return@Column
+        }
         PageHeading(title,subtitle)
         if(wide && tabs.first=="构建") Spacer(Modifier.height(23.dp))
         if(!wide) Strip("left" to tabs.first,"right" to tabs.second,selected=if(right) "right" else "left",choose={setRight(it=="right")})
