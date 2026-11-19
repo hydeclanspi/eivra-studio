@@ -14,4 +14,4 @@ yes | /opt/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null
 /opt/android-sdk/cmdline-tools/latest/bin/sdkmanager 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0' 'build-tools;35.0.0'
 mkdir -p /workspaces/.gradle
 printf 'sdk.dir=/opt/android-sdk
-' > compose-native/v4/local.properties
+' > compose-and-ark-native/v4/local.properties

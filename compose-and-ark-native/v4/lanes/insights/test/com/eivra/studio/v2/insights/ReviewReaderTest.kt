@@ -14,7 +14,7 @@ class ReviewReaderTest {
     private val z = ZoneId.of("UTC")
     // One oracle shared with instrumentation; it is NEVER in the app's main assets.
     private val oracle by lazy { JSONObject(generateSequence(File(System.getProperty("user.dir")).absoluteFile) { it.parentFile }
-        .flatMap { base -> sequenceOf("lanes/insights", "compose-native/v4/lanes/insights").map { File(base,"$it/testAssets/insights-oracle.json") } }
+        .flatMap { base -> sequenceOf("lanes/insights", "compose-and-ark-native/v4/lanes/insights").map { File(base,"$it/testAssets/insights-oracle.json") } }
         .first { it.isFile }.readText()) }
     private inner class Port : StudioPorts {
         override val state = MutableStateFlow(WorkspaceState("demo",1))

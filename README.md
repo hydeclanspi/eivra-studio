@@ -468,4 +468,4 @@ The repository demonstrates quantitative reasoning, analytical engineering, and 
 
 **Eivra Models** and **Eivra Research** are reserved directions for a future product family. **Acuen** remains a candidate name for a future sub-feature. Neither naming direction implies a separately released product. See the [brand record](eivra-studio/docs/brand-identity.md).
 
-**Android application:** [Eivra Studio · Compose Native](compose-native/README.md) — Kotlin / Jetpack Compose. The production Web project remains in `eivra-studio/`.
+**Native apps:** [Android APK & HarmonyOS HAP · Compose and Ark Native](compose-and-ark-native/README.md) — both packages are in the same directory, alongside the Kotlin / Jetpack Compose project. The production Web project remains in `eivra-studio/`.

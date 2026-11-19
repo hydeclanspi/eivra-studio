@@ -2,7 +2,7 @@ name: v4.1 immutable APK audit
 on:
   push:
     branches: [qa/v41-device-audit]
-    paths: ['.github/workflows/v41-device-audit.yml', 'compose-native/v4/tools/v41-blackbox.py']
+    paths: ['.github/workflows/v41-device-audit.yml', 'compose-and-ark-native/v4/tools/v41-blackbox.py']
 permissions:
   contents: read
   actions: read
@@ -39,7 +39,7 @@ jobs:
           cores: 2
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -feature -Vulkan -no-snapshot -noaudio -no-boot-anim -camera-back none
-          script: python3 compose-native/v4/tools/v41-blackbox.py ${{ matrix.viewport }}
+          script: python3 compose-and-ark-native/v4/tools/v41-blackbox.py ${{ matrix.viewport }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -26,10 +26,13 @@ android {
     buildTypes {
         debug {
             // Install the tested checkpoint without replacing I01/I02 or touching their ledgers.
-            applicationIdSuffix = ".v41"
+            // A different debug signer cannot update v4.1. Opt into an isolated install in that case.
+            applicationIdSuffix = if (providers.gradleProperty("eivraArkSideBySide").orNull == "true") ".v41.arkicon" else ".v41"
+            isCrunchPngs = false // The launcher uses the exact original HarmonyOS PNG.
             versionNameSuffix = "-preview"
         }
         release {
+            isCrunchPngs = false
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }

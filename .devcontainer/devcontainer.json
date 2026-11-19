@@ -9,7 +9,7 @@
       "version": "24"
     }
   },
-  "postCreateCommand": "bash compose-native/devcontainer/setup-android.sh",
+  "postCreateCommand": "bash compose-and-ark-native/devcontainer/setup-android.sh",
   "customizations": {
     "codespaces": {
       "idleTimeout": 120
