@@ -9,6 +9,12 @@ Android 的普通和圆形桌面入口都直接使用鸿蒙 `EntryAbility` 指�
 
 HAP 按提供时的字节收录，未解包重打或重签；其清单标记 `debug=true`。此目录提供鸿蒙安装包，不包含独立的 Ark 源工程，也不代表已经在其他鸿蒙设备上验过签装。两包的 SHA-256 见 [SHA256SUMS](SHA256SUMS)。
 
+## Android 安装说明
+
+与旧 v4.1 的签名不同，因此使用独立包名并装。不要卸载旧版；旧本地账本不会自动复制到新包。重建这个并装版本时加 `-PeivraArkSideBySide=true`。 安装包 ID：`com.eivra.studio.v2.v41.arkicon`。在 Android API 34 模拟器已验证桌面入口解析、安装并启动；未在用户的实际设备或鸿蒙环境操作。
+
+[构建、签名比对及安装记录](https://github.com/hydeclanspi/eivra-studio/actions/runs/44614763205) · [v4.1 源码变更](https://github.com/hydeclanspi/eivra-studio/commit/d8ea39267701af63e4276472425b07e938898006)
+
 ## Source and earlier builds
 
 - **[v4/](v4/)** — current Android project. Open in Android Studio; JDK 17 / SDK 36 / Node for the offline engine. The production Web app remains in `../eivra-studio/`.
