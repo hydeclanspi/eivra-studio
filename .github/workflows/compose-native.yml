@@ -33,6 +33,7 @@ jobs:
         run: |
           if test -f tools/kernel-journey.cjs && test -f lanes/platform/assets/platform-kernel.js; then
             node tools/kernel-journey.cjs
+            node tools/v4-ranked-parity.cjs
           fi
       - name: Compile app and instrumented tests, run JVM tests
         run: bash gradlew --stacktrace :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest

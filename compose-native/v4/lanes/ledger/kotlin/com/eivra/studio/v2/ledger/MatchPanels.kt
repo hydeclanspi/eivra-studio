@@ -81,7 +81,7 @@ import kotlin.math.roundToInt
             Text("$x",Modifier.width(20.dp),color=Moon.Rose,fontSize=11.sp);(0..6).forEach { y->val p=values[x to y] ?: 0.0; val alpha=(.04+.78*p/peak).toFloat();Box(Modifier.weight(1f).height(23.dp).background(Moon.Accent.copy(alpha=alpha),RoundedCornerShape(4.dp)).semantics{contentDescription="$x 比 $y：${fmt(p*100,1)}%"},contentAlignment=Alignment.Center){if(x==score.first && y==score.second) Text("◇",fontSize=13.sp,color=if(alpha>.5f) Color.White else Moon.Accent)} }
         }}
         Caption("主队纵轴 · 客队横轴   |   "+list.sortedByDescending { it.p }.take(3).joinToString("   "){"${it.h}–${it.a} ${fmt(it.p*100,1)}%"})
-    }else if(fault.isNotBlank()){Caption("未能取得比分分布：$fault");SmallButton("重试云图",{retry++})}else Caption("正在读取比分分布…")
+    }else if(fault.isNotBlank()){Caption("未能取得比分分布：$fault");SmallButton("重试云图",{retry++})}else TideWait("正在读取比分分布")
     Caption("云图表达你的判断。没有机构盘源时，不生成对位价格，也不回填赔率。")
 }
 @OptIn(ExperimentalMaterial3Api::class)

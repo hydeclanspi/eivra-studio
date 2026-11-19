@@ -18,9 +18,11 @@ import org.json.*
     var tab by rememberSaveable { mutableStateOf("lab") }; var right by rememberSaveable { mutableStateOf(false) }
     var rule by rememberSaveable { mutableStateOf(Rule()) };var kind by rememberSaveable { mutableStateOf("scenario") };var armed by rememberSaveable { mutableStateOf(false) };var seq by remember { mutableIntStateOf(0) }
     var busy by remember { mutableStateOf(false) };var receipt by rememberSaveable { mutableStateOf("") };var projectId by rememberSaveable { mutableStateOf("") }
+    var ranRule by remember { mutableStateOf<Rule?>(null) };var ranKind by remember { mutableStateOf("") };var ranRevision by remember {mutableLongStateOf(-1L)}
+    val runnable=armed && ranRule==rule && ranKind==kind && ranRevision==ws.revision
     val scope=rememberCoroutineScope();val bad=rule.issue(kind)
-    val (_,s)=readResource(env.ports,ws.mode,ws.revision,rule,kind,seq,enabled=tab=="lab" && armed && bad==null,wait=250) {experiment(env.ports,rule,kind)}
-    fun runNow(){armed=true;seq++;right=true}
+    val (_,s)=readResource(env.ports,ws.mode,ws.revision,rule,kind,seq,enabled=tab=="lab" && runnable && bad==null,wait=250) {experiment(env.ports,rule,kind)}
+    fun runNow(){ranRule=rule;ranKind=kind;ranRevision=ws.revision;armed=true;seq++;right=true}
     fun freeze() {
         if(busy || bad!=null || s !is ReadState.Value || s.data.missing || kind !in setOf("scenario","simulation")) return
         val frozen=rule;val method=kind;val existing=projectId;busy=true;receipt=""
@@ -60,10 +62,11 @@ import org.json.*
                 else Strip("win" to "胜","draw" to "平","lose" to "负",selected=rule.outcome,choose={rule=rule.copy(outcome=it)})
                 Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){StudioField("统一假定赔率",rule.odds,{rule=rule.copy(odds=it.take(12))},Modifier.weight(1f));StudioField("每场单位",rule.stake,{rule=rule.copy(stake=it.take(12))},Modifier.weight(1f))}
             } }
-            item { GlassPanel(Modifier.fillMaxWidth(),16.dp) {Label("实验方法"); Strip("scenario" to "历史情景","simulation" to "条件模拟","walk" to "时序留后","rolling" to "滚动窗",selected=kind,choose={kind=it;receipt=""})
+            item { GlassPanel(Modifier.fillMaxWidth(),16.dp) {Label("实验方法"); Strip("scenario" to "历史情景","simulation" to "条件模拟","walk" to "时序留后","rolling" to "滚动窗","replay" to "价格回放",selected=kind,choose={kind=it;receipt=""})
                 when(kind){
                     "simulation"->{ StudioField("计划场次",rule.count,{rule=rule.copy(count=it.take(3))});Strip("base" to "联赛基准","custom" to "自定义概率",selected=rule.probMode,choose={rule=rule.copy(probMode=it)});if(rule.probMode=="custom")StudioField("条件概率 %",rule.prob,{rule=rule.copy(prob=it.take(10))});Note("使用手动定价，未匹配赛程的模拟腿逐项标为估计。") }
                     "walk"->{Note("按比赛日期切分；训练段占比");Strip("50" to "50%","70" to "70%","80" to "80%",selected=rule.ratio.toString(),choose={rule=rule.copy(ratio=it.toInt())})}
+                    "replay"->{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){StudioField("赛前决策 · 分钟",rule.lead,{rule=rule.copy(lead=it.take(5))},Modifier.weight(1f));StudioField("报价有效期 · 分钟",rule.age,{rule=rule.copy(age=it.take(5))},Modifier.weight(1f))};Note("只回放数据中心记录的赛前实价；不以手动假设或事后赔率补缺。")}
                     "rolling"->{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){StudioField("训练窗 · 天",rule.train,{rule=rule.copy(train=it.take(4))},Modifier.weight(1f));StudioField("后窗 · 天",rule.test,{rule=rule.copy(test=it.take(3))},Modifier.weight(1f))};StudioField("最低训练场次",rule.minimum,{rule=rule.copy(minimum=it.take(5))});Note("冻结此规则的场地和假定价；只读观察，不从后窗反选赢家。")}
                     else->Note("统一假定价情景不代表历史可成交价。")
                 };bad?.let{Note(it)};StudioAction("运行实验",::runNow,Modifier.fillMaxWidth(),bad==null&&!busy)
@@ -71,7 +74,7 @@ import org.json.*
         },results={
             if(receipt.isNotBlank()) item { Message("研究版本",receipt) }
             when {
-                bad!=null->item { Message("补全输入",bad) };!armed->item {Message("尚未运行","选择规则和实验方法。不会自动建仓或写入研究记录。","运行实验",::runNow)}
+                bad!=null->item { Message("补全输入",bad) };!runnable->item {Message(if(armed)"规则或数据已更新，请重新运行" else "尚未运行","选择规则和实验方法。不会自动建仓或写入研究记录。","运行实验",::runNow)}
                 s is ReadState.Failed->item {Message("实验未完成",s.message,"重试",::runNow)}
                 s is ReadState.Value->{sheet(s.data);if(!s.data.missing && kind in setOf("scenario","simulation"))item { GlassPanel(Modifier.fillMaxWidth(),16.dp) {Note("保存会按当前工作区冻结新版本、输入快照与结果，不改变旧版本。要继续观察，请到「影子观察」选择该版本。 ");StudioAction(if(busy) "正在冻结…" else "冻结规则并保存实验",::freeze,enabled=!busy) } }}
                 else -> item { TideWait("正在运行实验，可继续查看规则") }

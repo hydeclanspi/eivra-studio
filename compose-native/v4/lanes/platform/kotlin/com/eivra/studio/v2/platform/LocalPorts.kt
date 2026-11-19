@@ -63,6 +63,16 @@ internal class LocalPorts(root: () -> File, private val kernel: (String) -> Stri
         val rows = b.getJSONObject("bundle").getJSONArray("investments")
         return WorkspaceState(mode, maxOf(floor, b.getLong("revision")), (0 until rows.length()).count { rows.getJSONObject(it).optString("status") == "pending" })
     }
+    private data class Stamp(val identity:String?,val size:Long,val modified:java.nio.file.attribute.FileTime)
+    private data class View(val mode:String,val floor:Long,val stamp:Stamp?,val s:WorkspaceState,val book:JSONObject)
+    @Volatile private var view:View?=null // guarded by lock; readers never mutate this tree, writer never receives it
+    private fun readView():Pair<WorkspaceState,JSONObject>{
+        val ptr=pointer();val mode=ptr.getString("mode");val floor=ptr.getLong("floor");val f=file(mode)
+        val a=try{Files.readAttributes(f.toPath(),java.nio.file.attribute.BasicFileAttributes::class.java)}catch(e:java.nio.file.NoSuchFileException){null}
+        val stamp=a?.let{Stamp(it.fileKey()?.toString(),it.size(),it.lastModifiedTime())};val prev=view
+        if(prev!=null && prev.mode==mode && prev.floor==floor && prev.stamp==stamp)return prev.s to prev.book
+        val b=book(mode);val s=describe(mode,floor,b);view=View(mode,floor,stamp,s,b);synchronized(reads){reads.clear()};flow.value=s;return s to b
+    }
     private fun active(): Pair<WorkspaceState, JSONObject> {
         val p = pointer(); val mode = p.getString("mode"); val b = book(mode)
         return describe(mode, p.getLong("floor"), b).also { flow.value = it } to b
@@ -81,9 +91,9 @@ internal class LocalPorts(root: () -> File, private val kernel: (String) -> Stri
         return if(how=="replace")remote else JSONObject(invoke(s.mode,b.getJSONObject("bundle"),"cloud.merge",JSONArray().put(remote)))
     }
     private fun token(s:WorkspaceState,text:String)=digest(JSONArray().put(s.mode).put(s.revision).put(text))
-    suspend fun start() = withContext(Dispatchers.IO) { lock.withLock { active().first } }
+    suspend fun start() = withContext(Dispatchers.IO) { lock.withLock { readView().first } }
     override suspend fun read(op: String, args: JSONArray): String = withContext(Dispatchers.IO) {
-        val (s,b) = lock.withLock { active() }
+        val (s,b) = lock.withLock { readView() }
         when(op) {
             "cloud.export" -> {require(s.mode=="owner" && args.getLong(0)==s.revision){"仅可同步已确认的个人工作区"};b.getJSONObject("bundle").toString()}
             "cloud.preview" -> {val candidate=cloud(s,b,args);val rows=candidate.getJSONArray("investments");val before=b.getJSONObject("bundle").getJSONArray("investments");val ids=(0 until rows.length()).associateBy{rows.getJSONObject(it).getString("id")};val removed=(0 until before.length()).count{!ids.containsKey(before.getJSONObject(it).getString("id"))}; val changed=(0 until before.length()).count{i->val row=before.getJSONObject(i);ids[row.getString("id")]?.let{canonical(row)!=canonical(rows.getJSONObject(it))}==true};JSONObject().put("before",before.length()).put("after",rows.length()).put("removed",removed).put("changed",changed).put("guard",token(s,args.toString())).toString()}
@@ -100,8 +110,8 @@ internal class LocalPorts(root: () -> File, private val kernel: (String) -> Stri
             "draft.get" -> b.getJSONObject("drafts").getJSONObject(args.getString(0)).toString()
             else -> {
                 val cacheKey=if(op in stable) "${s.mode}:${s.revision}:${java.time.LocalDate.now()}:$op:$args" else null
-                val hit=cacheKey?.let { synchronized(reads){reads[it]} };hit ?: invoke(s.mode,b.getJSONObject("bundle"),op,args,notes=b.optJSONObject("notebook")).also { value ->
-                    if(cacheKey!=null && value.length<=180_000 && state.value==s) synchronized(reads){reads[cacheKey]=value}
+                val hit=cacheKey?.let { synchronized(reads){if(view?.book===b)reads[it] else null} };hit ?: invoke(s.mode,b.getJSONObject("bundle"),op,args,notes=b.optJSONObject("notebook")).also { value ->
+                    if(cacheKey!=null && value.length<=180_000 && state.value==s) synchronized(reads){if(view?.book===b)reads[cacheKey]=value}
                 }
             }
         }
@@ -114,7 +124,7 @@ internal class LocalPorts(root: () -> File, private val kernel: (String) -> Stri
             if (op == "workspace.switch") {
                 val target = args.getString(0); val targetBook = if(target == s.mode) b else book(target)
                 val switched = if(target == s.mode) s else describe(target, next, targetBook).also {
-                    atomic(File(dir,"active.json"),JSONObject().put("mode", target).put("floor", next)); flow.value = it
+                    atomic(File(dir,"active.json"),JSONObject().put("mode", target).put("floor", next)); view=null; synchronized(reads){reads.clear()}; flow.value = it
                 }
                 return@withLock JSONObject().put("mode", switched.mode).put("revision", switched.revision).toString()
             }
@@ -166,7 +176,7 @@ internal class LocalPorts(root: () -> File, private val kernel: (String) -> Stri
                 else -> error("Unregistered write: $op")
             }
             b.put("revision", next); val published = describe(s.mode, next, b); val reply = value.toString()
-            atomic(file(s.mode), b); synchronized(reads){reads.clear()}; flow.value = published; reply
+            atomic(file(s.mode), b); view=null; synchronized(reads){reads.clear()}; flow.value = published; reply
         } }
     }
 }

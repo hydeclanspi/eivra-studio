@@ -31,12 +31,12 @@ function portfolio(request) {
  if(issue) return {status:'infeasible',reason:issue}
  const g=combo.generateRecommendations(selected,request.riskPref??50,cap,cfg,ctx,quality,request.comboStrategy??'softPenalty',{...combo.DEFAULT_COMBO_STRUCTURE,...request.comboStructure},{...combo.DEFAULT_ROLE_PREFERENCE,...request.rolePreference},null,buildComboRetrospective(combo.readComboPlanHistory()),request.allocationMode??'balanced',request.solverMode??'heuristic')
  if(!g) return {status:'infeasible',reason:'当前参数下没有可用方案'}
- return {status:'ready',candidateCombos:g.candidateCombos,qualifiedCombos:g.qualifiedCombos,totalInvest:g.totalInvest,recommendations:g.recommendations,simulation:combo.runPortfolioMonteCarlo(g.recommendations.slice(0,20),50000)}
+ return {status:'ready',candidateCombos:g.candidateCombos,qualifiedCombos:g.qualifiedCombos,totalInvest:g.totalInvest,recommendations:g.recommendations,riskDeferred:request.deferRisk===true,simulation:request.deferRisk===true?null:combo.runPortfolioMonteCarlo(g.recommendations.slice(0,20),50000)}
 }
 export const researchReads={
  'warReport.getCyclePeriods':getCyclePeriods,'warReport.getWarReport':getWarReport,
  'insights.getProbabilityReview':period=>probabilityReview(getDashboardSnapshot(period),getInvestments(),getMatchSourceIdentity),
- 'portfolio.candidates':()=>portfolio(null),'portfolio.generate':r=>{if(!r)throw Error('Missing portfolio request');return portfolio(r)},
+ 'portfolio.simulate':pack=>{if(!Array.isArray(pack)||!pack.length||pack.length>20)throw Error('Expected frozen ranked package (1–20 items)');return {simulation:combo.runPortfolioMonteCarlo(pack,50000)}},'portfolio.candidates':()=>portfolio(null),'portfolio.generate':r=>{if(!r)throw Error('Missing portfolio request');return portfolio(r)},
  'matchResults.getResultsIndex':getResultsIndex,'quantStrategy.backtestStrategy':backtestStrategy,'quantStrategy.walkForwardStrategy':walkForwardStrategy,
  'quantStrategy.analyzeStrategy':analyzeStrategy,'quantStrategy.simulateStrategyPortfolio':simulateStrategyPortfolio,
  'quantResearch.getResearchStore':getResearchStore,'quantResearch.getResearchDataCoverage':getResearchDataCoverage,'quantForward.getForwardStore':getForwardStore,'quantForward.forwardPlanMetrics':forwardPlanMetrics,'quantEvidence.getEvidenceStore':getEvidenceStore,

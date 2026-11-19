@@ -6,13 +6,14 @@ import org.json.*
 import java.io.Serializable
 import java.time.Instant
 
-internal data class Rule(val team:String="",val venue:String="any",val market:String="score",val scoreFor:String="1",val against:String="1",val outcome:String="win",val odds:String="6.5",val stake:String="20",val count:String="6",val prob:String="12",val probMode:String="base",val ratio:Int=70,val train:String="180",val test:String="30",val minimum:String="20",val name:String="",val hypothesis:String="",val falsifier:String="") : Serializable {
+internal data class Rule(val team:String="",val venue:String="any",val market:String="score",val scoreFor:String="1",val against:String="1",val outcome:String="win",val odds:String="6.5",val stake:String="20",val count:String="6",val prob:String="12",val probMode:String="base",val ratio:Int=70,val train:String="180",val test:String="30",val minimum:String="20",val name:String="",val hypothesis:String="",val falsifier:String="",val lead:String="60",val age:String="60") : Serializable {
     fun issue(kind:String):String? = when {
         odds.toDoubleOrNull()?.let{it.isFinite() && it>1.0}!=true -> "假定赔率必须大于 1。"
         stake.toDoubleOrNull()?.let{it.isFinite() && it>0}!=true -> "每场单位必须是正数。"
         market=="score" && listOf(scoreFor,against).any { it.toIntOrNull() !in 0..9 } -> "比分两侧都需要 0–9 的整数。"
         kind=="simulation" && count.toIntOrNull() !in 1..20 -> "模拟场次须为 1–20。"
         kind=="simulation" && probMode=="custom" && prob.toDoubleOrNull()?.let { it.isFinite() && it in 0.0..100.0 }!=true -> "自定义概率须在 0–100% 之间。"
+        kind=="replay" && (lead.toIntOrNull() !in 1..43200 || age.toIntOrNull() !in 1..10080) -> "决策提前 1–43200 分钟，报价期限 1–10080 分钟。"
         kind=="rolling" && (train.toIntOrNull() !in 7..3650 || test.toIntOrNull() !in 1..365 || minimum.toIntOrNull() !in 1..10000) -> "训练窗 7–3650 天、后窗 1–365 天，最低训练样本 1–10000。"
         else -> null
     }
@@ -35,7 +36,12 @@ internal suspend fun experiment(p:StudioPorts,r:Rule,kind:String):Sheet {
         val mc=a.getJSONObject("monteCarlo");val legs=a.getJSONArray("legs").objects();if(legs.isEmpty() || mc.getInt("iterations")<1) return missing("没有可用的模拟腿。")
         return Sheet("条件推演 · ${legs.size} 场","使用手动赔率；没有联网报价。估计场次不是已开赛或已结算场次。",legs.mapIndexed { i,l->EvidenceRow("${i+1} · ${l.text("label") ?: "估计场次"}","p ${l.number("p").pct()}  ·  ×${l.number("odds").fmt()}",if(l.optBoolean("estimated")) "估计场次 · 仅用于条件推演" else "已匹配赛程") },listOf("抽样次数" to mc.getInt("iterations").toString(),"盈利概率" to mc.number("pProfit").pct(),"中位损益" to mc.number("medianProfit").fmt(),"P5 / P95" to "${mc.number("p5").fmt()} / ${mc.number("p95").fmt()}"))
     }
-    val index=p.objectRead("matchResults.getResultsIndex"); if(index.getJSONArray("matches").length()==0) return missing("本地没有历史赛果。可在 Console 导入可信样本；这里不会自动联网。")
+    if(kind=="replay") {
+        val v=p.objectRead("quant.replay",spec,r.lead.toInt(),r.age.toInt());if(v.getBoolean("empty"))return missing("尚无带时区的赛事与报价。请在数据中心导入证据 JSON；不使用手动假定价补样本。")
+        val a=v.getJSONObject("summary");val b=v.getJSONObject("baseline");val n=a.getInt("n");val dropped=v.getJSONArray("excluded").objects().groupingBy{it.id("reason")}.eachCount()
+        return Sheet("赛前价格回放 · $n 场","按决策时刻之前的有效报价配对，并按赛果可知时间结算。不是成交记录。",dropped.map{(why,count)->EvidenceRow(why,"排除 $count 条")},listOf("配对场次" to n.toString(),"策略 / 基准 ROI" to "${a.number("roi").pct()} / ${b.number("roi").pct()}","证据指纹" to v.id("fingerprint")),missing=n==0)
+    }
+    val index=p.objectRead("matchResults.getResultsIndex"); if(index.getJSONArray("matches").length()==0) return missing("本地没有历史赛果。可在数据中心导入赛果 CSV；这里不会自动联网。")
     return when(kind) {
         "scenario" -> {
             val b=p.objectRead("quantStrategy.backtestStrategy",spec,index,r.odds.toDouble());if(b.getInt("n")==0) missing("当前球队与场地口径下没有比赛。") else Sheet("历史假定价情景",b.id("disclaimer"),listOf(windowRow("整个样本",b))+b.getJSONArray("equityCurve").objects().map { EvidenceRow("第 ${it.getInt("i")} 场","累计情景损益 ${it.number("cum").fmt()}") },listOf("情景赔率" to b.number("assumedOdds").fmt(),"最大回撤" to b.number("maxDrawdown").fmt()))

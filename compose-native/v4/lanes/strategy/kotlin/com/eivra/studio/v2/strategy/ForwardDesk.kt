@@ -47,11 +47,11 @@ private suspend fun inspect(p:StudioPorts,b:Book,plan:Observation):Sheet {
             if(version!=null)item {GlassPanel(Modifier.fillMaxWidth(),16.dp){StudioField("复盘日期 · UTC 零点",date,{date=it.take(10)},hint="YYYY-MM-DD");Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){StudioField("最低结算场数",n,{n=it.take(5)},Modifier.weight(1f));StudioField("回撤上限 · 单位",dd,{dd=it.take(12)},Modifier.weight(1f))};StudioAction("冻结纸面观察计划",{if(canFreeze){val input=obj("version" to version.json,"reviewAt" to review.toString(),"minSettled" to minimum,"maxDrawdown" to drawdown);mutate {val created=JSONObject(env.ports.write("quantForward.createObservationPlan",args(input,guard(ws))));"已冻结计划 · ${created.id("id")}"}}},enabled=canFreeze&&!busy);if(!canFreeze)Note("版本须尚无计划。填写未来复盘日、最低场数和正的回撤上限。")}}
             item {Label("观察计划 · ${bs.data.plans.size}")};if(bs.data.plans.isEmpty())item {Note("暂无冻结计划。这不是 0% 收益。")}
             items(bs.data.plans,key={"p:${it.id}"}){p->GlassPanel(Modifier.fillMaxWidth(),14.dp){StudioPill(p.name,pid==p.id,{pid=p.id;right=true});Note("复盘 ${p.review} · 最少 ${p.target} 场")}}
-        };else->item{Note("正在读取研究版本与观察计划…")}}
+        };else->item{TideWait("正在读取研究版本与观察计划")}}
         if(msg.isNotBlank())item{Message("观察记录",msg)}
     },results={
         if(plan==null)item{Message("尚未选择计划","从左侧或「版本与计划」选择一份冻结规则。")}
-        else {when(detail){is ReadState.Value->{sheet(detail.data);item {GlassPanel(Modifier.fillMaxWidth(),16.dp){Note("显式检查新证据，记录纸面接受、拒绝、结算与复盘；不下单。");StudioAction("运行本地纸面跟踪",{val id=plan.id;mutate {val evidence=env.ports.objectRead("quantEvidence.getEvidenceStore");check(env.ports.state.value==ws){"证据已变化"};val saved=JSONObject(env.ports.write("quantForward.runForwardTask",args(id,evidence,obj("action" to "all"),guard(ws))));check(saved.has("tasks")){"缺少更新后的任务记录"};"已更新纸面观察簿"}},enabled=!busy)}}};is ReadState.Failed->item {Message("本次观察不可用",detail.message,"重读") {seq++}};else->item{Note("正在读取这份计划的证据…")}}}
+        else {when(detail){is ReadState.Value->{sheet(detail.data);item {GlassPanel(Modifier.fillMaxWidth(),16.dp){Note("显式检查新证据，记录纸面接受、拒绝、结算与复盘；不下单。");StudioAction("运行本地纸面跟踪",{val id=plan.id;mutate {val evidence=env.ports.objectRead("quantEvidence.getEvidenceStore");check(env.ports.state.value==ws){"证据已变化"};val saved=JSONObject(env.ports.write("quantForward.runForwardTask",args(id,evidence,obj("action" to "all"),guard(ws))));check(saved.has("tasks")){"缺少更新后的任务记录"};"已更新纸面观察簿"}},enabled=!busy)}}};is ReadState.Failed->item {Message("本次观察不可用",detail.message,"重读") {seq++}};else->item{TideWait("正在读取计划证据")}}}
         if(msg.isNotBlank())item{Message("操作回执",msg)}
     })
 }

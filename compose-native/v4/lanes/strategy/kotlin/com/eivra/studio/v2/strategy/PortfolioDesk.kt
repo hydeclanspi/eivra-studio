@@ -38,10 +38,15 @@ private val controlsSaver=listSaver<Constraints,Any>(save={listOf(it.risk,it.min
     val (slot,result)=readResource(env.ports,workspace.mode,workspace.revision,keys,cfg,solve,enabled=armed && keys.isNotEmpty() && catalog is ReadState.Value,wait=220) {
         val spec = cfg
         if (keys.size < spec.minLegs) Report.Infeasible("已选 ${keys.size} 场，少于要求的 ${spec.minLegs} 个标的。")
-        else verifySelection(decodeReport(env.ports.read("portfolio.generate",args(spec.request(keys))),keys.toSet()),rows,spec.minLegs)
+        else verifySelection(decodeReport(env.ports.read("portfolio.generate",args(spec.request(keys).put("deferRisk",true))),keys.toSet()),rows,spec.minLegs)
+    }
+    val ready=(result as? ReadState.Value)?.data as? Report.Ready
+    var requestedRisk by remember(ready,workspace.mode,workspace.revision){mutableStateOf(false)}
+    val (_,risk)=readResource(env.ports,workspace.mode,workspace.revision,solve,ready,enabled=requestedRisk&&ready?.riskPack!=null){
+        val pack=JSONArray(requireNotNull(ready?.riskPack));env.ports.objectRead("portfolio.simulate",pack)
     }
     val scope=rememberCoroutineScope(); var sending by remember { mutableStateOf(false) }; var problem by remember { mutableStateOf("") }
-    fun clear() { slot.invalidate(); expanded=""; problem="" }
+    fun clear() { armed=false; slot.invalidate(); expanded=""; problem="" }
     fun generate() { clear(); armed=true; solve++; right=true }
     fun send(plan:Plan) {
         val now=(slot.state.value as? ReadState.Value)?.data as? Report.Ready
@@ -83,7 +88,7 @@ private val controlsSaver=listSaver<Constraints,Any>(save={listOf(it.risk,it.min
         if(problem.isNotBlank()) item { Message("未打开 New",problem) }
         when {
             catalog is ReadState.Failed -> if(!wide && right) item { PoolFailure(catalog.message) { refresh++ } } else Unit
-            catalog !is ReadState.Value -> if(!wide && right) item { Note("正在读取候选…") } else Unit
+            catalog !is ReadState.Value -> if(!wide && right) item { TideWait("正在整理候选") } else Unit
             rows.isEmpty() -> if(!wide && right) item { Message("还没有候选比赛","请先在 New 录入投前观点。") } else Unit
             rows.none { it.issue==null } -> item { Message("缺少可报价的场次","检查候选的赔率、Conf 与 Entry；这不代表约束无解。") }
             keys.isEmpty() -> item { Message("尚未选择候选","勾选至少一场可报价的比赛。","返回构建") {right=false} }
@@ -99,7 +104,12 @@ private val controlsSaver=listSaver<Constraints,Any>(save={listOf(it.risk,it.min
                         items(visible,key={"plan:${it.id}"}) { plan ->
                             PlanLine(plan,expanded==plan.id,sending,{expanded=if(expanded==plan.id) "" else plan.id},{send(plan)})
                         }
-                        item { SimulationPanel(output) }
+                        item { if(output.riskPack==null)SimulationPanel(output) else when(val actual=risk){
+                            is ReadState.Value->SimulationPanel(output.copy(simulation=actual.data.optJSONObject("simulation")))
+                            is ReadState.Failed->Message("未能取得风险分布",actual.message,"关闭"){requestedRisk=false}
+                            ReadState.Loading->GlassPanel(Modifier.fillMaxWidth(),16.dp){TideWait("正在对当前方案做 50,000 次完整抽样");Note("方案已可查看；修改候选或约束后，这次结果不再采用。")}
+                            else->Message("组合包 · Monte Carlo","排名与建议金额已算好。需要查看收益分布时，再对这份方案做 50,000 次抽样。","运行完整风险模拟"){requestedRisk=true}
+                        } }
                     }
                 }
                 else -> item { GlassPanel(Modifier.fillMaxWidth()) { TideWait("正在按当前选择求解，可继续滚动或改参") } }

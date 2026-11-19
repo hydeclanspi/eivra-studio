@@ -26,7 +26,7 @@ internal data class Plan(val id: String, val rank: Int, val layer: String, val e
 internal sealed interface Report {
     data class Missing(val why: String) : Report
     data class Infeasible(val why: String) : Report
-    data class Ready(val plans: List<Plan>, val candidates: Int, val qualified: Int, val simulation: JSONObject?) : Report
+    data class Ready(val plans: List<Plan>, val candidates: Int, val qualified: Int, val simulation: JSONObject?, val riskPack:String?=null) : Report
 }
 internal fun decodeLeg(row: JSONObject): Leg {
     val raw = row.getJSONArray("entries")
@@ -70,7 +70,7 @@ internal fun decodeReport(raw: String, selected: Set<String>): Report {
                 Plan(p.id("id"),p.getInt("rank"),p.id("layer"),p.id("ev"),p.id("winRate"),p.number("combinedOdds") ?: error("缺少等效赔率"),p.number("amount") ?: error("缺少分配金额"),p.text("sharpe") ?: "—","U ${p.number("utility").fmt(3)}  ·  同源集中度 ${e?.number("corr").fmt()}  ·  ${when(e?.opt("thresholdPass")){true->"通过阈值"; false->"软约束保留"; else->"阈值未报告"}}",legs)
             }
             require(plans.isNotEmpty() && plans.map { it.id }.distinct().size==plans.size) { "引擎返回了空的或重复的有效方案" }
-            Report.Ready(plans,r.getInt("candidateCombos"),r.getInt("qualifiedCombos"),r.optJSONObject("simulation"))
+            Report.Ready(plans,r.getInt("candidateCombos"),r.getInt("qualifiedCombos"),r.optJSONObject("simulation"),if(r.optBoolean("riskDeferred")) JSONArray().apply { val a=r.getJSONArray("recommendations");for(i in 0 until minOf(20,a.length())) put(a.getJSONObject(i)) }.toString() else null)
         }
         else -> error("无法识别的求解状态")
     }
