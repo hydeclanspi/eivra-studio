@@ -53,7 +53,9 @@ private val historyTabs=listOf(Route.History to "Records",Route.Teams to "Teams"
     val route=env.dest.route; val key=env.dest.key
     var window by rememberSaveable { mutableStateOf(Window.All) }
     var search by rememberSaveable { mutableStateOf("") }; var cut by rememberSaveable { mutableIntStateOf(0) }; var cycle by rememberSaveable { mutableStateOf<String?>(null) }
+    var createFrom by rememberSaveable { mutableStateOf<String?>(null) }
     val q=Query(env.dest,window,search,cut,cycle)
+    if(route==Route.Seasons && createFrom!=null) NewSeasonDialog(env,createFrom!!,onDismiss={createFrom=null},onCreated={cycle=it;createFrom=null})
     // A NEW state holder immediately on every request, not just a restarted producer writing into the old state.
     val result=key(reader,q,foreground) { produceState<ResultState>(ResultState.Loading) {
         if(!foreground) return@produceState
@@ -83,7 +85,8 @@ private val historyTabs=listOf(Route.History to "Records",Route.Teams to "Teams"
             when(result) {
                 ResultState.Loading -> item("loading") { GlassPanel(Modifier.fillMaxWidth()) { TideWait("正在读取当前工作区") } }
                 is ResultState.Failed -> item("error") { GlassPanel(Modifier.fillMaxWidth()) { PageHeading("暂时无法读取",result.reason); StudioAction("重新读取",retry) } }
-                is ResultState.Ready -> items(result.cells,key={ it.key },contentType={ it.block.javaClass.name }) { cell -> key(reader,q) { Box(Modifier.fillMaxWidth().testTag("review:${cell.key}")) { DrawBlock(cell.block,wide,env.go) { cycle=it } } } }
+                is ResultState.Ready -> items(result.cells,key={ it.key },contentType={ it.block.javaClass.name }) { cell -> key(reader,q) { Box(Modifier.fillMaxWidth().testTag("review:${cell.key}")) { val b=cell.block
+                        if(route==Route.Seasons && b is Block.Choices) SeasonRail(b,{cycle=it},{createFrom=b.options.first().first}) else DrawBlock(b,wide,env.go) { cycle=it } } } }
             }
         }
     }

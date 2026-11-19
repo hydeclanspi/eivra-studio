@@ -78,17 +78,18 @@ function settle(id,form) {
   const msg=getValidationError(form);check(!msg,msg)
   check(updateInvestment(record.id,buildSettlementUpdater({totalInputs:Number(record.inputs)},form))?.id===record.id,'Settlement failed');return {id}
 }
+import {seasonPreview,seasonCreate} from './seasons.js'
 import {researchReads,saveParams} from './reviews.js'
 import {noteReads,noteWrites,loadNotes,notes} from './notebook.js'
 import {mergeGitBundleIntoLocal} from 'web/localData'
 import {inspect} from './exchange.js'
-const reads={...researchReads,...noteReads,'cloud.merge':incoming=>{const r=mergeGitBundleIntoLocal(incoming);check(r.applied,'Git merge rejected');return snapshot()},'exchange.inspect':inspect,
+const reads={'seasons.preview':seasonPreview,...researchReads,...noteReads,'cloud.merge':incoming=>{const r=mergeGitBundleIntoLocal(incoming);check(r.applied,'Git merge rejected');return snapshot()},'exchange.inspect':inspect,
  'workspace.snapshot':snapshot,'naturalInputParser.parseNaturalInput':parseNaturalInput,'forecast.buildDraft':forecast,
  'analytics.getDashboardSnapshot':getDashboardSnapshot,'analytics.getAnalysisSnapshot':getAnalysisSnapshot,'analytics.getMetricsSnapshot':getMetricsSnapshot,
  'analytics.getTeamsSnapshot':getTeamsSnapshot,'analytics.getReservoirState':getReservoirState,'analytics.getPredictionCalibrationContext':getPredictionCalibrationContext,
  'preMatchOpinion.weightsFromSlider':weightsFromSlider,'preMatchOpinion.jointScoreCells':jointScoreCells,
 }
-const writes={...noteWrites,'params.save':saveParams,'workspace.saveInvestment':r=>save(r,true),'workspace.importInvestment':r=>save(r,false),'workspace.settleInvestment':settle}
+const writes={'seasons.create':seasonCreate,...noteWrites,'params.save':saveParams,'workspace.saveInvestment':r=>save(r,true),'workspace.importInvestment':r=>save(r,false),'workspace.settleInvestment':settle}
 // Runtime input is JSON data. There is no dispatch by JS path, setter, module name or source string.
 globalThis.eivraPlatform={call(text){
  const {mode,bundle,op,args,write,notebook}=JSON.parse(text), operations=write?writes:reads

@@ -20,7 +20,7 @@ class ColdLedgerRead {
     @Test fun settledRecordAndFrozenPredictionAreLoadedInNewProcess() = runBlocking {
         val args=InstrumentationRegistry.getArguments();val c=InstrumentationRegistry.getInstrumentation().targetContext
         assumeTrue(args.getString("eivraDisposableDemo")=="true" && (Build.HARDWARE in setOf("ranchu","goldfish") || Build.FINGERPRINT.contains("generic")))
-        require(c.packageName=="com.eivra.studio.v2.v4"); val view=requireNotNull(args.getString("studioViewport"));require(view in setOf("390x844","1280x800"))
+        require(c.packageName=="com.eivra.studio.v2.v41"); val view=requireNotNull(args.getString("studioViewport"));require(view in setOf("390x844","1280x800"))
         val receipt=JSONObject(File(c.cacheDir,"i03-receipt-$view.json").readText());val id=receipt.getString("id")
         assertNotEquals(receipt.getInt("pid"),Process.myPid());val p=openPorts(c);val state=withTimeout(45_000) { p.state.first { it.mode!="unavailable" } };assertEquals("demo",state.mode)
         val all=JSONObject(p.read("workspace.snapshot")).getJSONArray("investments");assertEquals(receipt.getInt("count"),all.length())

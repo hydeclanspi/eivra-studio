@@ -154,6 +154,12 @@ internal class LocalPorts(root: () -> File, private val kernel: (String) -> Stri
                     val input=JSONArray().apply{for(i in 0 until args.length()-1)put(args.get(i))};val result=JSONObject(invoke(s.mode,b.getJSONObject("bundle"),op,input,true,b.optJSONObject("notebook")))
                     b.put("notebook",result.getJSONObject("notebook"));result.getJSONObject("value")
                 }
+                "seasons.create" -> {
+                    val g=args.getJSONObject(1);require(args.length()==2 && g.getString("mode")==s.mode && g.getLong("revision")==s.revision){"工作区或账本版本已变，请关闭后重新预览"}
+                    val result=JSONObject(invoke(s.mode,b.getJSONObject("bundle"),op,JSONArray().put(args.getJSONObject(0)),true))
+                    // This command owns only the capital ledger in system_config. Keep original investment, team and access collections byte-for-byte, including old snapshots.
+                    b.getJSONObject("bundle").put("system_config",result.getJSONObject("bundle").getJSONObject("system_config"));result.getJSONObject("value").put("revision",next)
+                }
                 "params.save" -> {
                     if (args.length() > 1) require(args.getLong(1) == s.revision) { "参数已变更，请重新载入" }
                     val result = JSONObject(invoke(s.mode,b.getJSONObject("bundle"),op,args,true))

@@ -1,4 +1,4 @@
-name: Compose Native v4
+name: Compose Native v4.1
 on:
   push:
     branches: [android-native, main]
@@ -15,7 +15,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 48
     defaults:
       run:
         working-directory: compose-native/v4
@@ -39,7 +39,7 @@ jobs:
         run: bash gradlew --stacktrace :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
       - uses: actions/upload-artifact@v4
         with:
-          name: eivra-v4-${{ github.sha }}
+          name: eivra-v41-${{ github.sha }}
           path: |
             compose-native/v4/app/build/outputs/apk/debug/*.apk
             compose-native/v4/app/build/test-results/testDebugUnitTest/
@@ -53,11 +53,13 @@ jobs:
           if-no-files-found: ignore
       - name: Enable emulator acceleration
         if: github.ref == 'refs/heads/android-native'
-        run: sudo chmod 666 /dev/kvm
+        run: |
+          sudo chmod 666 /dev/kvm
+          python3 -c "from PIL import Image" || python3 -m pip install Pillow
       - name: Verify shell on phone and landscape tablet
         if: github.ref == 'refs/heads/android-native'
         uses: reactivecircus/android-emulator-runner@v2
-        timeout-minutes: 28
+        timeout-minutes: 36
         with:
           api-level: 35
           arch: x86_64

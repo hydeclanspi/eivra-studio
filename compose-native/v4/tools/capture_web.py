@@ -33,6 +33,14 @@ with sync_playwright() as pw:
                     js="() => {const m=document.querySelector('main');const els=[...m.querySelectorAll('h1,h2,button,input,select,textarea,[class*=pre-hero],[class*=pre-entry],[class*=pre-strategy],.glow-card')];return els.filter(x=>x.getBoundingClientRect().width>0).slice(0,190).map(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return {tag:e.tagName,cls:e.className,label:(e.getAttribute('aria-label')||e.placeholder||e.innerText||'').slice(0,42),x:r.x,y:r.y,w:r.width,h:r.height,baselineCss:s.lineHeight,font:s.fontFamily,weight:s.fontWeight,size:s.fontSize,tracking:s.letterSpacing,pad:s.padding,rim:s.borderTopColor,radius:s.borderRadius,fill:s.backgroundColor,shade:s.boxShadow,filter:s.backdropFilter};});}"
                     (d/f'{route}-components.json').write_text(json.dumps(page.evaluate(js),ensure_ascii=False,indent=2))
                     if route=='new':
+                        trigger=page.locator('.lab-new-quick .qi-trigger');card=page.locator('.lab-new-quick');card.scroll_into_view_if_needed()
+                        for want in ('false','true'):
+                            if trigger.get_attribute('aria-expanded')!=want: trigger.click()
+                            page.wait_for_function("([sel,want])=>document.querySelector(sel)?.getAttribute('aria-expanded')===want",arg=['.lab-new-quick .qi-trigger',want]);page.wait_for_timeout(450)
+                            state='open' if want=='true' else 'closed'
+                            card.screenshot(path=str(d/f'quick-{state}-web.png'),animations='disabled')
+                            geom=card.evaluate("""e=>Object.fromEntries(Object.entries({card:e,heading:e.querySelector('.qi-trigger'),chevron:e.querySelector('.settle-ai-chevron'),title:e.querySelector('.settle-ai-title'),badge:e.querySelector('.settle-ai-beta-badge'),field:e.querySelector('textarea')}).map(([n,k])=>{const r=k.getBoundingClientRect(),s=getComputedStyle(k);return [n,{rect:[r.x,r.y,r.right,r.bottom],size:s.fontSize,weight:s.fontWeight,ink:s.color,fill:s.backgroundImage,radius:s.borderRadius}]}))""")
+                            (d/f'quick-{state}-geometry.json').write_text(json.dumps(geom,ensure_ascii=False,indent=2))
                         slider=page.locator('.pre-match-split__side input[type=range]').first
                         if slider.count():
                             slider.evaluate('e=>e.scrollIntoView({block:"center",behavior:"instant"})'); page.wait_for_timeout(180)

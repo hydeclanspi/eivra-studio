@@ -24,7 +24,7 @@ class IntegratedLedgerJourney {
     @Test fun saveFreezeSettleAndReadSameRecord() {
         val inst=InstrumentationRegistry.getInstrumentation();val args=InstrumentationRegistry.getArguments()
         assumeTrue(args.getString("eivraDisposableDemo")=="true" && (Build.HARDWARE in setOf("ranchu","goldfish") || Build.FINGERPRINT.contains("generic")))
-        assertEquals("com.eivra.studio.v2.v4",inst.targetContext.packageName)
+        assertEquals("com.eivra.studio.v2.v41",inst.targetContext.packageName)
         val ports=openPorts(inst.targetContext);ui.waitUntil(45_000){ports.state.value.mode=="demo" && exists("home-0")}
         fun snapshot():JSONObject = runBlocking { JSONObject(ports.read("workspace.snapshot")) }
         val before=rows(snapshot());val label="HostQA-"+UUID.randomUUID().toString().take(8)

@@ -4,7 +4,7 @@ set -Eeuo pipefail
 cd -- "$(dirname "$0")"
 [[ "$(adb get-serialno)" == emulator-* ]] && [[ "$(adb shell getprop ro.kernel.qemu | tr -d '\r')" == 1 ]] || { echo 'Disposable emulator required' >&2; exit 1; }
 out=app/build/shell-evidence; mkdir -p "$out"
-pkg=com.eivra.studio.v2.v4; component="$pkg/com.eivra.studio.v2.MainActivity"; suite=com.eivra.studio.v2
+pkg=com.eivra.studio.v2.v41; component="$pkg/com.eivra.studio.v2.MainActivity"; suite=com.eivra.studio.v2
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell pm path "$pkg" | grep -q '^package:'
@@ -50,6 +50,15 @@ PY
   test -s "$dir/combo-loaded-native.png" || others=1
   instrument "$suite.platform.V4ReadTiming" ports-timing || others=1;pull_app "v4-perf-$view.json" v4-read-timing.json
   if [[ $view == 390x844 ]];then instrument "$suite.platform.PackedPortfolioTest" portfolio-draft || others=1;fi
+  instrument "$suite.V41Acceptance#quickOptics" quick-optics -e eivraDisposableDemo true || others=1
+  adb shell settings put global animator_duration_scale 1
+  instrument "$suite.V41Acceptance#actualSolveShowsMovingPrismAndRail" solve-motion -e eivraDisposableDemo true || others=1
+  adb shell settings put global animator_duration_scale 0
+  instrument "$suite.V41Acceptance#newSeasonAndCancel" season-write -e eivraDisposableDemo true || others=1
+  adb shell am force-stop "$pkg"
+  instrument "$suite.V41Acceptance#coldSeason" season-cold -e eivraDisposableDemo true || others=1
+  mkdir -p "$dir/v41";adb exec-out run-as "$pkg" tar -C "files/v41-$view" -cf - . | tar -C "$dir/v41" -xf - || others=1
+  python3 tools/v41-motion-proof.py "$dir/v41" || others=1
   [[ $ledger == 0 && $others == 0 ]]
 }
 fail=0
