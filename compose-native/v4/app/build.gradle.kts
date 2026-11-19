@@ -12,8 +12,8 @@ android {
         applicationId = "com.eivra.studio.v2"
         minSdk = 29
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 41
+        versionName = "0.4.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
     }
@@ -26,7 +26,7 @@ android {
     buildTypes {
         debug {
             // Install the tested checkpoint without replacing I01/I02 or touching their ledgers.
-            applicationIdSuffix = ".v4"
+            applicationIdSuffix = ".v41"
             versionNameSuffix = "-preview"
         }
         release {

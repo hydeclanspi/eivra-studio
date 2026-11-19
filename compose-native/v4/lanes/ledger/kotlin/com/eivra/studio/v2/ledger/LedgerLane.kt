@@ -97,14 +97,17 @@ internal fun fmt(n: Double, digits: Int=2) = String.format(Locale.ROOT,"%.${digi
 }
 @Composable private fun QuickInput(s: EditSession,g: LedgerGateway){
     var open by rememberSaveable { mutableStateOf(true) };val t=s.ticket
-    GlassPanel(Modifier.fillMaxWidth().testTag("quick-panel"),padding=14.dp,radius=14.dp){
-        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable(role=Role.Button){open=!open}.heightIn(min=44.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
-            Section(if(open) "⌄  Quick Input" else "›  Quick Input",Moon.Champagne);Text("LAB · AI",Modifier.background(Moon.Champagne.copy(alpha=.14f),RoundedCornerShape(5.dp)).padding(horizontal=6.dp,vertical=3.dp),fontSize=10.sp,letterSpacing=1.sp,color=Moon.Champagne);Spacer(Modifier.weight(1f));Caption("快捷录入",Moon.Champagne)
-        }
-        if(open){Edit("自然语言快捷录入",t.quick,{s.edit(t.copy(quick=it))},"quick",hint="例：阿森纳 2-1 利物浦，odds 4.3，conf 0.62，投入 20",multi=true,showLabel=false)
-            Button(onClick={s.parse(g)},enabled=t.quick.isNotBlank() && !s.parsing && !s.writing,shape=RoundedCornerShape(9.dp),colors=ButtonDefaults.buttonColors(containerColor=Moon.Champagne),modifier=Modifier.testTag("parse")){Text(if(s.parsing) "解析中…" else "解析并填入")}
+    StudioSurface(Modifier.fillMaxWidth().testTag("quick-panel"),kind=GlassKind.QuickInput,padding=0.dp){
+        Column(Modifier.fillMaxWidth()){
+        QuickHeading(open){open=!open}
+        if(open){HorizontalDivider(thickness=.55.dp,color=Color(0x1CB99D6D));Column(Modifier.fillMaxWidth().padding(start=16.2.dp,end=16.2.dp,top=9.dp,bottom=14.4.dp),verticalArrangement=Arrangement.spacedBy(7.2.dp)){
+            QuickField(t.quick){s.edit(t.copy(quick=it))}
+            Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
+                SmallButton(if(s.parsing) "解析中…" else "解析并填入",{s.parse(g)},"parse",enabled=t.quick.isNotBlank()&&!s.parsing&&!s.writing);Text("在本机解析",color=Color(0xFF9A815B),fontSize=10.sp)
+            }
             s.parsed?.let { p -> HorizontalDivider(color=Moon.Rule);Caption("解析到 ${p.ticket.legs.size} 场："+p.ticket.legs.joinToString("；") { "${it.home} / ${it.away}" });if(p.diagnostics.isNotBlank()) Caption(p.diagnostics);Caption("填入会替换当前场次，Conf 仍由你确认。");Row { SmallButton("填入此草稿",s::acceptParsed,"apply-parse");SmallButton("保留原稿",s::dismissParsed) } }
             if(s.message.startsWith("未能解析")) Caption(s.message,Moon.Rose)
+        }}
         }
     }
 }

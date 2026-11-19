@@ -36,6 +36,7 @@ class MainActivity : ComponentActivity() {
 private fun Dest.token() = route.name + "|" + key.orEmpty().let(Uri::encode)
 private fun decode(token: String) = Dest(Route.valueOf(token.substringBefore('|')), token.substringAfter('|', "").takeIf { it.isNotEmpty() }?.let(Uri::decode))
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable fun StudioHost(ports: StudioPorts) {
     var stack by rememberSaveable { mutableStateOf(arrayListOf(Dest(Route.New).token())) }
     val saved = rememberSaveableStateHolder()
@@ -54,7 +55,7 @@ private fun decode(token: String) = Dest(Route.valueOf(token.substringBefore('|'
     }
     val state by ports.state.collectAsStateWithLifecycle()
     OpticalRoot(dest.route) {
-        BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.union(WindowInsets.ime))) {
+        BoxWithConstraints(Modifier.fillMaxSize().semantics { testTagsAsResourceId=true }.windowInsetsPadding(WindowInsets.safeDrawing.union(WindowInsets.ime))) {
             val width = maxWidth.value.toInt()
             Column(Modifier.fillMaxSize()) {
                 StudioChrome(dest, width, state, go)
