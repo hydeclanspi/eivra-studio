@@ -11,7 +11,14 @@ def shell(*a,timeout=14):return adb('shell',*a,timeout=timeout).decode('utf-8','
 def save(n,d): (P/n).write_bytes(d)
 def say(msg):print(msg,flush=True);open(P/'trace.txt','a').write(msg+'\n')
 def dump(n=None):
- adb('shell','uiautomator','dump','/sdcard/qa41-window.xml',timeout=14);data=adb('exec-out','cat','/sdcard/qa41-window.xml');root=ET.fromstring(data[data.index(b'<?xml'):]);save('last-window.xml',data);
+ for attempt in range(4):
+  f='/sdcard/qa41-observe-'+str(time.monotonic_ns())+'.xml';adb('shell','uiautomator','dump',f,timeout=18,check=False);data=adb('exec-out','cat',f,check=False);adb('shell','rm','-f',f,check=False);a=data.find(b'<hierarchy')
+  if a>=0:
+   try:root=ET.fromstring(data[a:]);break
+   except ET.ParseError:pass
+  time.sleep(.3)
+ else:raise RuntimeError('Android returned no usable accessibility hierarchy')
+ save('last-window.xml',data)
  if n:save(n+'.xml',data)
  return [e.attrib for e in root.iter('node') if e.attrib.get('package')==pkg]
 def rect(q):return tuple(map(int,re.findall(r'-?\d+',q['bounds'])))
@@ -30,7 +37,17 @@ def want(pred,desc,seconds=20):
   if found:return found
   time.sleep(.15)
  raise RuntimeError('Not found on screen: '+desc)
-def t(k,tout=20):return want(lambda e:tag(e,k),k,tout)
+def t(k,tout=20):
+ labels={'go-Seasons':'Seasons','go-Portfolio':'Portfolio','nav-Dashboard':'Dashboard','nav-Portfolio':'Portfolio','season.confirm':'结束当前并创建','season.new':'＋  新建'}
+ if k in ['season.title','season.capital']:
+  end=time.monotonic()+tout
+  while time.monotonic()<end:
+   rows=dump(); exact=pick(rows,lambda e:tag(e,k));fields=sorted([e for e in rows if e.get('class','').endswith('EditText')],key=lambda e:rect(e)[1]);
+   if exact:return exact
+   if len(fields)==2:return fields[int(k=='season.capital')]
+   time.sleep(.2)
+  raise RuntimeError('missing form field '+k)
+ return want(lambda e:tag(e,k) or k in labels and text(e,labels[k]) or k=='season.new' and e.get('content-desc')=='新建赛季',k,tout)
 def press(e):
  l,u,r,b=rect(e);assert e.get('enabled')=='true',e;adb('shell','input','tap',(l+r)//2,(u+b)//2);time.sleep(.28)
 def snap(name):
@@ -40,7 +57,7 @@ def navigate(route):
  if W<600:
   press(t('menu'));a=None
   for i in range(5):
-   a=pick(dump(),lambda e:tag(e,'go-'+route));
+   a=pick(dump(),lambda e:tag(e,'go-'+route) or text(e,route));
    if a:break
    adb('shell','input','swipe',W//2,H*4//5,W//2,H*2//5,350)
   assert a,'menu route '+route;press(a)
@@ -48,7 +65,10 @@ def navigate(route):
  else:press(t('nav-'+route))
 
 def start():
- cmd=shell('am','start','-S','-W','-n',pkg+'/com.eivra.studio.v2.MainActivity',timeout=24);assert 'Status: ok' in cmd,cmd;t('quick.heading',40);assert want(lambda e:text(e,'demo · preview'),'disposable demo')
+ cmd=shell('am','start','-S','-W','-n',pkg+'/com.eivra.studio.v2.MainActivity',timeout=24);assert 'Status: ok' in cmd,cmd;t('quick.heading',40)
+ if W<600:
+  press(t('menu'));assert want(lambda e:text(e,'demo · preview'),'disposable demo in navigation sheet');shell('input','keyevent','BACK');t('quick.heading')
+ else:assert want(lambda e:text(e,'demo · preview'),'disposable demo in header')
 
 def live():
  start();navigate('Portfolio');want(lambda e:'已勾选' in e.get('text',''),'actual candidates',35)
