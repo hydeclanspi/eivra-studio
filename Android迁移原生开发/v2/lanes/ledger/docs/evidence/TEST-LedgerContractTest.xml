@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.eivra.studio.v2.ledger.LedgerContractTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-11-18T21:22:06.372Z" hostname="runnervm8axu0" time="0.284">
+  <properties/>
+  <testcase name="portfolioToReceiptToResultToHistory" classname="com.eivra.studio.v2.ledger.LedgerContractTest" time="0.193"/>
+  <testcase name="failedWriteKeepsTypedStakeAndCheckpointRestoresAfterNewSession" classname="com.eivra.studio.v2.ledger.LedgerContractTest" time="0.02"/>
+  <testcase name="parserDoesNotConfirmFiftyOrInventPrices" classname="com.eivra.studio.v2.ledger.LedgerContractTest" time="0.005"/>
+  <testcase name="postImportCanBeUnratedButNeverPretendsToBePre" classname="com.eivra.studio.v2.ledger.LedgerContractTest" time="0.004"/>
+  <testcase name="missingRouteKeyNeverFallsBackToDecoy" classname="com.eivra.studio.v2.ledger.LedgerContractTest" time="0.002"/>
+  <testcase name="lateParseCannotReplaceNewTyping" classname="com.eivra.studio.v2.ledger.LedgerContractTest" time="0.026"/>
+  <testcase name="missingReceiptOrPermissionIsNotSuccess" classname="com.eivra.studio.v2.ledger.LedgerContractTest" time="0.009"/>
+  <testcase name="unsetHitAndBlankRevenueDifferFromExplicitLossAndZero" classname="com.eivra.studio.v2.ledger.LedgerContractTest" time="0.001"/>
+  <testcase name="twoMatchesTwoEntriesEachInOrder" classname="com.eivra.studio.v2.ledger.LedgerContractTest" time="0.001"/>
+  <testcase name="editableCheckpointsDoNotRoundOrDropMetadata" classname="com.eivra.studio.v2.ledger.LedgerContractTest" time="0.015"/>
+  <testcase name="invalidDistributionCannotReachWrite" classname="com.eivra.studio.v2.ledger.LedgerContractTest" time="0.008"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

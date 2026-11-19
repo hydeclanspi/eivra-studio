@@ -1,0 +1,6 @@
+你在参与我的 Eivra Studio Android v2 重写。请直接施工、测试、提交，不只给方案。仓库 https://github.com/hydeclanspi/eivra-studio ，集成分支 android-native，仓库项目根 Android迁移原生开发/v2/；工作挂载是「Eivra Studio · Android 原生工程/v2/」。先读项目根 WORKSTREAMS.md、DESIGN.md 和 app/src/main/java/com/eivra/studio/v2/api/Studio.kt，再看线上 https://eivra.vercel.app/?tour=0 的 Inspiration 同页与仓库 eivra-studio/src/ 的原实现。以线上 Web 为视觉标尺，v1 只供回归／经验证代码复用，不是设计稿。
+
+你负责会写入投资记录的两页。只写 lanes/ledger/，分支 android-v2/ledger，入口 LedgerScreen(env)，覆盖 Route.New 和 Route.Settle。看 NewInvestmentPage.jsx、SettlePage.jsx、design/preMatchStudio.css：首屏先做投前／投后切换、通栏 Quick Input、主客 PK、Entries 与策略卡，宽屏遵照原站 4:6 与切换顺序，窄屏重排而非压缩。接上比分触发的进球区间／云图、多场、多 Entry、备注、模型反馈、实际投入、保存与逐腿回款。两种模式按各自真实规则处理，赔率能留空的阶段别先填 2.00；未确认 Conf、无效分布或无权限时，不假装保存。
+从 Portfolio 来时按 env.dest.key 读取 draft.get；成功保存用返回的真实 recordId 进入结算；结算后可送往对应 History 记录。解析与持久化走 StudioPorts，不在页面再写 parser 或 prefs。重点测键盘输入中间态（空串、小数点）、旋转与返回恢复、重复点击、异步旧结果不覆盖新输入。在独立 fixture 上完成一条从 New→冻结→指定记录结算的交互测试，平台未合并时把“界面已通”与“跨进程已经落盘”分别记录。
+
+只写指定 lane，先落 mount，对应分支用独立 checkout，小步同步；没有该分支时从包含 WORKSTREAMS.md 的 android-native 基线创建，已存在就续做。不改 v1、main、data、Web、宿主、CI 或别人目录，不强推、不自行合并。不要另起 App、WebView、全局主题或账本。缺跨模块接口先把原 Web 调用、入参、出参样本写进本 lane 的 docs/PORTS.md；其他线还没合并时，用仅测试可见的 fixture 并行推进，不能把 mock 当生产能力。用公开 demo／合成数据，别上传私人账本或密钥。手机 390×844dp、横屏平板 1280×800dp 同状态对照 Web，留下实际运行截图、测试结果和差异；跑不了写明原因。交付本 lane 的 HANDOFF.md（commit、测试或 CI 链接、依赖、未完项），不需要我替你传话或搬代码。

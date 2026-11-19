@@ -1,0 +1,20 @@
+/* Team names and metrics have their own rows, even inside a narrow middle card.
+   No fixed metric width or nowrap text may intrude into the match list. */
+.combo-preview-row {
+  display: grid;
+  grid-template-columns: 22px 6px minmax(0, 1fr) 16px;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 7px;
+  padding: 10px 12px;
+}
+.combo-preview-number { grid-column: 1; grid-row: 1; }
+.combo-preview-dot { grid-column: 2; grid-row: 1; }
+.combo-preview-legs { grid-column: 3; grid-row: 1; }
+.combo-preview-check { grid-column: 4; grid-row: 1; }
+.combo-preview-meta { grid-column: 3 / 5; grid-row: 2; }
+.combo-preview-meta > div > * { max-width: 100%; overflow-wrap: anywhere; }
+.combo-preview-legs > div { gap: 4px 0; }
+.combo-preview-leg { max-width: 100%; }
+.combo-preview-leg > span { min-width: 0; flex-wrap: wrap; row-gap: 2px; }
+.combo-preview-leg > span > span { overflow-wrap: anywhere; }

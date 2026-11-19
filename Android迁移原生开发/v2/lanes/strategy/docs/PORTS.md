@@ -1,0 +1,36 @@
+# Strategy → StudioPorts（基线 2e6ee10）
+
+这些是原函数的具名适配，不是 Kotlin 重写、远程服务、任意 JS 求值或新账本。platform 在当前 mode 的同一离线快照上执行；未注册必须 throw，不能返回空数组冒充无样本。下列数组都是位置参数。读不增加 revision，持久写由 platform 串行提交。
+
+## Portfolio
+
+- `read("portfolio.candidates", []) → rows`。源 `ComboPage.jsx:getTodayMatches`：过滤归档、优先今日 pending（没有才用全部 pending），展开 **所有** matches，以 `investment.id-matchIndex` 作选择 key。已 reviewed 的 quant 候选用 `getActiveQuantCandidateRows()`；缺腿级 quote 的行只解释，不入模。按原 candidateRows 的 predictMatchProbability、buildAtomicLegProfile、inferMatchRoleByMetrics 取 `adjustedProb/autoRole/inputIssue`；`atomicParlay.js` 的 approximate/invalid 不可作精确可执行结果。输出示意：`[{"key":"p-0","homeTeam":"青岚","awayTeam":"北港","entries":[{"name":"win","odds":2.1},{"name":"draw","odds":3.2}],"autoRole":"stable","conf":0.6,"odds":2.1,"inputIssue":null}]`。团队名称不是 ID。
+- `read("portfolio.generate", [request])`。例 `{"keys":["p-0","p-1"],"riskPref":50,"qualityFilter":{"antiOverlapPercent":60,"minWinRate":5,"maxCorr":0.85,"minCoveragePercent":55,"minCoverageEnabled":true},"comboStrategy":"softPenalty","comboStructure":{"minLegs":2,"parlayBeta":0.12,"mmrLambda":0.55,"coverageEta":0.15},"allocationMode":"balanced","solverMode":"heuristic"}`。平台按 keys 在**当前池**解析，缺项不可忽略。`ComboPage.runGenerate` 原顺序 `generateRecommendations(selectedMatches,riskPref,riskCap,systemConfig,calibrationContext,qualityFilter,comboStrategy,comboStructure,rolePreference,null,comboRetrospective,allocationMode,solverMode)`。未覆盖的选项沿原默认值。`riskCap=capRecommendedStake(Number.MAX_SAFE_INTEGER,getReservoirState().availableCash,config.riskCapRatio)`；原站先 `getPredictionCalibrationContext({detail:'lite'})`，异步升级 `{detail:'full',includeWeightSuggestions:false}`。本组明确使用 full/no-weight-suggestions 于后台求解。`getPortfolioInputIssue` 和 null 解映为 `{"status":"infeasible","reason":"…"}`；没有可报价候选是 `insufficient`，不是不可行。抛错是接口/数据失败，不是无解。
+- 有解：`{status:'ready',candidateCombos,qualifiedCombos,recommendations:[{id,rank,layer,combinedOdds,ev,winRate,sharpe,amount,utility,explain,subset:[{key,entries,homeTeam,awayTeam,conf,odds,draftMatch},…]}],simulation}`。保留引擎次序与各腿的完整 Entries；simulation 来自同一次生成的 `runPortfolioMonteCarlo(recommendations.slice(0,20),50000)`，返回 `valid,iterations,profitProb,allLoseProb,median,var95,assumptions` 或原始不可用原因。只对有实际分配的行模拟，不把零分配补成押注。模拟不是已实现收益。
+- `draftMatch` 是该腿可编辑的 **New 投前字段**，保留 snake_case 来源身份、nullable 字段、完整 entries（包含额外字段）、已有备注/赛前观点。不得把以往结算或预测快照当作新判断，不强行确认 Conf。无法无损表示的腿禁送并说明。**一张方案，不是一整个包**：`write("draft.put", [{matches:[draftMatchA,draftMatchB],…}]) → {id:"d-…"}`，只认非空字符串 ID，再导航 `Dest(Route.New,id)`；New 再 `draft.get`。不调用 Web 的 saveInvestments / recordCandidateAdoption / bumpTeamSamples；不自动提交 New。两场多 Entry fixture 见本组 test。
+
+## Quants（显式本地研究）
+
+- `read("matchResults.getResultsIndex", []) → {matches:[…]}`；原 Quants 的 `getResultsIndex()`，非网络采集。
+- `read("quantStrategy.backtestStrategy", [spec,resultsIndex,assumedOdds]) → {n,hits,hitRate,hitCI,roi,equityCurve,disclaimer,…}`；`n=0` 是缺样本，hitRate=null。每场使用**统一假定价**，不是历史成交。
+- `read("quantStrategy.walkForwardStrategy", [spec,resultsIndex,{trainRatio:0.7,assumedOdds:6.5}]) → {train,test,splitAt,assumedOdds,verdict,…}`；`test.n=0` 不生成样本外结论。单次按时序拆分，不冒称多窗验证。
+- `read("quantStrategy.analyzeStrategy", [spec,[],context])`。只提供离线手动赔率 + 明示概率或联赛基准，不拉今天的报价冒充历史价。`legs,available,warning,monteCarlo:{iterations,pProfit,meanProfit,medianProfit,p5,p95,…}`；无定价/无有效分布 → 原原因，绝不补 0。例 spec：`{"team":"","venue":"any","market":"score","score":{"for":1,"against":1},"oddsMode":"manual","manualOdds":6.5,"probMode":"custom","customProb":0.12,"stakePerMatch":20,"matchesPlanned":6}`。
+- `read("quantForward.getForwardStore", []) → {plans,orders,settlements,…}`；`read("quantEvidence.getEvidenceStore", [])`，`read("quantForward.forwardPlanMetrics", [store,planId,{now:ISO,evidence}]) → {orders,settled,pending,coverage,roi,brier,clv,assessment,drift,…}`。以同一证据快照与同一观察时点计数；无计划、尚无结算、样本不足、可复核分别展示。forward 指纸面观察，绝不下单。平台负责 allowlist、mode 隔离及结果可知时点。
+
+## 扩展与联调（2026-11-18）
+
+挂载内 platform 的 `kernel/combo.cjs` 和 `kernel/reviews.js` 已有 `portfolio.candidates/generate` 同名实现：生产应使用它们，**不要再注册第二份**。本组 `kernel/prepare_core.py` + `portfolio-ports.mjs` 是同一 Web 源 SHA 的独立契约参照，在 Node 跑 golden，不随 APK 执行。校准 context 含 callable，留在 JS 实例内；不可 JSON 序列化它再算。平台返回的推荐 `subset` 中保留 `draftMatch`，New 原稿按 `source_match_id/event_id` 识别；若原件与输出 Entry 不符，拒绝交接。原 Web 在没有足够腿时有放宽 minLegs 的 fallback；本组不把不满足声明下界的输出呈现为有效方案。
+
+研究扩展必须显式 allowlist：
+
+| 调用 | Web 来源与最小可执行样本 | 输出／边界 |
+|---|---|---|
+| read `quantValidation.evaluateParameterValidation` | `QuantValidationWorkspace` → `quantValidation.js`；`[{spec,resultsIndex,venueOptions:['any'],assumedOddsOptions:[6.5],trainDays:7,testDays:4,minTrainingSamples:2}]` | `{folds:[{number,trainingRange,testingRange,selectedCandidateId,summary,excluded,…}],summary:{n,…},baseline,limitations,…}`；无完整窗／后窗 N=0 为缺样本。只算不写，不调用会 persist 的 `runParameterValidation`。 |
+| write `quantResearch.createResearchExperiment` | `QuantsPage:runResearch`；`[{projectId:null,kind:'scenario',spec,brief:{hypothesis:'…',falsifier:'…'},resultsIndex:{matches:[…]},marketMatches:[]}]` | `{project:{id},version:{id,number},run:{id,inputSnapshot,result},store}`。`simulation` 同函数，离线手动价。明确点击冻结才写；projectId 相同产生新 version。 |
+| read `quantResearch.getResearchStore` | `[]` | `{projects,versions,runs}`。冻结规则在 `versions[].spec/brief`。没有版本不能建观察计划。 |
+| write `quantForward.createObservationPlan` | `QuantForwardWorkspace` → `createObservationPlan(options)`；位置参数数组：`[{version,reviewAt:'2027-01-01T00:00:00Z',minSettled:30,maxDrawdown:80}]` | `{id,versionId,reviewAt,…}`；同一 version 一份，重复须拒绝。评估单位为纸面单位，不是投资保存。 |
+| write `quantForward.runForwardTask` | `[planId,evidence,{action:'all'}]` | 完整更新的 `{plans,batches,candidates,orders,settlements,reviews,tasks,…}`，每个候选保留 `decisionAt/status/reason`。显式触发；无隐式联网或自动下单。 |
+
+实测 `test/web-parity.mjs` 的合成输出：2 场、每场 2 Entry、1 张推荐、等效赔率 4.93、50,000 次模拟。24 场时序样本 → 16/8 留后，7 天训练＋4 天后窗得到 5 窗、17 个配对后窗样本；空影子账本 ROI=null。以上是工程检验，不是策略实绩。
+
+**持久性前置条件**：普通 `exportDataBundle()` 不等同于 quantResearch、quantForward、quantEvidence 的独立 store。platform 必须按 mode 原子持久化这些 store，在新引擎实例读回后才可宣布冻结成功。尚未注册的扩展抛错显示，不把“未接线”解释为“样本 0”；不在 UI 用临时仓库兜底。ledger/platform 尚未并入本分支时，连通证明仅限具名 fixture。

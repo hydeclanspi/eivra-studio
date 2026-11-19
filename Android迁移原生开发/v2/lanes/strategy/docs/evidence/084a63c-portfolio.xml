@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.eivra.studio.v2.strategy.StrategyContractTest" tests="7" skipped="0" failures="0" errors="0" timestamp="2026-11-18T21:13:48.523Z" hostname="ip-10-0-136-52" time="0.141">
+  <properties/>
+  <testcase name="twoMatchesTwoEntriesEachStayIntactAndOnlyDraftPut" classname="com.eivra.studio.v2.strategy.StrategyContractTest" time="0.022"/>
+  <testcase name="badReceiptNeverResolvesADestination" classname="com.eivra.studio.v2.strategy.StrategyContractTest" time="0.051"/>
+  <testcase name="missingInfeasibleAndReadyAreNotInterchangeable" classname="com.eivra.studio.v2.strategy.StrategyContractTest" time="0.001"/>
+  <testcase name="missingSecondEntryIsNotSilentlyRebuilt" classname="com.eivra.studio.v2.strategy.StrategyContractTest" time="0.006"/>
+  <testcase name="mismatchedSelectionAndRevisionBlockHandoff" classname="com.eivra.studio.v2.strategy.StrategyContractTest" time="0.004"/>
+  <testcase name="staleNonCooperativeSuccessCannotReplaceLatest" classname="com.eivra.studio.v2.strategy.StrategyContractTest" time="0.044"/>
+  <testcase name="cancellationDiscardsEvenLateFailure" classname="com.eivra.studio.v2.strategy.StrategyContractTest" time="0.007"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

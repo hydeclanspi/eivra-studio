@@ -1,0 +1,15 @@
+// Opt-in test-only rendering for SDK hosts without an accelerated Android device.
+// From v2: bash gradlew -I lanes/ledger/docs/native-render.init.gradle :app:testDebugUnitTest --tests '*LedgerRenderTest'
+// Does not replace connected tests, change the APK dependencies, or run in shared CI.
+gradle.beforeProject { p -> if (p.path == ':app') { p.plugins.withId('com.android.application') {
+    p.android.testOptions.unitTests.includeAndroidResources = true
+    p.android.sourceSets.test.java.srcDir(p.rootProject.file('lanes/ledger/render-test'))
+    p.dependencies.add('testImplementation', 'org.robolectric:robolectric:4.16.1')
+    p.dependencies.add('testImplementation', p.dependencies.platform('androidx.compose:compose-bom:2025.10.00'))
+    p.dependencies.add('testImplementation', 'androidx.compose.ui:ui-test-junit4')
+    p.tasks.withType(org.gradle.api.tasks.testing.Test).configureEach { t ->
+        t.systemProperty('ledger.frames', p.layout.buildDirectory.dir('ledger-render').get().asFile.absolutePath)
+        t.systemProperty('robolectric.dependency.repo.url','https://repo.maven.apache.org/maven2')
+        t.maxHeapSize='1800m'
+    }
+} } }

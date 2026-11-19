@@ -1,0 +1,24 @@
+# Ledger ↔ StudioPorts · integration contract
+
+The lane is a native editor, not another ledger. All calls use positional JSON arguments. Only `id` from a successful write receipt is a navigation key. Throws, malformed JSON, null snapshots, invalid distributions, a missing key or an unavailable workspace are not empty/success. No network, API token, clock-derived prediction, or local persistence in the page.
+
+## Baseline calls (WORKSTREAMS, 2e6ee10)
+
+| Call | Input → result | Consumer |
+|---|---|---|
+| read `draft.get` | `[draftId]` → `{matches:[{home_team,away_team,entries:[{name,odds}],conf,mode,tys_home,tys_away,fid,fse_home,fse_away,note,…}],combo_name?,inputs?,…}` | Keyed Portfolio handoff, not the workspace bundle. Canonical ratios are 0–1. Blank odds survive editing. Preserve unknown JSON at ticket/match/entry level. |
+| write `draft.put` | `[editableDraft]` → `{id}` | Explicit checkpoint, including decimal text, confirmation state and unfinished rows. Never writes an investment. Only a checkpoint ID belongs in savedInstanceState. |
+| read `naturalInputParser.parseNaturalInput` | `[text]` → `{matches:[{homeTeam,awayTeam,entries,conf:50,fse_home:'default',…}],actualInput,diagnostics,confidence,rawInput}` | `src/lib/naturalInputParser.js:buildMatchDraft`. Parser percentages ≠ canonical ratios. `conf:50` can come from `parsed.conf ?? 50`; `_nlMeta` does **not** establish provenance. Do not auto-confirm any parsed Conf. Parsing returns a reviewable proposal; no write. |
+| read `forecast.buildDraft` | `[matches,isoTime]` → `{profiles,combinedProfile,expectedRating,combinedOdds,recommendedInvest,forecastSnapshot}` | Original lite calibration; inspect validity, finite states, mass and timestamp. A complete named row needs decimal odds >1 for a priced forecast; blank odds allowed in editing. Expected rating = mean leg probability, not ticket probability. |
+| write `workspace.saveInvestment` | `[{id:<stable request/record id>,created_at,parlay_size,combo_name,inputs,matches,status:'pending',…}]` → `{id,revision}` | Pre only. Platform revalidates and **recomputes/freezes** at commit. Do not submit the preview as a frozen forecast. Dedupe on id in platform. |
+| read `workspace.snapshot` | `[]` → `{investments:[{id,status,inputs,matches:[…],…}],…}` | Pending list and exact record lookup. Never substitute the first pending record for an invalid route key. |
+| write `workspace.settleInvestment` | `[id,{revenues:'24',matches:[{results:'2-1',isCorrect:true,matchRating:'0.6',matchRep:'',postNote:'…'}]}]` → `{id,revision}` | `SettlePage.jsx:createInitialForms/getValidationError/buildSettlementUpdater`. One hit decision per **match**, not per Entry. Revenue is ticket-level and may explicitly be zero. Never infer a leg's hit, profit, or rating. Navigate to History with that ID only. |
+
+## Requests beyond the common baseline — fail closed, not promised by the host
+
+* Historical import: `workspace.importInvestment([record])` → `{id,revision}`. A **separate** allow-listed write is intentional: the common `saveInvestment` always freezes. Its source analogue is `NewInvestmentPage.jsx`'s ticket construction + `localData.saveInvestment`; the deployed parser/import shares forecast construction, which is *not* authority to fabricate an ex-ante observation in v2. Persist `entry_mode:'post'`, no prediction fields/observation; historical Conf may be genuinely unknown, any entered Conf must be confirmed. No fallback to the pre write. Validate all named entry prices and positive actual stake. Platform enforces permissions and unique IDs transactionally.
+* Score opinion: read `preMatchOpinion.weightsFromSlider([{lo,hi,center,modes}])` → ordered vector of 7 numbers; `preMatchOpinion.jointScoreCells([homeWeights,awayWeights])` → `[{home:2,away:1,p:…},…]`. Names/arity/units are from `src/lib/preMatchOpinion.js` and `PreMatchBoard.jsx`. These are the user's raw distributions, not market odds, history-adjusted prices or a frozen model. Ranges and per-goal emphasis belong in draft metadata. Official fixtures, market alignment and historical bias require platform-provided sources; this lane does not fetch them. Example `[{lo:1,hi:3,center:2,modes:{'2':'boost'}}]`.
+
+Test ports belong in `test/` or `androidTest/` only. Use synthetic teams and ids. An in-memory read-back cannot attest to a new process or a real forecast. Compare the returned ID after reopening the real platform store before signing off on durability.
+
+**并行接线核对（未合并、非设备实测）**：已对照 platform `df4f17f` 的 `docs/PORTS.md` 和 `kernel/entry.js`：`workspace.importInvestment`、`preMatchOpinion.weightsFromSlider`、`preMatchOpinion.jointScoreCells` 已在该分支列入 allowlist；demo 是独立可写沙箱，owner 独立命名空间；同 ID 重试须保留相同 payload。并已对照 strategy `cf0146b` 的 `draftMatch`：snake_case、完整 Entries＋额外键、不可替用户确认 Conf。ledger 分支不引入这些分支，只消费协议。

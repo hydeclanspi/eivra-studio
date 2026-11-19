@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+set -eu
+cd "$(dirname "$0")/../Android迁移原生开发"
+exec ./gradlew "$@"

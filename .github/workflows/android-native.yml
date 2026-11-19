@@ -1,0 +1,10 @@
+name: Android Native CI
+on:
+  workflow_dispatch:
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify the frozen v1 tree
+        run: test "$(git rev-parse HEAD:Android迁移原生开发/v1)" = b35f09aea4178f9891d9051fb8d39306d89b4d58

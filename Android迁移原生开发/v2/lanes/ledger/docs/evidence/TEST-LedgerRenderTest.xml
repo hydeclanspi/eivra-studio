@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.eivra.studio.v2.ledger.LedgerRenderTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-11-18T21:38:07.291Z" hostname="codespaces-ef1d59" time="14.633">
+  <properties/>
+  <testcase name="tablet" classname="com.eivra.studio.v2.ledger.LedgerRenderTest" time="12.568"/>
+  <testcase name="phone" classname="com.eivra.studio.v2.ledger.LedgerRenderTest" time="2.062"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

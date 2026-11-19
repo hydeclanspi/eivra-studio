@@ -1,0 +1,70 @@
+[
+  {
+    "width": 390,
+    "height": 844,
+    "theme": "sand",
+    "pub": true,
+    "state": "pool",
+    "url": "https://eivra.vercel.app/combo?tour=0",
+    "dpr": 1.9800000190734863,
+    "scale": "scale(1)",
+    "pixels": [
+      770,
+      1670
+    ],
+    "name": "frame-portfolio-390.jpg",
+    "bytes": 101289,
+    "sha256": "67d560e3c34c71b8d3303aa8b4ae937181f298700f6f3b60448dc36cf5f6cd60"
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "theme": "sand",
+    "pub": true,
+    "state": "pool",
+    "url": "https://eivra.vercel.app/combo?tour=0",
+    "dpr": 1.9800000190734863,
+    "scale": "scale(0.785156)",
+    "pixels": [
+      1989,
+      1243
+    ],
+    "name": "frame-portfolio-1280.jpg",
+    "bytes": 169100,
+    "sha256": "c42859673ae02ab19fbf9f1a89b5104bb5f3072fba70b7e12e01061b94356111"
+  },
+  {
+    "width": 390,
+    "height": 844,
+    "theme": "moon",
+    "pub": true,
+    "state": "rule",
+    "url": "https://eivra.vercel.app/quants",
+    "dpr": 1.9800000190734863,
+    "scale": "scale(1)",
+    "pixels": [
+      770,
+      1670
+    ],
+    "name": "frame-quants-390.jpg",
+    "bytes": 113216,
+    "sha256": "3d9a1e7045dad60d8a028e2fce9f1d08f284c1c32a133019796d0cdd841c948d"
+  },
+  {
+    "width": 1280,
+    "height": 800,
+    "theme": "moon",
+    "pub": true,
+    "state": "rule",
+    "url": "https://eivra.vercel.app/quants",
+    "dpr": 1.9800000190734863,
+    "scale": "scale(0.785156)",
+    "pixels": [
+      1989,
+      1243
+    ],
+    "name": "frame-quants-1280.jpg",
+    "bytes": 183389,
+    "sha256": "c7b79a1f5870aeedddecc0f4ca1c20efed1f2e816cd934666652918a76dbb63e"
+  }
+]
