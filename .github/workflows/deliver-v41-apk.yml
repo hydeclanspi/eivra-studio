@@ -1,0 +1,62 @@
+name: Place v4.1 APK in compose-native
+on:
+  push:
+    branches: [delivery/v4.1-apk-7047c3b]
+    paths: ['.github/workflows/deliver-v41-apk.yml']
+permissions:
+  contents: read
+jobs:
+  place:
+    if: github.repository == 'hydeclanspi/eivra-studio'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Check out the requested branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: true
+      - name: Retrieve the original v4.1 debug build from this repository
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          artifact-ids: 14547150757
+          run-id: 44558391190
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/eivra-v41-source
+          merge-multiple: true
+      - name: Verify, commit only the APK, and push without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          dst='compose-native/Eivra-Studio-v4.1-7047c3b.apk'
+          expected=c1056a0850b76602a13c964603b408980eb7e371b7d1cf17e49253a553d815e0
+          mapfile -d '' src < <(find "$RUNNER_TEMP/eivra-v41-source" -type f -name app-debug.apk -print0)
+          test "${#src[@]}" -eq 1
+          printf '%s  %s\n' "$expected" "${src[0]}" | sha256sum --check
+          test "$(stat -c %s "${src[0]}")" = 68568859
+          test -d compose-native && test -f compose-native/README.md && test -z "$(git status --porcelain)"
+          base=$(git rev-parse HEAD)
+          test "$(git ls-remote --exit-code origin refs/heads/main | cut -f1)" = "$base"
+          if git cat-file -e "HEAD:$dst" 2>/dev/null; then
+            actual=$(git show "HEAD:$dst" | sha256sum | cut -d ' ' -f1)
+            test "$actual" = "$expected"
+            printf 'Already present on main at %s: %s\n' "$base" "$dst"
+            exit 0
+          fi
+          test ! -e "$dst" && test ! -L "$dst"
+          install -m 0644 -- "${src[0]}" "$dst"
+          git add --force -- "$dst"
+          test "$(git diff --cached --name-only)" = "$dst"
+          test "$(git diff --cached --diff-filter=A --name-only)" = "$dst"
+          test "$(git rev-parse ":$dst")" = a7d786ad20598d1967fa0d56cb4a517afd8109e0
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'build(android): add Eivra Studio v4.1 preview APK'
+          test "$(git rev-parse HEAD^)" = "$base"
+          git -c push.followTags=false push origin HEAD:refs/heads/main
+          new=$(git rev-parse HEAD)
+          test "$(git ls-remote --exit-code origin refs/heads/main | cut -f1)" = "$new"
+          printf 'Verified on main: %s at %s\n' "$dst" "$new"
+          printf 'Commit `%s` added `%s` with SHA-256 `%s`.\n' "$new" "$dst" "$expected" >> "$GITHUB_STEP_SUMMARY"
